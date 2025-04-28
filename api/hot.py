@@ -19,7 +19,6 @@ def get_hot_topics(request: HotRequest):
     SERP_API_KEYS = os.getenv("SERP_API_KEYS")
     if not SERP_API_KEYS:
         raise HTTPException(status_code=500, detail="SERP_API_KEYS not found in .env file.")
-
     SERP_API_KEYS = SERP_API_KEYS.split(",")
     SERP_API_KEY = SERP_API_KEYS[0].strip()
 
