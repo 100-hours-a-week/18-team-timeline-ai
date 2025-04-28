@@ -515,7 +515,6 @@ files = [
     {file = "distro-1.9.0.tar.gz", hash = "sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed"},
 ]
 
-[[package]]
 name = "feedfinder2"
 version = "0.0.4"
 description = "Find the feed URLs for a website."
@@ -2081,6 +2080,7 @@ httpx = ">=0.27,<0.29"
 pydantic = ">=2.9.0,<3.0.0"
 
 [[package]]
+
 name = "openai"
 version = "1.76.0"
 description = "The official Python library for the openai API"
@@ -3920,4 +3920,5 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "653b2f4820e3e18ff0cd33281eb4e92611dba3d61792e87d68f860ffad7dffe2"
+content-hash = "1bf6a1eb20c135a2e35e80b381b80d190266bb7d897f09e3e34ed57c41dc01d6"
+
