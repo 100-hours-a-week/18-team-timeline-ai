@@ -2,18 +2,10 @@ import os
 import requests
 import json
 from datetime import datetime, timedelta
-from dotenv import load_dotenv
 
 # ---------------------------------------------------
 
-# .env 파일 로드
-load_dotenv()
-SERPER_API_KEYS = os.getenv("SERPER_API_KEYS").split(",")
-SERPER_API_KEY = SERPER_API_KEYS[0] # 지금은 키 하나만 사용
-
-# ---------------------------------------------------
-
-def get_news_serper(query: str, cnt: int) -> list:
+def get_news_serper(query: str, cnt: int, SERPER_API_KEY: str) -> list:
     today = datetime.today()
     cd_max = today.strftime("%Y-%m-%d")
     cd_min = (today - timedelta(days=cnt)).strftime("%Y-%m-%d")
