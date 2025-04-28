@@ -176,3 +176,7 @@ cython_debug/
 # private file
 .env
 chroma_db/
+
+# model
+kobart-summarization/
+EXAONE-3.5-2.4B-Instruct/
