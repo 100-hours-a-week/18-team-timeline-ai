@@ -11,83 +11,57 @@ from scrapers.daum_vclip_searcher import DaumVclipSearcher
 import asyncio
 import aiohttp
 
-class YouTubeCommentSearcher(BaseSearcher):
-    """YouTube 댓글 수집기 (병렬 지원)"""
 
-    def __init__(self, api_key: str, max_comments: int = 5, max_workers: int = 6):
+class YouTubeCommentAsyncFetcher:
+    """비동기 YouTube 댓글 수집기"""
+
+    def __init__(self, api_key: str, max_comments: int = 5):
         self.api_key = api_key
         self.max_comments = max_comments
-        self.max_workers = max_workers
 
     @staticmethod
     def extract_video_id(url: str) -> str:
-        """유튜브 URL에서 영상 ID 추출"""
         match = re.search(r"v=([a-zA-Z0-9_-]+)", url)
         return match.group(1) if match else None
 
-    def _fetch_comments(self, video_id: str) -> List[str]:
-        """개별 video_id에 대해 댓글 가져오기"""
-        youtube = build("youtube", "v3", developerKey=self.api_key)
-        comments = []
+    async def fetch_video_comments(
+        self, session: aiohttp.ClientSession, video_id: str
+    ) -> List[str]:
+        url = "https://www.googleapis.com/youtube/v3/commentThreads"
+        params = {
+            "part": "snippet",
+            "videoId": video_id,
+            "key": self.api_key,
+            "textFormat": "plainText",
+            "maxResults": self.max_comments,
+        }
         try:
-            response = (
-                youtube.commentThreads()
-                .list(
-                    part="snippet",
-                    videoId=video_id,
-                    textFormat="plainText",
-                    maxResults=self.max_comments,
-                )
-                .execute()
-            )
+            async with session.get(url, params=params) as response:
+                data = await response.json()
+                comments = []
+                for item in data.get("items", []):
+                    comment = item["snippet"]["topLevelComment"]["snippet"]
+                    text = comment.get("textDisplay", "")
+                    comments.append(text)
+                print(f"✅ ID {video_id} 댓글 {len(comments)}개 수집 완료")
+                return comments
+        except Exception as e:
+            print(f"⚠️ {video_id} 수집 실패: {e}")
+            return []
 
-            for item in response["items"]:
-                comment = item["snippet"]["topLevelComment"]["snippet"]
-                author = comment.get("authorDisplayName", "알 수 없음")
-                text = comment.get("textDisplay", "")
-                comments.append(text)
-
-        except HttpError as e:
-            raise SearchRequestFailedError(f"ID: {video_id} 요청 실패: {e}")
-
-        return comments
-
-    def search(self, df: pd.DataFrame) -> List[str]:
-        """DataFrame 기반 댓글 병렬 수집"""
-
+    async def search(self, df: pd.DataFrame) -> List[str]:
         if df.empty or "url" not in df.columns:
-            raise InvalidQueryError("DataFrame이 비어있거나 'url' 컬럼이 없습니다.")
+            raise ValueError("DataFrame이 비어있거나 'url' 컬럼이 없습니다.")
 
-        ripple = []
-        video_ids = []
+        video_ids = [
+            self.extract_video_id(url)
+            for url in df["url"]
+            if self.extract_video_id(url)
+        ]
 
-        # 유효한 유튜브 ID만 추출
-        for idx, series in df.iterrows():
-            video_url = series["url"]
-            video_id = self.extract_video_id(video_url)
-            if video_id:
-                video_ids.append(video_id)
+        async with aiohttp.ClientSession() as session:
+            tasks = [self.fetch_video_comments(session, vid) for vid in video_ids]
+            all_comments = await asyncio.gather(*tasks)
 
-        errors = []
-
-        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {
-                executor.submit(self._fetch_comments, vid): vid for vid in video_ids
-            }
-
-            for future in as_completed(futures):
-                video_id = futures[future]
-                try:
-                    comments = future.result()
-                    ripple.extend(comments)
-                    print(f"✅ ID {video_id} 댓글 {len(comments)}개 수집 완료")
-                except SearchRequestFailedError as e:
-                    print(f"⚠️ 수집 실패 - {e}")
-                    errors.append((video_id, str(e)))
-
-        if errors:
-            print("\n🚨 오류 발생 영상 리스트:")
-            for video_id, error in errors:
-                print(f"- {video_id}: {error}")
-
-        return ripple
+        # flatten
+        return [comment for comments in all_comments for comment in comments]
