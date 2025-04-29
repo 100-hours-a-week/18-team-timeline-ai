@@ -11,7 +11,11 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from langchain_core.messages import AIMessage, HumanMessage
 from newspaper import Article
 from langchain.globals import set_debug, get_debug
-from langchain_core.prompts import ChatPromptTemplate, SystemMessagePromptTemplate, HumanMessagePromptTemplate
+from langchain_core.prompts import (
+    ChatPromptTemplate,
+    SystemMessagePromptTemplate,
+    HumanMessagePromptTemplate,
+)
 
 
 class ArticleExtractor:
@@ -107,9 +111,9 @@ class SummarizationGraph:
     def evaluate_node(self, state: GraphState) -> GraphState:
         """📊 요약 평가 노드"""
         eval_prompt = ChatPromptTemplate(
-                messages=[
-                    SystemMessagePromptTemplate.from_template(
-                        """
+            messages=[
+                SystemMessagePromptTemplate.from_template(
+                    """
                         You are a strict JSON evaluator for news summaries.
                         Respond ONLY with JSON object: \'{{\"summary\": "...", \"score\": 숫자}}\'.
                         
@@ -118,20 +122,22 @@ class SummarizationGraph:
                         - 50~69: 불완전 (핵심 누락 또는 문법적 문제가 존재함)
                         - 0~49: 실패 (요약이 원문과 거의 무관하거나 문법이 심각하게 어색함)
                         """
-                    ),
-                    HumanMessagePromptTemplate.from_template(
-                        "원문:\n{input_text}\n\n요약:\n{summary}"
-                    ),
-                ],
-                input_variables=["input_text", "summary"],
-            )
+                ),
+                HumanMessagePromptTemplate.from_template(
+                    "원문:\n{input_text}\n\n요약:\n{summary}"
+                ),
+            ],
+            input_variables=["input_text", "summary"],
+        )
 
         runnable = eval_prompt | self.llm | SummaryScoreParser()
         try:
-            result = runnable.invoke({
-                "input_text": state["input_text"],
-                "summary": state["summary"],
-            })
+            result = runnable.invoke(
+                {
+                    "input_text": state["input_text"],
+                    "summary": state["summary"],
+                }
+            )
             score = result["score"]
         except Exception as e:
             print(f"평가 실패 발생: {e} → score = 0 으로 처리하고 재시도 예정")
@@ -239,6 +245,14 @@ class SummarizationRunner:
     """URL 리스트를 입력 받아 병렬로 요약/평가하는 실행 클래스"""
 
     def __init__(self, urls: List[str], server: str, model: str, max_workers: int = 6):
+        """_summary_
+
+        Args:
+            urls (List[str]): _description_
+            server (str): _description_
+            model (str): _description_
+            max_workers (int, optional): _description_. Defaults to 6.
+        """
         self.urls = urls
         self.max_workers = max_workers
         self.graph = SummarizationGraph(server, model, examples=examples).build()

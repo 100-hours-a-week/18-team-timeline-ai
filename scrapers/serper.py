@@ -12,6 +12,7 @@ def get_news_serper(query: str, startAt: datetime, endAt: datetime, SERPER_API_K
     cd_min = startAt.strftime('%m/%d/%Y')
     num_days = (endAt - startAt).days + 1
 
+
     tbs_str = f"cdr:1,cd_min:{cd_min},cd_max:{cd_max}"
     url = "https://google.serper.dev/news"
     params = {
@@ -22,7 +23,6 @@ def get_news_serper(query: str, startAt: datetime, endAt: datetime, SERPER_API_K
         "num": num_days * 2,  # 넉넉하게 가져오기
         "api_key": SERPER_API_KEY
     }
-
     headers = {}
 
     try:
