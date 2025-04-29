@@ -2,13 +2,12 @@ import os
 from fastapi import APIRouter, HTTPException
 from dotenv import load_dotenv
 from scrapers.serpapi import get_trending_keywords
-from models.response_schema import CommonResponse, ErrorResponse, HotData
-from models.hot_request import HotRequest
+from models.response_schema import CommonResponse, ErrorResponse, HotRequest, HotData
 
 router = APIRouter()
 
 @router.post(
-    "/hot",
+    "",
     response_model=CommonResponse[HotData],
     responses={
         400: {"model": ErrorResponse},
