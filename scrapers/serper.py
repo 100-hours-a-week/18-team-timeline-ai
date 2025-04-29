@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 
 # ---------------------------------------------------
 
+
 def get_news_serper(query: str, cnt: int, SERPER_API_KEY: str) -> list:
     today = datetime.today()
     cd_max = today.strftime("%Y-%m-%d")
