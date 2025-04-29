@@ -2,7 +2,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Tuple
 from scrapers.article_extractor import ArticleExtractor
-from ai_models.graph.Summary import GraphState
+from pprint import pprint
 
 
 class SummarizationRunner:
@@ -15,7 +15,7 @@ class SummarizationRunner:
         self.max_workers = max_workers
 
     def prepare_texts(self) -> List[Tuple[str, str]]:
-        return self.extractor.extract(self.urls, max_workers=self.max_workers)
+        return self.extractor.search(self.urls)
 
     def run_graph(self, text: str, worker_id: int) -> dict:
         return self.graph.invoke({"input_text": text, "worker_id": worker_id})
@@ -45,5 +45,5 @@ class SummarizationRunner:
         results = self.parallel_run(pairs)
         print("\n🎯 전체 완료!")
         for i, res in enumerate(results, 1):
-            print(res)
+            pprint(res)
         print(f"\n⏱️ 총 소요 시간: {time.time() - start:.2f}s")
