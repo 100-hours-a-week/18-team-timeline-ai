@@ -1,7 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from newspaper import Article
 from typing import List, Tuple
-from base_searcher import BaseSearcher
+from scrapers.base_searcher import BaseSearcher
 
 
 class ArticleExtractor(BaseSearcher):
