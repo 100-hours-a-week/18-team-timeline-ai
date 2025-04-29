@@ -4,14 +4,13 @@ import requests
 
 # ---------------------------------------------------
 
-
 def get_trending_keywords(SERP_API_KEY):
     url = "https://serpapi.com/search"
     params = {
         "engine": "google_trends_trending_now",
         "geo": "KR",
         "hl": "ko",
-        "api_key": SERP_API_KEY,
+        "api_key": SERP_API_KEY
     }
 
     try:
