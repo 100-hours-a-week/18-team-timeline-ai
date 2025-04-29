@@ -20,15 +20,23 @@ dependencies = [
     "transformers (>=4.51.3,<5.0.0)",
     "torch (>=2.6.0,<3.0.0)",
     "pyzmq (==25.1.1)",
+    "openai (>=1.76.0,<2.0.0)",
+    "pykakao (>=0.0.7,<0.0.8)",
+    "google-auth-oauthlib (>=1.2.1,<2.0.0)",
+    "google-auth-httplib2 (>=0.2.0,<1.0.0)",
+    "google-api-python-client (>=2.166.0,<3.0.0)"
 ]
 
 [[tool.poetry.source]]
 name = "flashinfer"
 url = "https://flashinfer.ai/whl/cu124/torch2.6/"
+priority = "explicit"
+
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
 
 # 아래 섹션은 black의 설정
 [tool.black]
@@ -56,4 +64,3 @@ exclude = ".git,__pycache__,docs/,old/,build/,dist/"
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
 flake8 = "^7.2.0"
-
