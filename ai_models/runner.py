@@ -12,10 +12,12 @@ class Runner:
 
     def run_graph(self, text: str, worker_id: int) -> dict:
         """단일 입력을 graph에 넣고 결과 반환"""
-        return self.graph.invoke({
-            "input_text": text,
-            "worker_id": worker_id,
-        })
+        return self.graph.invoke(
+            {
+                "input_text": text,
+                "worker_id": worker_id,
+            }
+        )
 
     def run(self, texts: List) -> List[dict]:
         """모든 입력에 대해 병렬로 graph 실행"""

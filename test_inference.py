@@ -1,7 +1,7 @@
 from ai_models.graph.Summary import SummarizationGraph
-from ai_models.runner import SummarizationRunner
+from ai_models.runner import Runner
 from scrapers.article_extractor import ArticleExtractor
-from langchain.
+from pprint import pprint
 
 def main():
     URLS = [
@@ -12,12 +12,15 @@ def main():
         "https://www.mk.co.kr/news/politics/11290687",
         "https://www.chosun.com/politics/politics_general/2025/04/14/THWVKUHQG5CKFJF6CLZLP5PKM4",
     ]
-    SERVER = "https://2fac-34-125-38-176.ngrok-free.app"
-    MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-0.5B"
+    SERVER = "https://0e71-34-139-129-239.ngrok-free.app"
+    MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
     graph = SummarizationGraph(SERVER, MODEL).build()
+    runner = Runner(graph=graph)
     extractor = ArticleExtractor()
-    runner = SummarizationRunner(urls=URLS, extractor=extractor, graph=graph)
-    runner.run()
+    texts = extractor.search(urls=URLS)
+    results = runner.run(texts=texts)
+    
+    pprint(results)
 
 
 if __name__ == "__main__":
