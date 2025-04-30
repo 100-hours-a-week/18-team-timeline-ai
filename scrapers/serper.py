@@ -11,8 +11,11 @@ def get_news_serper(query: str, startAt: datetime, endAt: datetime, SERPER_API_K
     cd_max = endAt.strftime('%m/%d/%Y')
     cd_min = startAt.strftime('%m/%d/%Y')
     num_days = (endAt - startAt).days + 1
+<<<<<<< HEAD
 
 
+=======
+>>>>>>> 53b15db (스크래핑에 날짜 인식 추가 완료)
     tbs_str = f"cdr:1,cd_min:{cd_min},cd_max:{cd_max}"
     url = "https://google.serper.dev/news"
     params = {
