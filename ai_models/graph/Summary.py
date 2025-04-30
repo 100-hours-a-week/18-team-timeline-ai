@@ -7,6 +7,8 @@ from langchain_core.prompts import (
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
+from langchain.output_parsers import StructuredOutputParser, ResponseSchema
+
 from textwrap import dedent
 from langchain.schema import BaseOutputParser
 import json
@@ -100,16 +102,24 @@ class SummarizationGraph:
         return summarize
 
     def _make_evaluate_node(self, llm):
+        response_schemas = [
+            ResponseSchema(name="summary", description="요약된 문장. 완전한 문장이어야 함."),
+            ResponseSchema(name="score", description="요약 품질 점수 (0~100 사이의 정수)"),
+        ]
+        parser = StructuredOutputParser.from_response_schemas(response_schemas)
+        format_instructions = parser.get_format_instructions()
         def evaluate(state: SummaryState) -> SummaryState:
             eval_prompt = ChatPromptTemplate(
                 messages=[
                     SystemMessagePromptTemplate.from_template(
-                        """
-                        You are a strict JSON evaluator for news summaries.
-                        Respond ONLY with JSON: \'{{\"summary\": "...", \"score\": 숫자}}\',
+                        f"""
+                        당신은 뉴스 요약 평가자입니다.
+                        다음 기준에 따라 채점하고, 반드시 다음 포맷에 맞춰 답변하세요.
+                        
+                        {format_instructions}
                         
                         - 90~100: 문장에 의견이 들어가지 않고 문법 상 어색함이 없으며 문장이 3줄 이하이며 핵심 사실을 정확히 요약함.
-                        - 70~89: 대체로 좋음 (약간의 어색함이나 불명확한 부분이 있을 수 있음)
+                        - 70~89: 3줄 이내이고 대체로 좋음 (약간의 어색함이나 불명확한 부분이 있을 수 있음)
                         - 50~69: 3줄 이상이며 불완전 (핵심 누락 또는 문법적 문제가 존재함)
                         - 0~49: 실패 (요약이 원문과 거의 무관하거나 문법이 심각하게 어색함)
                     """
@@ -120,7 +130,7 @@ class SummarizationGraph:
                 ],
                 input_variables=["input_text", "summary"],
             )
-            runnable = eval_prompt | llm | SummaryScoreParser()
+            runnable = eval_prompt | llm | parser()
             try:
                 result = runnable.invoke(
                     {
