@@ -185,3 +185,8 @@ EXAONE-3.5-2.4B-Instruct/
 test_comment.py
 test_inference.py
 summarizer.py
+
+# 캐시 파일
+__pycache__/
+**/__pycache__/
+*.py[cod]
