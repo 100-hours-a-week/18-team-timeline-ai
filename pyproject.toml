@@ -20,11 +20,14 @@ dependencies = [
     "transformers (>=4.51.3,<5.0.0)",
     "torch (>=2.6.0,<3.0.0)",
     "pyzmq (==25.1.1)",
+    "openai (>=1.76.0,<2.0.0)",
 ]
 
 [[tool.poetry.source]]
 name = "flashinfer"
 url = "https://flashinfer.ai/whl/cu124/torch2.6/"
+priority = "explicit"
+
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -56,4 +59,3 @@ exclude = ".git,__pycache__,docs/,old/,build/,dist/"
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"
 flake8 = "^7.2.0"
-
