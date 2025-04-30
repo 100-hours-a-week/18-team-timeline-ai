@@ -182,6 +182,5 @@ kobart-summarization/
 EXAONE-3.5-2.4B-Instruct/
 
 # test
-test_comment.py
-test_inference.py
+test_*.py
 summarizer.py
