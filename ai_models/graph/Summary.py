@@ -13,6 +13,11 @@ from textwrap import dedent
 from langchain.schema import BaseOutputParser
 import json
 import re
+import logging
+
+# 로그 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class SummaryState(dict):
@@ -113,7 +118,7 @@ class SummarizationGraph:
             base_url=f"{self.server}/v1",
             api_key="not-needed",
             model=self.model,
-            temperature=0.3,
+            temperature=0.1,
         )
 
     def _make_summarize_node(self, llm):
@@ -130,19 +135,25 @@ class SummarizationGraph:
             system_prompt = """
             당신은 뉴스 요약 전문가입니다. 뉴스를 요약해주세요.
             - 3줄 이내, 완결된 문장, 핵심 사실만 요약만을 제시하세요.
-            - 예시의 형식을 따라서 작성하세요.
+            - 예시의 형식을 따라서 반드시 JSON으로 제공하세요.
+            \'{{\'summary\': \'요약\'}}\'
             - 예측, 해석, 사견은 금지합니다.
             """
             prompt = ChatPromptTemplate.from_messages(
-                [("system", system_prompt), *self.examples, ("human", "{input_text}")]
+                [("system", system_prompt), ("human", "{input_text}")]
             )
             runnable = prompt | llm | parser
-            result = runnable.invoke({"input_text": state["input_text"]})
-            pprint(result['summary'])
-            """
-            현재 파싱이 안된다.
-            """
-            state["summary"] = result["summary"]
+            try:
+                """
+                TODO
+                파싱 성능 올리기
+                """
+                result = runnable.invoke({"input_text": state["input_text"]})
+                state["summary"] = result['summary']
+                logger.info(f"✅ 요약 생성 완료: {result['summary']}")
+            except Exception as e:
+                logger.exception(f"❌ 요약 생성 실패: {e}")
+                state["summary"] = ""
             return state
 
         return summarize
@@ -159,18 +170,17 @@ class SummarizationGraph:
             eval_prompt = ChatPromptTemplate.from_messages(
                 [
                     SystemMessagePromptTemplate.from_template(
-                        f"""
+                        """
                         당신은 뉴스 요약 평가자입니다.
                         다음 기준에 따라 채점하세요.
-                        반드시 JSON 형식으로만 응답하세요.
-                        예시의 형식을 참고하세요.
+                        예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
+                        예시: \'{{\'score\': 75}}\'
                         - 90~100: 문장에 의견이 들어가지 않고 문법 상 어색함이 없으며 문장이 3줄 이하이며 핵심 사실을 정확히 요약함.
                         - 70~89: 3줄 이내이고 대체로 좋음 (약간의 어색함이나 불명확한 부분이 있을 수 있음)
                         - 50~69: 3줄 이상이며 불완전 (핵심 누락 또는 문법적 문제가 존재함)
                         - 0~49: 실패 (요약이 원문과 거의 무관하거나 문법이 심각하게 어색함)
-                    """
+                        """
                     ),
-                    *score_examples,
                     HumanMessagePromptTemplate.from_template(
                         "원문:\n{input_text}\n\n요약:\n{summary}"
                     ),
@@ -185,8 +195,9 @@ class SummarizationGraph:
                     }
                 )
                 state["score"] = result["score"]
+                logger.info(f"평가 완료: {result['score']}")
             except Exception as e:
-                print(e)
+                logger.exception(f"평가 실패: {e}")
                 state["score"] = 0
             return state
 
@@ -251,4 +262,7 @@ class SummarizationGraph:
         graph.add_edge("retry", "summarize")
         graph.add_edge("save", END)
         graph.add_edge("log_fail", END)
-        return graph.compile()
+        app = graph.compile()
+        #mermaid_code = app.get_graph().draw_mermaid()
+        #print(mermaid_code)
+        return app

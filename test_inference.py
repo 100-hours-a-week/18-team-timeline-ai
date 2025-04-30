@@ -1,9 +1,11 @@
-from ai_models.graph.Summary import SummarizationGraph
 from ai_models.runner import Runner
 from scrapers.article_extractor import ArticleExtractor
 from pprint import pprint
+from ai_models.graph.total_summary import TotalSummarizationGraph
+from ai_models.graph.Summary import SummarizationGraph
 
-def main():
+
+def test_summary_graph():
     URLS = [
         "https://www.hani.co.kr/arti/society/society_general/1192251.html",
         "https://www.hani.co.kr/arti/society/society_general/1192255.html",
@@ -14,14 +16,26 @@ def main():
     ]
     SERVER = "https://0e71-34-139-129-239.ngrok-free.app"
     MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+
+    # 그래프 구성
     graph = SummarizationGraph(SERVER, MODEL).build()
-    runner = Runner(graph=graph)
+    graph_total = TotalSummarizationGraph(SERVER, MODEL).build()
+
+    # 기사 추출
     extractor = ArticleExtractor()
     texts = extractor.search(urls=URLS)
-    results = runner.run(texts=texts)
-    
-    pprint(results)
+
+    # 1차 요약: 기사별 요약
+    runner = Runner(graph=graph)
+    first_stage_results = runner.run(texts=texts)
+
+    # 2차 요약: 요약문들을 통합 요약
+    summarized_texts = [r["summary"] for r in first_stage_results]
+    final_runner = Runner(graph=graph_total)
+    final_results = final_runner.run(texts=summarized_texts)
+
+    pprint(final_results)
 
 
 if __name__ == "__main__":
-    main()
+    test_summary_graph()

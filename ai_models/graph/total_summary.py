@@ -1,4 +1,3 @@
-# solid_summary_graph.py
 from langgraph.graph import StateGraph, END, START
 from langchain_core.messages import HumanMessage, AIMessage
 from langchain.chat_models import ChatOpenAI
@@ -7,19 +6,25 @@ from langchain_core.prompts import (
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
 )
-from textwrap import dedent
+from langchain.output_parsers import StructuredOutputParser, ResponseSchema
 from langchain.schema import BaseOutputParser
 import json
 import re
-from typing import List
+from typing import List, TypedDict, Optional
+import logging
+
+# 로그 설정
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
-class SummaryState(dict):
+class SummaryState(TypedDict):
     input_text: str
     summary: str
     score: int
     worker_id: int
-    retry_count: int
+    retry_count_summary: int
+    retry_count_title: int
     status: str
     title: str
     title_score: int
@@ -38,21 +43,15 @@ class SummaryScoreParser(BaseOutputParser):
             raise ValueError("Invalid JSON format")
 
 
-examples = [
-    HumanMessage("도널드 트럼프..."),
-    AIMessage("트럼프 대통령은 관세 정책에 변화가 없음을 재확인..."),
-]
+examples = []
 
 TAG_CANDIDATES = ["정치", "경제", "사회", "국제", "과학", "스포츠"]
 
 
-class SummarizationGraph:
-    def __init__(
-        self, server: str, model: str, examples: List = examples, max_retries: int = 3
-    ):
+class TotalSummarizationGraph:
+    def __init__(self, server: str, model: str, max_retries: int = 3):
         self.server = server
         self.model = model
-        self.examples = examples
         self.max_retries = max_retries
 
     def _make_llm(self):
@@ -60,168 +59,304 @@ class SummarizationGraph:
             base_url=f"{self.server}/v1",
             api_key="not-needed",
             model=self.model,
-            temperature=0.3,
+            temperature=0.1,
         )
 
-    def _make_prompt_node(self, llm, system_prompt, input_keys, output_key):
-        def node(state: SummaryState) -> SummaryState:
+    def _make_summarize_node(self, llm):
+        summary_schema = [
+            ResponseSchema(
+                name="summary",
+                description="요약된 3줄 이내의 예측, 해석, 사견이 없는 완전한 문장",
+            )
+        ]
+        parser = StructuredOutputParser.from_response_schemas(summary_schema)
+
+        def summarize(state: SummaryState) -> SummaryState:
+            system_prompt = """
+            - 3줄 이내, 완결된 문장, 핵심 사실만 요약만을 제시하세요.
+            - 예측, 해석, 사견은 금지합니다.
+            - 예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
+            \'{{\'summary\': \'요약\'}}\'
+            """
             prompt = ChatPromptTemplate.from_messages(
                 [
                     ("system", system_prompt),
-                    *self.examples,
-                    ("human", "{" + input_keys[0] + "}"),
+                    ("human", "{input_text}"),
                 ]
             )
-            runnable = prompt | llm
-            result = runnable.invoke({input_keys[0]: state[input_keys[0]]})
-            state[output_key] = result.content
+            runnable = prompt | llm | parser
+            result = runnable.invoke({"input_text": state["input_text"]})
+            print(f"요약 생성 결과:\n {result}")
+            try:
+                print(f"요약 생성 시작:\n {state['input_text']}")
+                result = runnable.invoke({"input_text": state["input_text"]})
+                print(f"요약 생성 결과:\n {result}")
+                state["summary"] = result["summary"]
+                logger.info(f"✅요약 생성 완료: {result['summary']}")
+                if not state["summary"]:
+                    raise ValueError("요약이 비어있습니다.")
+            except Exception as e:
+                logger.exception(f"❌ 요약 생성 실패: {e}, {state['summary']}")
+                state["summary"] = None
+                
+            return state
+
+        return summarize
+
+    def _make_title_node(self, llm):
+        title_schema = [
+            ResponseSchema(
+                name="title",
+                description="현재 글의 제목. 1줄 이내의 완전한 문장",
+            )
+        ]
+        parser = StructuredOutputParser.from_response_schemas(title_schema)
+
+        def makeTitle(state: SummaryState) -> SummaryState:
+            system_prompt = """
+            당신은 뉴스 제목 생성 전문가입니다. 뉴스의 제목을 지어주세요.
+            - 1줄 이내, 완결된 문장, 핵심 사실만 요약만을 제시하세요.
+            - 예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
+            \'{{\'title\': \'제목\'}}\'
+            """
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", system_prompt),
+                    ("human", "{input_text}"),
+                ]
+            )
+            runnable = prompt | llm | parser
+            try:
+                result = runnable.invoke({"input_text": state["summary"]})
+                state["title"] = result["title"]
+                logger.info(f"✅요약 생성 완료: {result['title']}")
+            except Exception as e:
+                logger.exception(f"❌ 요약 생성 실패: {e}")
+                state["title"] = state["summary"]
+            return state
+
+        return makeTitle
+
+    def _make_title_eval_node(self, llm):
+        response_schemas = [
+            ResponseSchema(
+                name="score", description="요약 품질 점수 (0~100 사이의 정수)"
+            ),
+        ]
+        parser = StructuredOutputParser.from_response_schemas(response_schemas)
+
+        def node(state: SummaryState) -> SummaryState:
+            eval_prompt = ChatPromptTemplate.from_messages(
+                [
+                    SystemMessagePromptTemplate.from_template(
+                        """
+                        당신은 뉴스 제목 평가자입니다.
+                        다음 기준에 따라 채점하세요.
+                        예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
+                        예시: \'{{\'score\': 75}}\'
+                        - 90~100: 문장에 의견이 들어가지 않고 문법 상 어색함이 없으며 문장이 1줄 이하이며 핵심 사실을 정확히 요약함.
+                        - 70~89: 1줄 이내이고 대체로 좋음 (약간의 어색함이나 불명확한 부분이 있을 수 있음)
+                        - 50~69: 1줄 이상이며 불완전 (핵심 누락 또는 문법적 문제가 존재함)
+                        - 0~49: 실패 (요약이 원문과 거의 무관하거나 문법이 심각하게 어색함)
+                        """
+                    ),
+                    HumanMessagePromptTemplate.from_template(
+                        "원문:\n{summary}\n\n제목:\n{title}"
+                    ),
+                ]
+            )
+            runnable = eval_prompt | llm | parser
+            if not state.get("summary"):
+                state["title_score"] = 0
+                
+                logger.info("요약이 비어있어 평가를 건너뜁니다.")
+                return state
+            try:
+                logger.info(f"제목 평가 시작: {state['title']}")
+                logger.info(f"원문: {state['summary']}")
+                result = runnable.invoke(
+                    {
+                        "summary": state["summary"],
+                        "title": state["title"],
+                    }
+                )
+                state["title_score"] = int(result["score"])
+                logger.info(f"평가 완료: {result['score']}")
+            except Exception as e:
+                state["title_score"] = 0
+                logger.exception(f"평가 실패: {e}")
             return state
 
         return node
 
-    def _make_summary_eval_node(self, llm):
+    def _make_classify_tag_node(self, llm):
+        response_schemas = [
+            ResponseSchema(
+                name="tag",
+                description="뉴스의 카테고리 태그. 정치, 경제, 사회, 국제, 과학, 스포츠 중 하나",
+            ),
+        ]
+        parser = StructuredOutputParser.from_response_schemas(response_schemas)
+
+        def classify_tag(state: SummaryState) -> SummaryState:
+            system_prompt = """
+            당신은 뉴스 카테고리 분류 전문가입니다. 아래 카테고리 중 하나만 골라서 응답하세요.
+            [정치, 경제, 사회, 국제, 과학, 스포츠]
+            예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
+            \'{{\'tag\': \'카테고리\'}}\'
+            """
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", system_prompt),
+                    ("human", "{input_text}"),
+                ]
+            )
+            runnable = prompt | llm | parser
+            try:
+                print(f"카테고리 분류 시작\n: {state['summary']}")
+                logger.info(f"카테고리 분류 시작: {state['summary']}")
+                result = runnable.invoke({"input_text": state["summary"]})
+                state["tag"] = result["tag"]
+                logger.info(f"✅카테고리 분류 완료: {result['tag']}")
+                
+            except Exception as e:
+                logger.exception(f"❌ 카테고리 분류 실패: {e}")
+                state["tag"] = ""
+            return state
+
+        return classify_tag
+
+    def _make_eval_node(self, llm):
+        response_schemas = [
+            ResponseSchema(
+                name="score", description="요약 품질 점수 (0~100 사이의 정수)"
+            ),
+        ]
+        parser = StructuredOutputParser.from_response_schemas(response_schemas)
+
         def node(state: SummaryState) -> SummaryState:
-            prompt = ChatPromptTemplate(
-                messages=[
+            eval_prompt = ChatPromptTemplate.from_messages(
+                [
                     SystemMessagePromptTemplate.from_template(
-                        '요약 평가 기준 JSON {"summary": "...", "score": 숫자}'
+                        """
+                        당신은 뉴스 요약 평가자입니다.
+                        다음 기준에 따라 채점하세요.
+                        예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
+                        \'{{\'score\': \'75\'}}\'
+                        - 90~100: 문장에 의견이 들어가지 않고 문법 상 어색함이 없으며 문장이 3줄 이하이며 핵심 사실을 정확히 요약함.
+                        - 70~89: 3줄 이내이고 대체로 좋음 (약간의 어색함이나 불명확한 부분이 있을 수 있음)
+                        - 50~69: 3줄 이상이며 불완전 (핵심 누락 또는 문법적 문제가 존재함)
+                        - 0~49: 실패 (요약이 원문과 거의 무관하거나 문법이 심각하게 어색함)
+                    """
                     ),
                     HumanMessagePromptTemplate.from_template(
                         "원문:\n{input_text}\n\n요약:\n{summary}"
                     ),
-                ],
-                input_variables=["input_text", "summary"],
+                ]
             )
-            runnable = prompt | llm | SummaryScoreParser()
+            runnable = eval_prompt | llm | parser
+            if state["summary"] is None:
+                state["score"] = 0
+                logger.info("요약이 비어있어 평가를 건너뜁니다.")
+                return state
+
             try:
                 result = runnable.invoke(
-                    {"input_text": state["input_text"], "summary": state["summary"]}
+                    {
+                        "input_text": state["input_text"],
+                        "summary": state["summary"],
+                    }
                 )
-                state["score"] = result["score"]
-            except:
+                state["score"] = int(result["score"])
+                logger.info(f"평가 완료: {result['score']}")
+            except Exception as e:
                 state["score"] = 0
+                logger.exception(f"평가 실패: {e}")
             return state
 
         return node
 
-    def _make_title_eval_node(self, llm):
-        def node(state: SummaryState) -> SummaryState:
-            prompt = ChatPromptTemplate(
-                messages=[
-                    SystemMessagePromptTemplate.from_template(
-                        '제목 평가 기준 JSON {"title": "...", "score": 숫자}'
-                    ),
-                    HumanMessagePromptTemplate.from_template("제목:\n{title}"),
-                ],
-                input_variables=["title"],
-            )
-            runnable = prompt | llm | SummaryScoreParser()
-            try:
-                result = runnable.invoke({"title": state["title"]})
-                state["title_score"] = result["score"]
-            except:
-                state["title_score"] = 0
+    def _make_retry_node(self, cnt):
+        def retry(state: SummaryState) -> SummaryState:
+            state[cnt] = state.get(cnt, 0) + 1
             return state
 
-        return node
+        return retry
 
-    def _make_check_score(self, key, threshold, retry_label, fail_label, success_label):
+    def _make_log_fail_node(self):
+        def log_fail(state: SummaryState) -> SummaryState:
+            score = state.get("score", 0)
+            state["fail_reason"] = "품질 문제" if score < 50 else "시스템 오류"
+            return state
+
+        return log_fail
+
+    def _make_save_node(self):
+        def save(state: SummaryState) -> SummaryState:
+            state["status"] = "saved"
+            return state
+
+        return save
+
+    def _make_check_score(self, cur_score, retry_count):
         def check(state: SummaryState) -> str:
-            score = state.get(key, 0)
-            retries = state.get("retry_count", 0)
-            if score >= threshold:
-                return success_label
+            score = state.get(cur_score, 0)
+            retries = state.get(retry_count, 0)
+            if score >= 85:
+                return "save"
             elif retries < self.max_retries:
-                return retry_label
+                return "retry"
             else:
-                return fail_label
+                state["summary"] = state['input_text']
+                return "log_fail"
 
         return check
 
     def build(self):
         llm = self._make_llm()
         graph = StateGraph(SummaryState)
+        graph.add_node("summarize", self._make_summarize_node(llm))
+        graph.add_node("make_title", self._make_title_node(llm))
+        graph.add_node("eval_title", self._make_title_eval_node(llm))
+        graph.add_node("classify_tag", self._make_classify_tag_node(llm))
+        graph.add_node("eval_summary", self._make_eval_node(llm))
+        graph.add_node("retry_summary", self._make_retry_node("retry_count_summary"))
+        graph.add_node("retry_title", self._make_retry_node("retry_count_title"))
 
-        # 요약 및 평가 흐름
-        graph.add_node(
-            "summarize",
-            self._make_prompt_node(
-                llm, "뉴스 요약 전문가. 3줄 이내. 사견 금지.", ["input_text"], "summary"
-            ),
-        )
-        graph.add_node("evaluate_summary", self._make_summary_eval_node(llm))
-        graph.add_node(
-            "retry",
-            lambda state: {**state, "retry_count": state.get("retry_count", 0) + 1},
-        )
-        graph.add_node(
-            "fallback_summary",
-            lambda state: {
-                **state,
-                "summary": "요약 실패. 원문 참고.",
-                "status": "fallback_summary",
-            },
-        )
-        graph.add_node(
-            "save_summary", lambda state: {**state, "status": "saved_summary"}
-        )
+        graph.add_node("log_fail_summary", self._make_log_fail_node())
+        graph.add_node("log_fail_title", self._make_log_fail_node())
+        graph.add_node("save_summary", self._make_save_node())
+        graph.add_node("save_title", self._make_save_node())
 
         graph.add_edge(START, "summarize")
-        graph.add_edge("summarize", "evaluate_summary")
+        graph.add_edge("summarize", "eval_summary")
         graph.add_conditional_edges(
-            "evaluate_summary",
-            self._make_check_score(
-                "score", 85, "retry", "fallback_summary", "save_summary"
-            ),
+            "eval_summary",
+            self._make_check_score("score", "retry_count_summary"),
             {
-                "retry": "retry",
-                "fallback_summary": "fallback_summary",
-                "save_summary": "save_summary",
+                "save": "save_summary",
+                "retry": "retry_summary",
+                "log_fail": "log_fail_summary",
             },
         )
-        graph.add_edge("retry", "summarize")
-
-        # 제목 생성 및 평가 흐름
-        graph.add_node(
-            "generate_title",
-            self._make_prompt_node(
-                llm, "뉴스 제목 생성. 명확하고 요약된 문구.", ["summary"], "title"
-            ),
-        )
-        graph.add_node("evaluate_title", self._make_title_eval_node(llm))
-        graph.add_node(
-            "retry_title",
-            lambda state: {**state, "retry_count": state.get("retry_count", 0) + 1},
-        )
-        graph.add_node("fallback_title", lambda state: {**state, "title": "대체 제목"})
-
-        graph.add_edge("save_summary", "generate_title")
-        graph.add_edge("fallback_summary", "generate_title")
-        graph.add_edge("generate_title", "evaluate_title")
+        graph.add_edge("save_summary", "make_title")
+        graph.add_edge("log_fail_summary", "make_title")
+        graph.add_edge("retry_summary", "summarize")
+        graph.add_edge("make_title", "eval_title")
         graph.add_conditional_edges(
-            "evaluate_title",
-            self._make_check_score(
-                "title_score", 80, "retry_title", "fallback_title", "tagging"
-            ),
+            "eval_title",
+            self._make_check_score("title_score", "retry_count_title"),
             {
-                "retry_title": "generate_title",
-                "fallback_title": "fallback_title",
-                "tagging": "tagging",
+                "save": "save_title",
+                "retry": "retry_title",
+                "log_fail": "log_fail_title",
             },
         )
-        graph.add_edge("fallback_title", "tagging")
-
-        # 태깅 및 메타 저장 흐름
-        graph.add_node("tagging", lambda state: {**state, "tag": TAG_CANDIDATES[0]})
-        graph.add_node("save_meta", lambda state: {**state, "status": "meta_saved"})
-        graph.add_node(
-            "feedback_ready", lambda state: {**state, "status": "feedback_ready"}
-        )
-        graph.add_node("log_success", lambda state: {**state, "status": "success"})
-
-        graph.add_edge("tagging", "save_meta")
-        graph.add_edge("save_meta", "feedback_ready")
-        graph.add_edge("feedback_ready", "log_success")
-        graph.add_edge("log_success", END)
-
-        return graph.compile()
+        graph.add_edge("save_title", "classify_tag")
+        graph.add_edge("log_fail_title", "classify_tag")
+        graph.add_edge("retry_title", "make_title")
+        graph.add_edge("classify_tag", END)
+        app = graph.compile()
+        #mermaid_code = app.get_graph().draw_mermaid()
+        #print(mermaid_code)
+        return app
