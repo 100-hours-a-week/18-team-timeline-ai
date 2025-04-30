@@ -2,12 +2,14 @@ from pydantic import BaseModel
 from datetime import datetime
 from typing import List
 
+
 class TimelineCard(BaseModel):
     title: str
     content: str
     startAt: datetime
     endAt: datetime
     source: List[str]
+
 
 '''
 card = TimelineCard(

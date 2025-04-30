@@ -27,8 +27,11 @@ class SummaryScoreParser(BaseOutputParser):
         cleaned = re.sub(r"^```json\s*|\s*```$", "", text.strip(), flags=re.MULTILINE)
         try:
             return json.loads(cleaned)
-        except json.JSONDecodeError:
+
+        except json.JSONDecodeError as e:
             cleaned = cleaned.replace('}"', '", "').replace("}{", "},{")
+            print(f"⚠️ JSON 파싱 에러 발생: {e}")
+            print(f"⚠️ 문제의 원본 텍스트:\n{text}\n")
             return json.loads(cleaned)
 
 
@@ -84,7 +87,8 @@ class SummarizationGraph:
         def summarize(state: SummaryState) -> SummaryState:
             system_prompt = """
             당신은 뉴스 요약 전문가입니다.
-            - 3줄 이내, 완결된 문장, 핵심 사실만 예시를 바탕으로 요약하세요.
+
+            - 3줄 이내, 완결된 문장, 핵심 사실만 예시를 바탕으로 요약문만을 제시하세요.
             - 예측, 해석, 사견은 금지합니다.
             """
             prompt = ChatPromptTemplate.from_messages(
@@ -106,9 +110,10 @@ class SummarizationGraph:
                         You are a strict JSON evaluator for news summaries.
                         Respond ONLY with JSON: \'{{\"summary\": "...", \"score\": 숫자}}\',
                         
-                        - 90~100: 문장에 의견이 들어가지 않고 문법 상 어색함이 없으며 핵심 사실을 정확히 요약함.
+
+                        - 90~100: 문장에 의견이 들어가지 않고 문법 상 어색함이 없으며 문장이 3줄 이하이며 핵심 사실을 정확히 요약함.
                         - 70~89: 대체로 좋음 (약간의 어색함이나 불명확한 부분이 있을 수 있음)
-                        - 50~69: 불완전 (핵심 누락 또는 문법적 문제가 존재함)
+                        - 50~69: 3줄 이상이며 불완전 (핵심 누락 또는 문법적 문제가 존재함)
                         - 0~49: 실패 (요약이 원문과 거의 무관하거나 문법이 심각하게 어색함)
                     """
                     ),

@@ -37,6 +37,7 @@ class TimelineData(BaseModel):
 # Request
 class MergeRequest(BaseModel):
     timeline: List[TimelineCard]
+
 # Response - CommonResponse[TimelineCard]
 
 # -----------------------------------------------
@@ -50,12 +51,12 @@ class HotData(BaseModel):
     keywords: List[str]
 
 # -----------------------------------------------
-
+      
 # Request
 class CommentRequest(BaseModel):
     query: List[str]
     num: int
-
+      
 # Response - CommonResponse[CommentData]
 class CommentData(BaseModel):
     positive: int

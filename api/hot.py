@@ -6,7 +6,6 @@ from models.response_schema import CommonResponse, ErrorResponse, HotRequest, Ho
 
 router = APIRouter()
 
-<<<<<<< HEAD
 @router.post(
     "",
     response_model=CommonResponse[HotData],
@@ -15,21 +14,13 @@ router = APIRouter()
         500: {"model": ErrorResponse},
     }
 )
+
 def get_hot_topics(request: HotRequest):
     load_dotenv()
     SERP_API_KEYS = os.getenv("SERP_API_KEYS")
     if not SERP_API_KEYS:
         raise HTTPException(status_code=500, detail="SERP_API_KEYS not found in .env file.")
-=======
 
-@router.post("/hot")
-def get_hot_topics(count: int = 3) -> list[str]:
-    load_dotenv()
-    SERP_API_KEYS = os.getenv("SERP_API_KEYS")
-    if not SERP_API_KEYS:
-        raise ValueError("SERP_API_KEYS not found in .env file.")
-
->>>>>>> 91715fa (1. summarizer.py 로직 분리중(현재 article_extractor까지 진행))
     SERP_API_KEYS = SERP_API_KEYS.split(",")
     SERP_API_KEY = SERP_API_KEYS[0].strip()
 
