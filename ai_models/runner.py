@@ -1,8 +1,6 @@
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import List, Tuple, Any
-
-
 class Runner:
     def __init__(
         self,
@@ -33,6 +31,7 @@ class Runner:
                 try:
                     result = future.result()
                     results.append(result)
+
                     print(f"✅ {idx}/{len(texts)} 완료")
                 except Exception as e:
                     print(f"❌ {idx}/{len(texts)} 실패: {e}")
