@@ -25,6 +25,7 @@ def get_timeline(request: TimelineRequest):
         TimelineCard(
             title=f"'{query_str}' 관련 주요 사건 1",
             content="첫 번째 하드코딩된 타임라인 내용입니다.",
+            duration="DAY",
             startAt=request.startAt,
             endAt=request.endAt,
             source=["https://example.com/article1"]
@@ -32,6 +33,7 @@ def get_timeline(request: TimelineRequest):
         TimelineCard(
             title=f"'{query_str}' 관련 주요 사건 2",
             content="두 번째 하드코딩된 타임라인입니다.",
+            duration="DAY",
             startAt=request.startAt,
             endAt=request.endAt,
             source=["https://example.com/article2"]

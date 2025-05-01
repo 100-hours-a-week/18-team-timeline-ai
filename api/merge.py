@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from utils.timeline_utils import next_duration
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import MergeRequest
 from models.timeline_card import TimelineCard
@@ -21,6 +22,7 @@ def merge_timeline(request: MergeRequest):
 
     # 실제 병합 대신 첫 번째 카드만 응답
     first_card = request.timeline[0]
+    first_card.duration = next_duration(first_card.duration)
 
     return CommonResponse(
         success=True,
