@@ -18,7 +18,8 @@ class Runner:
             {
                 "input_text": text,
                 "worker_id": worker_id,
-            }
+            },
+            {"recursion_limit": 1000},
         )
 
     def run(self, texts: List) -> List[dict]:

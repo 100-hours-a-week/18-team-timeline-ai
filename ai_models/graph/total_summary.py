@@ -98,7 +98,7 @@ class TotalSummarizationGraph:
             except Exception as e:
                 logger.exception(f"❌ 요약 생성 실패: {e}, {state['summary']}")
                 state["summary"] = None
-                
+
             return state
 
         return summarize
@@ -150,8 +150,7 @@ class TotalSummarizationGraph:
                 [
                     SystemMessagePromptTemplate.from_template(
                         """
-                        당신은 뉴스 제목 평가자입니다.
-                        다음 기준에 따라 채점하세요.
+                        당신은 뉴스 제목 평가자입니다. 
                         예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
                         예시: \'{{\'score\': 75}}\'
                         - 90~100: 문장에 의견이 들어가지 않고 문법 상 어색함이 없으며 문장이 1줄 이하이며 핵심 사실을 정확히 요약함.
@@ -168,7 +167,7 @@ class TotalSummarizationGraph:
             runnable = eval_prompt | llm | parser
             if not state.get("summary"):
                 state["title_score"] = 0
-                
+
                 logger.info("요약이 비어있어 평가를 건너뜁니다.")
                 return state
             try:
@@ -216,9 +215,9 @@ class TotalSummarizationGraph:
                 print(f"카테고리 분류 시작\n: {state['summary']}")
                 logger.info(f"카테고리 분류 시작: {state['summary']}")
                 result = runnable.invoke({"input_text": state["summary"]})
-                state["tag"] = result["tag"]
+                state["tag"] = result["tag"].strip()
                 logger.info(f"✅카테고리 분류 완료: {result['tag']}")
-                
+
             except Exception as e:
                 logger.exception(f"❌ 카테고리 분류 실패: {e}")
                 state["tag"] = ""
@@ -242,7 +241,7 @@ class TotalSummarizationGraph:
                         당신은 뉴스 요약 평가자입니다.
                         다음 기준에 따라 채점하세요.
                         예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
-                        \'{{\'score\': \'75\'}}\'
+                        \'{{\'score\': 75}}\'
                         - 90~100: 문장에 의견이 들어가지 않고 문법 상 어색함이 없으며 문장이 3줄 이하이며 핵심 사실을 정확히 요약함.
                         - 70~89: 3줄 이내이고 대체로 좋음 (약간의 어색함이나 불명확한 부분이 있을 수 있음)
                         - 50~69: 3줄 이상이며 불완전 (핵심 누락 또는 문법적 문제가 존재함)
@@ -307,7 +306,7 @@ class TotalSummarizationGraph:
             elif retries < self.max_retries:
                 return "retry"
             else:
-                state["summary"] = state['input_text']
+                state["summary"] = state["input_text"]
                 return "log_fail"
 
         return check
@@ -357,6 +356,6 @@ class TotalSummarizationGraph:
         graph.add_edge("retry_title", "make_title")
         graph.add_edge("classify_tag", END)
         app = graph.compile()
-        #mermaid_code = app.get_graph().draw_mermaid()
-        #print(mermaid_code)
+        # mermaid_code = app.get_graph().draw_mermaid()
+        # print(mermaid_code)
         return app
