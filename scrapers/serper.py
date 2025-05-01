@@ -1,9 +1,9 @@
-import json
 import requests
 from datetime import datetime
 from parse_date import parse_relative_date
 
 # ---------------------------------------------------
+
 
 # 검색어, 시작 날짜, 종료 날짜, API_KEY -> 뉴스 링크 리스트
 def get_news_serper(query: str, startAt: datetime, endAt: datetime, SERPER_API_KEY: str) -> list:
@@ -12,7 +12,7 @@ def get_news_serper(query: str, startAt: datetime, endAt: datetime, SERPER_API_K
     cd_min = startAt.strftime('%m/%d/%Y')
     num_days = (endAt - startAt).days + 1
     tbs_str = f"cdr:1,cd_min:{cd_min},cd_max:{cd_max}"
-    
+
     url = "https://google.serper.dev/news"
     params = {
         "q": query,

@@ -5,6 +5,7 @@ from models.timeline_card import TimelineCard
 
 router = APIRouter()
 
+
 @router.post(
     "",
     response_model=CommonResponse[TimelineCard],

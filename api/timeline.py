@@ -5,6 +5,7 @@ from models.response_schema import TimelineRequest, TimelineData
 
 router = APIRouter()
 
+
 @router.post(
     "",
     response_model=CommonResponse[TimelineData],

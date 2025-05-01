@@ -4,6 +4,7 @@ from models.response_schema import CommentRequest, CommentData
 
 router = APIRouter()
 
+
 @router.post(
     "",
     response_model=CommonResponse[CommentData],
