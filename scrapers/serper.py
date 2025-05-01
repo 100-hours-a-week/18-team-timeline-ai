@@ -6,7 +6,7 @@ from parse_date import parse_relative_date
 
 
 # 검색어, 시작 날짜, 종료 날짜, API_KEY -> 뉴스 링크 리스트
-def get_news_serper(query: str, startAt: datetime, endAt: datetime, SERPER_API_KEY: str) -> list:
+def get_news_serper(query: str, startAt: datetime, endAt: datetime, api_key: str) -> list:
     # 변수 선언
     cd_max = endAt.strftime('%m/%d/%Y')
     cd_min = startAt.strftime('%m/%d/%Y')
@@ -20,7 +20,7 @@ def get_news_serper(query: str, startAt: datetime, endAt: datetime, SERPER_API_K
         "hl": "ko",
         "gl": "KR",
         "num": num_days * 2,  # 넉넉하게 가져오기
-        "api_key": SERPER_API_KEY
+        "api_key": api_key
     }
     headers = {}
 
