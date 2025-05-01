@@ -13,7 +13,15 @@ class Runner:
         self.max_workers = max_workers
 
     def run_graph(self, text: str, worker_id: int) -> dict:
-        """단일 입력을 graph에 넣고 결과 반환"""
+        """_summary_
+
+        Args:
+            text (str): _description_
+            worker_id (int): _description_
+
+        Returns:
+            dict: _description_
+        """
         return self.graph.invoke(
             {
                 "input_text": text,
@@ -23,7 +31,14 @@ class Runner:
         )
 
     def run(self, texts: List) -> List[dict]:
-        """모든 입력에 대해 병렬로 graph 실행"""
+        """_summary_
+
+        Args:
+            texts (List): _description_
+
+        Returns:
+            List[dict]: _description_
+        """
         results = []
         start = time.time()
 

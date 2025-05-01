@@ -41,6 +41,7 @@ class SummaryScoreParser(BaseOutputParser):
             print(f"⚠️ 문제의 원본 텍스트:\n{text}\n")
             return json.loads(cleaned)
 
+
 class SummarizationGraph:
     def __init__(
         self, server: str, model: str, examples: List = examples, max_retries: int = 3

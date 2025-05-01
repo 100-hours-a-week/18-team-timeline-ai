@@ -1,8 +1,10 @@
 from typing import List
+from langchain_community.tools import TavilySearchResults
 from langgraph.graph import StateGraph, END, START
-from langgraph.prebuilt import create_react_agent
+from langgraph.prebuilt import create_react_agent, ToolNode
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
+from langchain_core.messages import HumanMessage
 from langchain_community.utilities import WikipediaAPIWrapper
 from textwrap import dedent
 from pydantic import BaseModel
@@ -14,7 +16,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # 시스템 프롬프트 정의
-system_prompt = dedent("""
+system_prompt = dedent(
+    """
 You are an AI assistant designed to support Korean timeline-based question answering and comment classification.
 You have access to the following tools:
 
@@ -50,14 +53,18 @@ Observation: 김범수는 카카오 창업자이며 서울대 출신의 기업�
 [Source: search_wiki | 김범수 | https://ko.wikipedia.org/wiki/김범수]
 
 Final Answer: 김범수는 서울대 출신의 기업가로, 카카오를 창업한 인물입니다.
-""")
+"""
+)
+
 
 # 상태 정의
 class TimelineState(BaseModel):
     timeline: List[str]
 
+
 class TimelineResult(BaseModel):
     context_docs: List[str]
+
 
 class AgenticCommentGraph:
     def __init__(self, server: str, model: str, max_retries: int = 3):
@@ -78,13 +85,25 @@ class AgenticCommentGraph:
 
     @tool
     def search_web(self, query: str, k: int = 3) -> str:
-        """TODO: 웹 검색 도구를 구현하세요."""
-        
-        return "웹 검색 결과"
+        """현재 모르는 정보 또는 최신 정보를 인터넷에서 검색합니다."""
+        tavily_search = TavilySearchResults(max_results=k)
+        try:
+            result = tavily_search.run(query)
+        except Exception as e:
+            raise RuntimeError(f"Error in search_web: {e}")
+        formatted_docs = "\n\n---\n\n".join(
+            [
+                f'<Document href="{doc["url"]}"/>\n{doc["content"]}\n</Document>'
+                for doc in result
+            ]
+        )
+        if len(result) > 0:
+            return formatted_docs
+        return "웹 검색 결과를 찾을 수 없습니다."
 
     @tool
     def refine_timeline_card(self, state: TimelineState) -> TimelineResult:
-        """타임라인을 받아서 정제해서 context 문서로 반환"""
+        """사건에 대한 전체적인 문맥이 필요할 때 활용하세요."""
         document = "\n\n".join(state.timeline)
         logger.info(f"refine_timeline_card: {document}\n\n")
         return TimelineResult(context_docs=[document])
@@ -101,6 +120,8 @@ class AgenticCommentGraph:
 
     def build(self):
         llm = self._make_llm()
+        llm_with_tools = llm.bind_tools(self.tools)
+        pprint(llm_with_tools)
         graph = create_react_agent(
             model=llm,
             tools=self.tools,
@@ -108,25 +129,15 @@ class AgenticCommentGraph:
         )
         return graph
 
+
 if __name__ == "__main__":
     SERVER = "https://8acc-34-125-119-95.ngrok-free.app"
     MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
     tmp = AgenticCommentGraph(server=SERVER, model=MODEL).build()
     print(tmp)
 
-    inputs = {
-        "input_text": "카카오 김범수 의장의 창업 배경과 사회 기여에 대해 알려줘.",
-        "timeline": [
-            "김범수는 서울대학교 산업공학과를 졸업했다.",
-            "카카오를 창업하여 한국 모바일 메신저 시장을 선도했다.",
-            "카카오 사회공헌재단을 설립해 다양한 사회적 활동을 지원하고 있다.",
-        ],
-        "score": 0,
-        "worker_id": 42,
-        "context_docs": [],
-    }
-
-    for step in tmp.stream(inputs):
-        step_name = step.get('__step__') or next(iter(step.keys()), 'unknown')
-        print(f"\n🧩 step: {step_name}")
-        pprint(step.get('agent', step))
+    inputs = {"messages": [HumanMessage(content="고윤정이 누구야?")]}
+    results = tmp.invoke(inputs)
+    for step in results["messages"]:
+        print(step.content)
+        print()
