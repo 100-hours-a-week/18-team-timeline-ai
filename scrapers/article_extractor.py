@@ -13,7 +13,7 @@ class ArticleExtractor(BaseSearcher):
         Args:
             max_workers (int, optional): 스레드 숫자. Defaults to 6.
         """
-        self.max_worksers = max_workers
+        self.max_workers = max_workers
 
     def _extract_single(self, url: str) -> Tuple[str, str]:
         try:
@@ -36,7 +36,7 @@ class ArticleExtractor(BaseSearcher):
             List[Tuple[str, str]]: (url, 본문) 리스트
         """
         results = []
-        with ThreadPoolExecutor(max_workers=self.max_worksers) as executor:
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = {executor.submit(self._extract_single, url): url for url in urls}
             for future in as_completed(futures):
                 try:

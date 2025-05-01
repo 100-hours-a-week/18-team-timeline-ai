@@ -40,6 +40,7 @@ class TimelineData(BaseModel):
 class MergeRequest(BaseModel):
     timeline: List[TimelineCard]
 
+
 # Response - CommonResponse[TimelineCard]
 
 
