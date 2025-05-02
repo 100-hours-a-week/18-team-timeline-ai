@@ -25,7 +25,7 @@ final_runner = Runner(graph=graph_total)
     responses={
         400: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
-    }
+    },
 )
 def merge_timeline(request: MergeRequest):
     # Request exception
@@ -57,6 +57,6 @@ def merge_timeline(request: MergeRequest):
 
     return CommonResponse(
         success=True,
-        message="Merge 엔드포인트 테스트용 응답",
+        message="데이터가 성공적으로 생성되었습니다.",
         data=merged_card
     )

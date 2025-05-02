@@ -25,7 +25,7 @@ def get_news_serper(
         "hl": "ko",
         "gl": "KR",
         "num": num_days * 2,  # 넉넉하게 가져오기
-        "api_key": api_key
+        "api_key": api_key,
     }
 
     try:

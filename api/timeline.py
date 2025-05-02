@@ -63,7 +63,7 @@ def get_api_key(i: int):
     responses={
         400: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
-    }
+    },
 )
 def get_timeline(request: TimelineRequest):
     # Request parsing
