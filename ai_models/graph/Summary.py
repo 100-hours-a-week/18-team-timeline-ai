@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 class SummaryState(dict):
     input_text: str
-    summary: str
+    text: str
     score: int
     worker_id: int
     retry_count: int
@@ -43,12 +43,9 @@ class SummaryScoreParser(BaseOutputParser):
 
 
 class SummarizationGraph:
-    def __init__(
-        self, server: str, model: str, examples: List = examples, max_retries: int = 3
-    ):
+    def __init__(self, server: str, model: str, max_retries: int = 3):
         self.server = server
         self.model = model
-        self.examples = examples
         self.max_retries = max_retries
 
     def _make_llm(self):
@@ -63,7 +60,7 @@ class SummarizationGraph:
         summary_schema = [
             ResponseSchema(
                 name="summary",
-                description="요약된 3줄 이내의 예측, 해석, 사견이 없는 완전한 문장",
+                description="요약된 24자 이내의 한 줄 예측, 해석, 사견이 없는 완전한 문장",
             )
         ]
         parser = StructuredOutputParser.from_response_schemas(summary_schema)
@@ -72,7 +69,7 @@ class SummarizationGraph:
         def summarize(state: SummaryState) -> SummaryState:
             system_prompt = """
             당신은 뉴스 요약 전문가입니다. 뉴스를 요약해주세요.
-            - 3줄 이내, 완결된 문장, 핵심 사실만 요약만을 제시하세요.
+            - 반드시 24자 이내의 1줄의 완결된 문장, 핵심 사실만 요약하여 제시하세요.
             - 예시의 형식을 따라서 반드시 JSON으로 제공하세요.
             \'{{\'summary\': \'요약\'}}\'
             - 예측, 해석, 사견은 금지합니다.
@@ -87,11 +84,11 @@ class SummarizationGraph:
                 파싱 성능 올리기
                 """
                 result = runnable.invoke({"input_text": state["input_text"]})
-                state["summary"] = result["summary"]
+                state["text"] = result["summary"]
                 logger.info(f"✅ 요약 생성 완료: {result['summary']}")
             except Exception as e:
                 logger.exception(f"❌ 요약 생성 실패: {e}")
-                state["summary"] = ""
+                state["text"] = ""
             return state
 
         return summarize
@@ -113,9 +110,9 @@ class SummarizationGraph:
                         다음 기준에 따라 채점하세요.
                         예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
                         예시: \'{{\'score\': 75}}\'
-                        - 90~100: 문장에 의견이 들어가지 않고 문법 상 어색함이 없으며 문장이 3줄 이하이며 핵심 사실을 정확히 요약함.
-                        - 70~89: 3줄 이내이고 대체로 좋음 (약간의 어색함이나 불명확한 부분이 있을 수 있음)
-                        - 50~69: 3줄 이상이며 불완전 (핵심 누락 또는 문법적 문제가 존재함)
+                        - 90~100: 문장에 의견이 들어가지 않고 문법 상 어색함이 없으며 문장이 24자 이하의 한 줄이며 핵심 사실을 정확히 요약함.
+                        - 70~89: 24자 이내의 한 줄이고 대체로 좋음 (약간의 어색함이나 불명확한 부분이 있을 수 있음)
+                        - 50~69: 24자 이상의 여러 줄이며 불완전 (핵심 누락 또는 문법적 문제가 존재함)
                         - 0~49: 실패 (요약이 원문과 거의 무관하거나 문법이 심각하게 어색함)
                         """
                     ),
@@ -129,7 +126,7 @@ class SummarizationGraph:
                 result = runnable.invoke(
                     {
                         "input_text": state["input_text"],
-                        "summary": state["summary"],
+                        "summary": state["text"],
                     }
                 )
                 state["score"] = result["score"]
@@ -176,6 +173,42 @@ class SummarizationGraph:
 
         return check
 
+    '''
+    def _make_title_node(self, llm):
+        title_schema = [
+            ResponseSchema(
+                name="title",
+                description="현재 글의 제목. 1줄 이내의 완전한 문장",
+            )
+        ]
+        parser = StructuredOutputParser.from_response_schemas(title_schema)
+
+        def node(state: SummaryState) -> SummaryState:
+            system_prompt = """
+            당신은 뉴스 제목 생성 전문가입니다. 뉴스의 제목을 지어주세요.
+            - 1줄 이내, 완결된 문장, 핵심 사실만 요약만을 제시하세요.
+            - 예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
+            \'{{\'title\': \'제목\'}}\'
+            """
+            prompt = ChatPromptTemplate.from_messages(
+                [
+                    ("system", system_prompt),
+                    ("human", "{input_text}"),
+                ]
+            )
+            runnable = prompt | llm | parser
+            try:
+                result = runnable.invoke({"input_text": state["summary"]})
+                state["title"] = result["title"]
+                logger.info(f"✅요약 생성 완료: {result['title']}")
+            except Exception as e:
+                logger.exception(f"❌ 요약 생성 실패: {e}")
+                state["title"] = state["summary"]
+            return state
+
+        return node
+    '''
+
     def build(self):
         llm = self._make_llm()
         graph = StateGraph(SummaryState)
@@ -185,6 +218,7 @@ class SummarizationGraph:
         graph.add_node("retry", self._make_retry_node())
         graph.add_node("log_fail", self._make_log_fail_node())
         graph.add_node("save", self._make_save_node())
+        # graph.add_node("title", self._make_title_node(llm))
 
         graph.add_edge(START, "summarize")
         graph.add_edge("summarize", "evaluate")

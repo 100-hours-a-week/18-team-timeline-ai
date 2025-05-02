@@ -13,7 +13,7 @@ router = APIRouter()
     responses={
         400: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
-    }
+    },
 )
 def merge_timeline(request: MergeRequest):
     # 실제 AI 요약 호출은 생략 (테스트용)
@@ -25,7 +25,5 @@ def merge_timeline(request: MergeRequest):
     first_card.duration = next_duration(first_card.duration)
 
     return CommonResponse(
-        success=True,
-        message="Merge 엔드포인트 테스트용 응답",
-        data=first_card
+        success=True, message="Merge 엔드포인트 테스트용 응답", data=first_card
     )

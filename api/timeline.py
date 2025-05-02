@@ -12,7 +12,7 @@ router = APIRouter()
     responses={
         400: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
-    }
+    },
 )
 def get_timeline(request: TimelineRequest):
     # 실제 AI 요약 호출은 생략 (테스트용)
@@ -28,7 +28,7 @@ def get_timeline(request: TimelineRequest):
             duration="DAY",
             startAt=request.startAt,
             endAt=request.endAt,
-            source=["https://example.com/article1"]
+            source=["https://example.com/article1"],
         ),
         TimelineCard(
             title=f"'{query_str}' 관련 주요 사건 2",
@@ -36,7 +36,7 @@ def get_timeline(request: TimelineRequest):
             duration="DAY",
             startAt=request.startAt,
             endAt=request.endAt,
-            source=["https://example.com/article2"]
+            source=["https://example.com/article2"],
         ),
     ]
 
@@ -46,11 +46,9 @@ def get_timeline(request: TimelineRequest):
         summary=f"'{query_str}' 키워드에 대한 {start_date}부터 {end_date}까지의 요약입니다.",
         image="https://example.com/image.jpg",
         category="KTB",  # enum 적용 예정
-        timeline=dummy_cards
+        timeline=dummy_cards,
     )
 
     return CommonResponse(
-        success=True,
-        message="Timeline 엔드포인트 테스트용 응답",
-        data=dummy_data
+        success=True, message="Timeline 엔드포인트 테스트용 응답", data=dummy_data
     )
