@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from utils.timeline_utils import next_duration
+from utils.timeline_utils import next_timeline_type
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import MergeRequest
 from models.timeline_card import TimelineCard
@@ -11,7 +11,7 @@ from ai_models.graph.total_summary import TotalSummarizationGraph
 
 router = APIRouter()
 
-SERVER = "https://5a09-34-125-119-95.ngrok-free.app"
+SERVER = "https://b79f-34-125-17-94.ngrok-free.app"
 MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
 graph_total = TotalSummarizationGraph(SERVER, MODEL).build()
 final_runner = Runner(graph=graph_total)
@@ -41,15 +41,15 @@ def merge_timeline(request: MergeRequest):
         imgs.extend(card.source)
         contents.append(card.content)
     concat_content = {"text": "\n\n".join(contents)}
-    final_res = final_runner.run(texts=[concat_content])
+    final_res = final_runner.run(texts=[concat_content])[0]
 
     # Merged card
     merged_card = TimelineCard(
         title=final_res['title'],
         content=final_res['summary'],
-        duration=next_duration(cards[0].duration),
+        duration=next_timeline_type(cards[0].duration),
         startAt=cards[0].startAt,
-        endAt=cards[0].endAt,
+        endAt=cards[len(cards)-1].endAt,
         source=imgs
     )
 

@@ -26,7 +26,7 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()],
 )
 
-SERVER = "https://5a09-34-125-119-95.ngrok-free.app"
+SERVER = "https://b79f-34-125-17-94.ngrok-free.app"
 MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
 graph = SummarizationGraph(SERVER, MODEL).build()
 graph_total = TotalSummarizationGraph(SERVER, MODEL).build()
@@ -47,11 +47,11 @@ img_links = ["1eeef1f6-3e0a-416a-bc4d-4922b27db855",
 
 def get_api_key(i: int):
     load_dotenv()
-    SERP_API_KEYS = os.getenv("SERP_API_KEYS")
-    if not SERP_API_KEYS:
-        raise HTTPException(status_code=500, detail="SERP_API_KEYS not found.")
-    SERP_API_KEYS = SERP_API_KEYS.split(",")
-    return SERP_API_KEYS[i].strip()
+    SERPER_API_KEYS = os.getenv("SERPER_API_KEYS")
+    if not SERPER_API_KEYS:
+        raise HTTPException(status_code=500, detail="SERPER_API_KEYS not found.")
+    SERPER_API_KEYS = SERPER_API_KEYS.split(",")
+    return SERPER_API_KEYS[i].strip()
 
 
 # -------------------------------------------------------------------
@@ -68,13 +68,11 @@ def get_api_key(i: int):
 def get_timeline(request: TimelineRequest):
     # Request parsing
     query_str = " ".join(request.query)
-    start_date = datetime.strptime(request.startAt, "%Y-%m-%d")
-    end_date = datetime.strptime(request.endAt, "%Y-%m-%d")
 
     # Scraping
-    SERP_API_KEY = get_api_key(0)
-    scraping_res = get_news_serper(query=query_str, startAt=start_date,
-                                   endAt=end_date, api_key=SERP_API_KEY)
+    SERPER_API_KEY = get_api_key(0)
+    scraping_res = get_news_serper(query=query_str, startAt=request.startAt,
+                                   endAt=request.endAt, api_key=SERPER_API_KEY)
 
     if scraping_res:
         urls, dates = zip(*scraping_res)
@@ -83,6 +81,9 @@ def get_timeline(request: TimelineRequest):
     else:
         urls, dates = [], []
 
+    print("URL 목록입니다.")
+    print(urls)
+
     # Extract Article
     try:
         articles = extractor.search(urls=urls)
@@ -90,6 +91,9 @@ def get_timeline(request: TimelineRequest):
         logging.exception("기사 추출 실패")
         return e
     logging.info(f"{len(articles)}개 기사 추출 완료")
+
+    print("기사 추출본입니다.")
+    print(articles)
 
     # Timeline cards
     card_list = []
@@ -111,7 +115,7 @@ def get_timeline(request: TimelineRequest):
     # Timeline construction
     summarized_texts = [r["text"] for r in first_res]
     summarized_texts = {"text": "\n\n".join(summarized_texts)}
-    final_res = final_runner.run(texts=[summarized_texts])
+    final_res = final_runner.run(texts=[summarized_texts])[0]
     tag_id = convert_tag(final_res['tag'])
 
     timeline = TimelineData(
