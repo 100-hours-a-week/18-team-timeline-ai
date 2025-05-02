@@ -4,7 +4,19 @@ from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import MergeRequest
 from models.timeline_card import TimelineCard
 
+from ai_models.runner import Runner
+from ai_models.graph.total_summary import TotalSummarizationGraph
+
+# -------------------------------------------------------------------
+
 router = APIRouter()
+
+SERVER = "https://5a09-34-125-119-95.ngrok-free.app"
+MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+graph_total = TotalSummarizationGraph(SERVER, MODEL).build()
+final_runner = Runner(graph=graph_total)
+
+# -------------------------------------------------------------------
 
 
 @router.post(
@@ -16,14 +28,35 @@ router = APIRouter()
     },
 )
 def merge_timeline(request: MergeRequest):
-    # 실제 AI 요약 호출은 생략 (테스트용)
+    # Request exception
     if not request.timeline:
         raise HTTPException(status_code=400, detail="timeline 데이터가 비어 있습니다.")
 
-    # 실제 병합 대신 첫 번째 카드만 응답
-    first_card = request.timeline[0]
-    first_card.duration = next_duration(first_card.duration)
+    # Request parsing
+    imgs = []
+    contents = []
+    cards = request.timeline
+
+    for card in cards:
+        imgs.extend(card.source)
+        contents.append(card.content)
+    concat_content = {"text": "\n\n".join(contents)}
+    final_res = final_runner.run(texts=[concat_content])
+
+    # Merged card
+    merged_card = TimelineCard(
+        title=final_res['title'],
+        content=final_res['summary'],
+        duration=next_duration(cards[0].duration),
+        startAt=cards[0].startAt,
+        endAt=cards[0].endAt,
+        source=imgs
+    )
+
+    # ----------------------------------------------------
 
     return CommonResponse(
-        success=True, message="Merge 엔드포인트 테스트용 응답", data=first_card
+        success=True,
+        message="데이터가 성공적으로 생성되었습니다.",
+        data=merged_card
     )
