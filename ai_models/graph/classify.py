@@ -28,7 +28,7 @@ system_prompt = PromptTemplate(
                 "search_web(query: str, k: int = 3) -> str - 현재 모르는 정보 또는 최신 정보를 인터넷에서 검색합니다.",
             ]
         ),
-        "tool_names": ", ".join(["search_wiki", "search_web"]),
+        "tool_names": "search_wiki or search_web",
     },
     template=dedent(
         """
@@ -50,25 +50,34 @@ Step-by-step:
 5. Provide a final answer based on reasoning and tool results.
 
 Constraints:
-- You MUST choose only one Action from at a time.
+- ❗ You MUST choose only one Action at a time (either search_wiki OR search_web).
 - Use the tools only when necessary.
 - Do not hallucinate or make claims without citation.
 - Final answers must be concise, accurate, and cite all factual sources.
 
 Use the following format:
 
-Question: the input question you must answer
-Thought: you should always think about what to do
-Action: the action to take, must be one of
-Action Input: the input to the action
-Observation: the result of the action
-Final Answer: the final answer to the question
+Question: the input question you must answer  
+Thought: you should always think about what to do  
+Action: the action to take, must be one of tools  
+Action Input: the input to the action  
+Observation: the result of the action  
+Final Answer: the final answer to the question  
 
-Questions: {input}
-Thought: {agent_scratchpad}
+Questions: {input}  
+Thought: {agent_scratchpad}  
 Action: {tool_names}
 
+EXAMPLE:  
+Questions: 폭삭 속았수다가 뭐야?  
+Thought: 폭싹 속았수다라는 표현에 대해서 더 자세히 정보를 찾아보기 위해 인터넷에서 검색해보겠습니다.  
+Action: search_web  
+Action Input: 폭삭 속았수다  
+[Source: search_web | 폭삭 속았수다 | https://www.google.com/search?q=%ED%8F%AD%EC%82%AD+%EC%86%8D%EC%95%98%EC%88%98%EB%8B%A4]  
+Final Answer: 폭싹 속았수다는 제주도 방언으로 ‘완전히 속았다’는 뜻입니다.  
 
+ALWAYS conclude with:  
+Final Answer: <your final answer here>
 """
     ),
 )
@@ -119,6 +128,7 @@ class AgenticCommentGraph:
             api_key="not-needed",
             model=self.model,
             temperature=0.1,
+            stop=["\nObservation", "Final Answer:"],  # ✅ 시퀀스 종료 명시
         )
         return llm.bind_tools(tools)
 
