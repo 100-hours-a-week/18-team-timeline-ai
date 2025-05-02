@@ -57,7 +57,6 @@ class TotalSummarizationGraph:
             temperature=0.1,
         )
 
-
     def _make_summarize_node(self, llm):
         summary_schema = [
             ResponseSchema(

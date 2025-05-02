@@ -12,6 +12,7 @@ from langchain.agents import AgentExecutor, create_react_agent
 from langchain.agents.format_scratchpad import format_log_to_str
 import logging
 from dotenv import load_dotenv
+
 # 로그 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -24,10 +25,10 @@ system_prompt = PromptTemplate(
         "tools": "\n".join(
             [
                 "search_wiki(query: str, k: int = 3) -> str - 인물이 글에 포함이 되어있다면 위키피디아에서 검색하세요.",
-                "search_web(query: str, k: int = 3) -> str - 현재 모르는 정보 또는 최신 정보를 인터넷에서 검색합니다."
+                "search_web(query: str, k: int = 3) -> str - 현재 모르는 정보 또는 최신 정보를 인터넷에서 검색합니다.",
             ]
         ),
-        "tool_names": ", ".join(["search_wiki", "search_web"])
+        "tool_names": ", ".join(["search_wiki", "search_web"]),
     },
     template=dedent(
         """
@@ -69,8 +70,9 @@ Action: {tool_names}
 
 
 """
-    )
+    ),
 )
+
 
 @tool
 def search_wiki(query: str, k: int = 3) -> str:
@@ -81,6 +83,7 @@ def search_wiki(query: str, k: int = 3) -> str:
     except Exception as e:
         raise RuntimeError(f"Error in search_wiki: {e}")
     return result
+
 
 @tool
 def search_web(query: str, k: int = 3) -> str:
@@ -100,7 +103,9 @@ def search_web(query: str, k: int = 3) -> str:
         return formatted_docs
     return "웹 검색 결과를 찾을 수 없습니다."
 
+
 tools = [search_wiki, search_web]
+
 
 class AgenticCommentGraph:
     def __init__(self, server: str, model: str, max_retries: int = 3):
@@ -122,9 +127,12 @@ class AgenticCommentGraph:
         agent = create_react_agent(
             llm=llm,
             tools=tools,
-            prompt=system_prompt,   
+            prompt=system_prompt,
         )
-        return AgentExecutor.from_agent_and_tools(agent=agent, tools=tools, verbose=True, handle_parsing_errors=True)
+        return AgentExecutor.from_agent_and_tools(
+            agent=agent, tools=tools, verbose=True, handle_parsing_errors=True
+        )
+
 
 if __name__ == "__main__":
     SERVER = "https://81fe-34-125-119-95.ngrok-free.app"
