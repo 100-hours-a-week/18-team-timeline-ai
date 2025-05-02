@@ -43,11 +43,6 @@ class SummaryScoreParser(BaseOutputParser):
             raise ValueError("Invalid JSON format")
 
 
-examples = []
-
-TAG_CANDIDATES = ["정치", "경제", "사회", "국제", "과학", "스포츠"]
-
-
 class TotalSummarizationGraph:
     def __init__(self, server: str, model: str, max_retries: int = 3):
         self.server = server
@@ -62,19 +57,20 @@ class TotalSummarizationGraph:
             temperature=0.1,
         )
 
+
     def _make_summarize_node(self, llm):
         summary_schema = [
             ResponseSchema(
                 name="summary",
-                description="요약된 3줄 이내의 예측, 해석, 사견이 없는 완전한 문장",
+                description="요약된 36자 이내의 예측, 해석, 사견이 없는 완전한 문장",
             )
         ]
         parser = StructuredOutputParser.from_response_schemas(summary_schema)
 
         def summarize(state: SummaryState) -> SummaryState:
             system_prompt = """
-            - 3줄 이내, 완결된 문장, 핵심 사실만 요약만을 제시하세요.
-            - 예측, 해석, 사견은 금지합니다.
+            - 반드시 36자 이내의 2줄 이내의 문장을 제시하세요.
+            - 주어진 글에 대해 간략한 요약을 제시하세요.
             - 예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
             \'{{\'summary\': \'요약\'}}\'
             """
@@ -107,7 +103,7 @@ class TotalSummarizationGraph:
         title_schema = [
             ResponseSchema(
                 name="title",
-                description="현재 글의 제목. 1줄 이내의 완전한 문장",
+                description="현재 글의 제목. 18자 이내의 완전한 문장",
             )
         ]
         parser = StructuredOutputParser.from_response_schemas(title_schema)
@@ -115,7 +111,7 @@ class TotalSummarizationGraph:
         def makeTitle(state: SummaryState) -> SummaryState:
             system_prompt = """
             당신은 뉴스 제목 생성 전문가입니다. 뉴스의 제목을 지어주세요.
-            - 1줄 이내, 완결된 문장, 핵심 사실만 요약만을 제시하세요.
+            - 반드시 18자 이내, 완결된 문장, 핵심 사실만 요약만을 제시하세요.
             - 예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
             \'{{\'title\': \'제목\'}}\'
             """
@@ -153,7 +149,7 @@ class TotalSummarizationGraph:
                         당신은 뉴스 제목 평가자입니다. 
                         예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
                         예시: \'{{\'score\': 75}}\'
-                        - 90~100: 문장에 의견이 들어가지 않고 문법 상 어색함이 없으며 문장이 1줄 이하이며 핵심 사실을 정확히 요약함.
+                        - 90~100: 문장에 의견이 들어가지 않고 문법 상 어색함이 없으며 문장이 18자 이하이며 핵심 사실을 정확히 요약함.
                         - 70~89: 1줄 이내이고 대체로 좋음 (약간의 어색함이나 불명확한 부분이 있을 수 있음)
                         - 50~69: 1줄 이상이며 불완전 (핵심 누락 또는 문법적 문제가 존재함)
                         - 0~49: 실패 (요약이 원문과 거의 무관하거나 문법이 심각하게 어색함)
@@ -192,7 +188,7 @@ class TotalSummarizationGraph:
         response_schemas = [
             ResponseSchema(
                 name="tag",
-                description="뉴스의 카테고리 태그. 정치, 경제, 사회, 국제, 과학, 스포츠 중 하나",
+                description="뉴스의 카테고리 태그. 경제, 연예, 스포츠, 과학, 기타 중 하나",
             ),
         ]
         parser = StructuredOutputParser.from_response_schemas(response_schemas)
@@ -200,7 +196,7 @@ class TotalSummarizationGraph:
         def classify_tag(state: SummaryState) -> SummaryState:
             system_prompt = """
             당신은 뉴스 카테고리 분류 전문가입니다. 아래 카테고리 중 하나만 골라서 응답하세요.
-            [정치, 경제, 사회, 국제, 과학, 스포츠]
+            [경제, 연예, 스포츠, 과학, 기타]
             예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
             \'{{\'tag\': \'카테고리\'}}\'
             """
@@ -242,9 +238,9 @@ class TotalSummarizationGraph:
                         다음 기준에 따라 채점하세요.
                         예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
                         \'{{\'score\': 75}}\'
-                        - 90~100: 문장에 의견이 들어가지 않고 문법 상 어색함이 없으며 문장이 3줄 이하이며 핵심 사실을 정확히 요약함.
-                        - 70~89: 3줄 이내이고 대체로 좋음 (약간의 어색함이나 불명확한 부분이 있을 수 있음)
-                        - 50~69: 3줄 이상이며 불완전 (핵심 누락 또는 문법적 문제가 존재함)
+                        - 90~100: 문장에 의견이 들어가지 않고 문법 상 어색함이 없으며 문장이 2줄 이하이며 핵심 사실을 정확히 요약함.
+                        - 70~89: 2줄 이내이고 대체로 좋음 (약간의 어색함이나 불명확한 부분이 있을 수 있음)
+                        - 50~69: 2줄 이상이며 불완전 (핵심 누락 또는 문법적 문제가 존재함)
                         - 0~49: 실패 (요약이 원문과 거의 무관하거나 문법이 심각하게 어색함)
                     """
                     ),
@@ -313,6 +309,7 @@ class TotalSummarizationGraph:
 
     def build(self):
         llm = self._make_llm()
+
         graph = StateGraph(SummaryState)
         graph.add_node("summarize", self._make_summarize_node(llm))
         graph.add_node("make_title", self._make_title_node(llm))
@@ -358,4 +355,5 @@ class TotalSummarizationGraph:
         app = graph.compile()
         # mermaid_code = app.get_graph().draw_mermaid()
         # print(mermaid_code)
+        logger.info("에이전트 구축 완료")
         return app

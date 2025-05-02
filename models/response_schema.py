@@ -31,7 +31,7 @@ class TimelineData(BaseModel):
     title: str
     summary: str
     image: str
-    category: str   # ECONOMY, ENTERTAINMENT, SPORTS, KTB, ""
+    category: str  # ECONOMY, ENTERTAINMENT, SPORTS, KTB, ""
     timeline: List[TimelineCard]
 
 

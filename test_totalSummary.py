@@ -11,7 +11,7 @@ import dotenv
 
 # 로깅 설정
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.BASIC_FORMAT,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[logging.StreamHandler()],
 )
@@ -36,33 +36,43 @@ def test_summary_graph():
     logging.info("📰 기사 본문 추출 시작...")
     extractor = ArticleExtractor()
     start_time = time.time()
+    len_title = 0
     try:
         articles = extractor.search(urls=URLS)
         logging.info(articles)
+        for article in articles:
+            len_title += len(article["title"])
+        len_title /= len(articles)
+        logging.info(f"평균 제목 길이: {len_title}")
     except Exception as e:
         logging.exception("❌ 기사 추출 실패:")
         return
     logging.info(
         f"✅ {len(articles)}개 기사 본문 추출 완료 (소요 시간: {time.time() - start_time:.2f}s)"
     )
-
+    len_text = 0
     logging.info("📄 1차 요약(개별 기사) 시작...")
     runner = Runner(graph=graph)
     first_results = runner.run(texts=articles)
     for i, res in enumerate(first_results):
+        len_text += len(res["text"])
         logging.info(f"📝 [1차 제목 {i+1}] {articles[i]['title']}")
         logging.info(f"📝 [1차 결과 {i+1}] {res['text'][:60]}...")
         logging.info(f"📝 [1차 본문 {i+1}] {res['input_text'][:60]}...")
-
+    len_text /= len(first_results)
+    logging.info(f"평균 본문 길이: {len_text}")
     summarized_texts = [r["text"] for r in first_results]
     summarized_texts = {"text": "\n\n".join(summarized_texts)}
 
     logging.info("📚 2차 요약(통합 요약) 시작...")
     final_runner = Runner(graph=graph_total)
     final_results = final_runner.run(texts=[summarized_texts])
-
+    len_text_final = len(final_results[0]["summary"])
+    len_title_final = len(final_results[0]["title"])
+    logging.info(f"평균 최종 요약 길이: {len_text_final}")
+    logging.info(f"📝 [2차 결과] {len_title_final}...")
     logging.info("✅ 최종 통합 요약 결과:")
-    pprint(final_results)
+    logging.info(final_results)
 
 
 if __name__ == "__main__":

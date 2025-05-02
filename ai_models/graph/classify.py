@@ -1,7 +1,6 @@
 from typing import List
 from langchain_community.tools import TavilySearchResults
-from langgraph.graph import MessagesState, END, START, StateGraph
-from langgraph.prebuilt import ToolNode
+from langchain_core.prompts import PromptTemplate
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -9,21 +8,32 @@ from langchain_community.utilities import WikipediaAPIWrapper
 from textwrap import dedent
 from pydantic import BaseModel
 from pprint import pprint
+from langchain.agents import AgentExecutor, create_react_agent
+from langchain.agents.format_scratchpad import format_log_to_str
 import logging
-
+from dotenv import load_dotenv
 # 로그 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+load_dotenv()
 
 # 시스템 프롬프트 정의
-system_prompt = dedent(
-    """
+system_prompt = PromptTemplate(
+    input_variables=["input", "agent_scratchpad"],
+    partial_variables={
+        "tools": "\n".join(
+            [
+                "search_wiki(query: str, k: int = 3) -> str - 인물이 글에 포함이 되어있다면 위키피디아에서 검색하세요.",
+                "search_web(query: str, k: int = 3) -> str - 현재 모르는 정보 또는 최신 정보를 인터넷에서 검색합니다."
+            ]
+        ),
+        "tool_names": ", ".join(["search_wiki", "search_web"])
+    },
+    template=dedent(
+        """
 You are an AI assistant designed to support Korean timeline-based question answering and comment classification.
 You have access to the following tools:
-
-1. `search_wiki`: Use this when a person's name or major entity is mentioned. It searches Wikipedia in Korean.
-2. `search_web`: Use this if Wikipedia does not provide sufficient information. It represents a general web search.
-3. `refine_timeline_card`: Use this to process a list of timeline events into a summarized document for further reasoning.
+{tools}
 
 Follow these exact steps:
 
@@ -39,71 +49,64 @@ Step-by-step:
 5. Provide a final answer based on reasoning and tool results.
 
 Constraints:
-- Only use tools when necessary.
+- You MUST choose only one Action from at a time.
+- Use the tools only when necessary.
 - Do not hallucinate or make claims without citation.
 - Final answers must be concise, accurate, and cite all factual sources.
 
-Example:
-User: 김범수는 누구야?
+Use the following format:
 
-Action: search_wiki
-Action Input: 김범수
+Question: the input question you must answer
+Thought: you should always think about what to do
+Action: the action to take, must be one of
+Action Input: the input to the action
+Observation: the result of the action
+Final Answer: the final answer to the question
 
-Observation: 김범수는 카카오 창업자이며 서울대 출신의 기업가입니다...
-[Source: search_wiki | 김범수 | https://ko.wikipedia.org/wiki/김범수]
+Questions: {input}
+Thought: {agent_scratchpad}
+Action: {tool_names}
 
-Final Answer: 김범수는 서울대 출신의 기업가로, 카카오를 창업한 인물입니다.
+
 """
+    )
 )
 
+@tool
+def search_wiki(query: str, k: int = 3) -> str:
+    """인물이 글에 포함이 되어있다면 위키피디아에서 검색하세요."""
+    wiki_search = WikipediaAPIWrapper(num_results=k, lang="ko")
+    try:
+        result = wiki_search.run(query)
+    except Exception as e:
+        raise RuntimeError(f"Error in search_wiki: {e}")
+    return result
 
-# 상태 정의
-class TimelineState(BaseModel):
-    timeline: List[str]
+@tool
+def search_web(query: str, k: int = 3) -> str:
+    """현재 모르는 정보 또는 최신 정보를 인터넷에서 검색합니다."""
+    tavily_search = TavilySearchResults(max_results=k)
+    try:
+        result = tavily_search.run(query)
+    except Exception as e:
+        raise RuntimeError(f"Error in search_web: {e}")
+    formatted_docs = "\n\n---\n\n".join(
+        [
+            f'<Document href="{doc["url"]}"/>\n{doc["content"]}\n</Document>'
+            for doc in result
+        ]
+    )
+    if len(result) > 0:
+        return formatted_docs
+    return "웹 검색 결과를 찾을 수 없습니다."
 
-
-class TimelineResult(BaseModel):
-    context_docs: List[str]
-
-
-class GraphState(MessagesState):
-    pass
-
+tools = [search_wiki, search_web]
 
 class AgenticCommentGraph:
     def __init__(self, server: str, model: str, max_retries: int = 3):
         self.max_retries = max_retries
         self.server = server
         self.model = model
-        self.tools = [self.search_wiki, self.search_web]
-
-    @tool
-    def search_wiki(self, query: str, k: int = 3) -> str:
-        """인물이 글에 포함이 되어있다면 위키피디아에서 검색하세요."""
-        wiki_search = WikipediaAPIWrapper(num_results=k, lang="ko")
-        try:
-            result = wiki_search.run(query)
-        except Exception as e:
-            raise RuntimeError(f"Error in search_wiki: {e}")
-        return result
-
-    @tool
-    def search_web(self, query: str, k: int = 3) -> str:
-        """현재 모르는 정보 또는 최신 정보를 인터넷에서 검색합니다."""
-        tavily_search = TavilySearchResults(max_results=k)
-        try:
-            result = tavily_search.run(query)
-        except Exception as e:
-            raise RuntimeError(f"Error in search_web: {e}")
-        formatted_docs = "\n\n---\n\n".join(
-            [
-                f'<Document href="{doc["url"]}"/>\n{doc["content"]}\n</Document>'
-                for doc in result
-            ]
-        )
-        if len(result) > 0:
-            return formatted_docs
-        return "웹 검색 결과를 찾을 수 없습니다."
 
     def _make_llm(self):
         llm = ChatOpenAI(
@@ -111,62 +114,27 @@ class AgenticCommentGraph:
             api_key="not-needed",
             model=self.model,
             temperature=0.1,
-            tool_choice="auto",
         )
-        return llm
-
-    def _make_llm_with_tools(self):
-        llm = ChatOpenAI(
-            base_url=f"{self.server}/v1",
-            api_key="not-needed",
-            model=self.model,
-            temperature=0.1,
-            tool_choice="auto",
-        )
-        return llm.bind_tools(tools=self.tools)
-
-    def call_model(self, llm_tools, state: GraphState):
-
-        system_message = SystemMessage(content=system_prompt)
-        messages = [system_message] + state["messages"]
-
-        response = llm_tools.invoke(messages)
-        logger.info(f"Response: {response}")
-        return {"messages": response["messages"]}
-
-    def should_continue(self, state: GraphState) -> str:
-        last_message = state["messages"][-1]
-        if last_message.tool:
-            return "execute"
-        return END
+        return llm.bind_tools(tools)
 
     def build(self):
         llm = self._make_llm()
-        llm_tools = self._make_llm_with_tools()
-        graph = StateGraph(GraphState)
-        graph.add_node("call", self.call_model(llm_tools=llm_tools))
-        graph.add_node("execute", ToolNode(self.tools))
-        graph.add_edge(START, "call")
-        graph.add_conditional_edges(
-            "call",
-            self.should_continue,
-            {
-                "execute": "execute",
-                END: END,
-            },
+        agent = create_react_agent(
+            llm=llm,
+            tools=tools,
+            prompt=system_prompt,   
         )
-        graph.add_edge("execute", "call")
-        return graph.compile()
-
+        return AgentExecutor.from_agent_and_tools(agent=agent, tools=tools, verbose=True, handle_parsing_errors=True)
 
 if __name__ == "__main__":
-    SERVER = "https://8acc-34-125-119-95.ngrok-free.app"
+    SERVER = "https://81fe-34-125-119-95.ngrok-free.app"
     MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
     tmp = AgenticCommentGraph(server=SERVER, model=MODEL).build()
     print(tmp)
 
-    inputs = {"messages": [HumanMessage(content="?")]}
+    inputs = {
+        "input": "폭삭 속았수다가 뭐야?",
+    }
     results = tmp.invoke(inputs)
-    for step in results["messages"]:
-        print(step.content)
-        print()
+    print("\n\n=== 결과 ===")
+    pprint(results)
