@@ -2,7 +2,8 @@ import os
 from fastapi import APIRouter, HTTPException
 from dotenv import load_dotenv
 from scrapers.serpapi import get_trending_keywords
-from models.response_schema import CommonResponse, ErrorResponse, HotRequest, HotData
+from models.response_schema import CommonResponse, ErrorResponse
+from models.response_schema import HotRequest, HotData
 
 router = APIRouter()
 
@@ -19,9 +20,8 @@ def get_hot_topics(request: HotRequest):
     load_dotenv()
     SERP_API_KEYS = os.getenv("SERP_API_KEYS")
     if not SERP_API_KEYS:
-        raise HTTPException(
-            status_code=500, detail="SERP_API_KEYS not found in .env file."
-        )
+        raise HTTPException(status_code=500, detail="SERP_API_KEYS not found.")
+
 
     SERP_API_KEYS = SERP_API_KEYS.split(",")
     SERP_API_KEY = SERP_API_KEYS[0].strip()

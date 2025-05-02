@@ -19,10 +19,7 @@ class ErrorResponse(BaseModel):
     message: str
 
 
-# -----------------------------------------------
-
-
-# Request
+# -------- timeline --------
 class TimelineRequest(BaseModel):
     query: List[str]
     startAt: datetime
@@ -34,13 +31,11 @@ class TimelineData(BaseModel):
     title: str
     summary: str
     image: str
-    category: str  # enum인데 나중에 확인 필요
+    category: str   # ECONOMY, ENTERTAINMENT, SPORTS, KTB, ""
     timeline: List[TimelineCard]
 
 
-# -----------------------------------------------
-
-
+# -------- merge --------
 # Request
 class MergeRequest(BaseModel):
     timeline: List[TimelineCard]
@@ -48,9 +43,8 @@ class MergeRequest(BaseModel):
 
 # Response - CommonResponse[TimelineCard]
 
-# -----------------------------------------------
 
-
+# -------- hot --------
 # Request
 class HotRequest(BaseModel):
     num: int
@@ -61,9 +55,7 @@ class HotData(BaseModel):
     keywords: List[str]
 
 
-# -----------------------------------------------
-
-
+# -------- comment --------
 # Request
 class CommentRequest(BaseModel):
     query: List[str]
@@ -75,6 +67,3 @@ class CommentData(BaseModel):
     positive: int
     neutral: int
     negative: int
-
-
-# -----------------------------------------------
