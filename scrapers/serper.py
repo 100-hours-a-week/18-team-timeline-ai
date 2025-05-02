@@ -1,6 +1,6 @@
 import requests
 from datetime import datetime
-from parse_date import parse_relative_date
+from scrapers.parse_date import parse_relative_date
 
 # ---------------------------------------------------
 
