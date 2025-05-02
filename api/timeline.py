@@ -1,9 +1,60 @@
-from fastapi import APIRouter
+import os
+import logging
+from datetime import datetime
+from dotenv import load_dotenv
+from utils.timeline_utils import convert_tag, extract_first_sentence
+
+from fastapi import APIRouter, HTTPException
 from models.timeline_card import TimelineCard
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import TimelineRequest, TimelineData
 
+from scrapers.serper import get_news_serper
+from scrapers.article_extractor import ArticleExtractor
+
+from ai_models.runner import Runner
+from ai_models.graph.total_summary import TotalSummarizationGraph
+from ai_models.graph.Summary import SummarizationGraph
+
+# -------------------------------------------------------------------
+
 router = APIRouter()
+extractor = ArticleExtractor()
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    handlers=[logging.StreamHandler()],
+)
+
+SERVER = "https://5a09-34-125-119-95.ngrok-free.app"
+MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+graph = SummarizationGraph(SERVER, MODEL).build()
+graph_total = TotalSummarizationGraph(SERVER, MODEL).build()
+
+runner = Runner(graph=graph)
+final_runner = Runner(graph=graph_total)
+
+tag_names = ["", "ECONOMY", "ENTERTAINMENT", "SPORTS", "SCIENCE"]
+base_img_url = "https://github.com/user-attachments/assets/"
+img_links = ["1eeef1f6-3e0a-416a-bc4d-4922b27db855",
+             "6cf88794-2743-4dd1-858c-4fcd76f8f107",
+             "35ee8d58-b5d8-47c0-82e8-38073f4193eb",
+             "3f4248cb-7d8d-4532-a71a-2346e8a82957",
+             "e3b550d9-1d62-4940-b942-5b431ba6674e"]
+
+# -------------------------------------------------------------------
+
+
+def get_api_key(i: int):
+    load_dotenv()
+    SERP_API_KEYS = os.getenv("SERP_API_KEYS")
+    if not SERP_API_KEYS:
+        raise HTTPException(status_code=500, detail="SERP_API_KEYS not found.")
+    SERP_API_KEYS = SERP_API_KEYS.split(",")
+    return SERP_API_KEYS[i].strip()
+
+
+# -------------------------------------------------------------------
 
 
 @router.post(
@@ -15,42 +66,66 @@ router = APIRouter()
     }
 )
 def get_timeline(request: TimelineRequest):
-    # 실제 AI 요약 호출은 생략 (테스트용)
+    # Request parsing
     query_str = " ".join(request.query)
-    start_date = request.startAt.strftime("%Y-%m-%d")
-    end_date = request.endAt.strftime("%Y-%m-%d")
+    start_date = datetime.strptime(request.startAt, "%Y-%m-%d")
+    end_date = datetime.strptime(request.endAt, "%Y-%m-%d")
 
-    # 응답용 더미 타임라인 카드 2개 생성
-    dummy_cards = [
-        TimelineCard(
-            title=f"'{query_str}' 관련 주요 사건 1",
-            content="첫 번째 하드코딩된 타임라인 내용입니다.",
-            duration="DAY",
-            startAt=request.startAt,
-            endAt=request.endAt,
-            source=["https://example.com/article1"]
-        ),
-        TimelineCard(
-            title=f"'{query_str}' 관련 주요 사건 2",
-            content="두 번째 하드코딩된 타임라인입니다.",
-            duration="DAY",
-            startAt=request.startAt,
-            endAt=request.endAt,
-            source=["https://example.com/article2"]
-        ),
-    ]
+    # Scraping
+    SERP_API_KEY = get_api_key(0)
+    scraping_res = get_news_serper(query=query_str, startAt=start_date,
+                                   endAt=end_date, api_key=SERP_API_KEY)
 
-    # 응답용 더미 타임라인 생성
-    dummy_data = TimelineData(
-        title=f"{query_str} ({start_date}~{end_date}) 요약",
-        summary=f"'{query_str}' 키워드에 대한 {start_date}부터 {end_date}까지의 요약입니다.",
-        image="https://example.com/image.jpg",
-        category="KTB",  # enum 적용 예정
-        timeline=dummy_cards
+    if scraping_res:
+        urls, dates = zip(*scraping_res)
+        urls = list(urls)
+        dates = list(dates)
+    else:
+        urls, dates = [], []
+
+    # Extract Article
+    try:
+        articles = extractor.search(urls=urls)
+    except Exception as e:
+        logging.exception("기사 추출 실패")
+        return e
+    logging.info(f"{len(articles)}개 기사 추출 완료")
+
+    # Timeline cards
+    card_list = []
+    first_res = runner.run(texts=articles)
+    for i, res in enumerate(first_res):
+        logging.info(f"[제목 {i+1}] {articles[i]['title']}")
+        logging.info(f"[결과 {i+1}] {res['text'][:30]}...")
+
+        card = TimelineCard(
+            title=articles[i]['title'],
+            content=res['text'],
+            duration="DAY",
+            startAt=dates[i],
+            endAt=dates[i],
+            source=[urls[i]]
+        )
+        card_list.append(card)
+
+    # Timeline construction
+    summarized_texts = [r["text"] for r in first_res]
+    summarized_texts = {"text": "\n\n".join(summarized_texts)}
+    final_res = final_runner.run(texts=[summarized_texts])
+    tag_id = convert_tag(final_res['tag'])
+
+    timeline = TimelineData(
+        title=final_res['title'],
+        summary=extract_first_sentence(final_res['summary']),
+        image=base_img_url + img_links[tag_id],
+        category=tag_names[tag_id],
+        timeline=card_list
     )
+
+    # ----------------------------------------------------
 
     return CommonResponse(
         success=True,
-        message="Timeline 엔드포인트 테스트용 응답",
-        data=dummy_data
+        message="데이터가 성공적으로 생성되었습니다.",
+        data=timeline
     )

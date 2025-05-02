@@ -22,7 +22,6 @@ def get_hot_topics(request: HotRequest):
     if not SERP_API_KEYS:
         raise HTTPException(status_code=500, detail="SERP_API_KEYS not found.")
 
-
     SERP_API_KEYS = SERP_API_KEYS.split(",")
     SERP_API_KEY = SERP_API_KEYS[0].strip()
 
