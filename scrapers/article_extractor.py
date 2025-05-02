@@ -2,6 +2,8 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from newspaper import Article
 from typing import List, Tuple
 from scrapers.base_searcher import BaseSearcher
+import re
+import logging
 
 
 class ArticleExtractor(BaseSearcher):
@@ -15,38 +17,54 @@ class ArticleExtractor(BaseSearcher):
         """
         self.max_workers = max_workers
 
-    def _extract_single(self, url: str) -> Tuple[str, str]:
+    def _extract_single(self, url: str) -> dict:
+        """_기사 URL로부터 본문을 추출하는 메서드
+
+        Args:
+            url (str): 기사 URL
+
+        Returns:
+            Tuple[str, str, str]: 기사 URL, 제목, 본문
+        """
         try:
             article = Article(url=url, language="ko")
             article.download()
             article.parse()
             text = article.text.strip()
+            title = article.title.strip()
+            title = re.sub(r"^[\[\(【]{0,1}속보[\]\)】]{0,1}\s*", "", title)
             if text:
-                return (url, text)
+                return {"url:": url, "title": title, "text": text}
         except Exception as e:
             print(f"Error exatracting {url}: {e}")
 
-    def search(self, urls: List[str]) -> List[Tuple[str, str]]:
-        """URL의 리스트를 받아 (url, 본문) 리스트를 반환
+    def search(self, urls: List[str]) -> List[dict]:
+        """_extract_single_ 메서드를 사용하여 URL 리스트를 스레드로 처리하는 메서드
 
         Args:
-            urls (List[str]): url의 리스트
+            urls (List[str]): 기사의 URL 리스트
 
         Returns:
-            List[Tuple[str, str]]: (url, 본문) 리스트
+            List[Tuple[str, str, str]]: 각 URL에 대한 (URL, 제목, 본문) 튜플 리스트
         """
-        results = []
+        results = [None] * len(urls)
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-            futures = {executor.submit(self._extract_single, url): url for url in urls}
+            futures = {
+                executor.submit(self._extract_single, url): idx
+                for (idx, url) in enumerate(urls)
+            }
             for future in as_completed(futures):
+                idx = futures[future]
                 try:
                     result = future.result()
                     if result:
-                        results.append(result)
+                        results[idx] = result
                 except Exception as e:
-                    url = futures[future]
-                    print(f"오류 발생 - URL: {url} | 예외: {type(e).__name__}: {e}")
-        return results
+                    url = urls[idx]
+                    logging.error(
+                        f"오류 발생 - URL: {url} | 예외: {type(e).__name__}: {e}"
+                    )
+        return [r for r in results if r is not None]
 
 
 if __name__ == "__main__":
@@ -60,4 +78,5 @@ if __name__ == "__main__":
     ]
     runner = ArticleExtractor()
     ret = runner.search(urls=URLS)
+
     print(*ret, sep="\n\n\n\n")

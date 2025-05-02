@@ -1,10 +1,10 @@
 from typing import List
 from langchain_community.tools import TavilySearchResults
-from langgraph.graph import StateGraph, END, START
-from langgraph.prebuilt import create_react_agent, ToolNode
+from langgraph.graph import MessagesState, END, START, StateGraph
+from langgraph.prebuilt import ToolNode
 from langchain_openai import ChatOpenAI
 from langchain_core.tools import tool
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_community.utilities import WikipediaAPIWrapper
 from textwrap import dedent
 from pydantic import BaseModel
@@ -66,12 +66,16 @@ class TimelineResult(BaseModel):
     context_docs: List[str]
 
 
+class GraphState(MessagesState):
+    pass
+
+
 class AgenticCommentGraph:
     def __init__(self, server: str, model: str, max_retries: int = 3):
         self.max_retries = max_retries
         self.server = server
         self.model = model
-        self.tools = [self.search_wiki, self.search_web, self.refine_timeline_card]
+        self.tools = [self.search_wiki, self.search_web]
 
     @tool
     def search_wiki(self, query: str, k: int = 3) -> str:
@@ -101,13 +105,6 @@ class AgenticCommentGraph:
             return formatted_docs
         return "웹 검색 결과를 찾을 수 없습니다."
 
-    @tool
-    def refine_timeline_card(self, state: TimelineState) -> TimelineResult:
-        """사건에 대한 전체적인 문맥이 필요할 때 활용하세요."""
-        document = "\n\n".join(state.timeline)
-        logger.info(f"refine_timeline_card: {document}\n\n")
-        return TimelineResult(context_docs=[document])
-
     def _make_llm(self):
         llm = ChatOpenAI(
             base_url=f"{self.server}/v1",
@@ -118,16 +115,48 @@ class AgenticCommentGraph:
         )
         return llm
 
+    def _make_llm_with_tools(self):
+        llm = ChatOpenAI(
+            base_url=f"{self.server}/v1",
+            api_key="not-needed",
+            model=self.model,
+            temperature=0.1,
+            tool_choice="auto",
+        )
+        return llm.bind_tools(tools=self.tools)
+
+    def call_model(self, llm_tools, state: GraphState):
+
+        system_message = SystemMessage(content=system_prompt)
+        messages = [system_message] + state["messages"]
+
+        response = llm_tools.invoke(messages)
+        logger.info(f"Response: {response}")
+        return {"messages": response["messages"]}
+
+    def should_continue(self, state: GraphState) -> str:
+        last_message = state["messages"][-1]
+        if last_message.tool:
+            return "execute"
+        return END
+
     def build(self):
         llm = self._make_llm()
-        llm_with_tools = llm.bind_tools(self.tools)
-        pprint(llm_with_tools)
-        graph = create_react_agent(
-            model=llm,
-            tools=self.tools,
-            prompt=system_prompt,
+        llm_tools = self._make_llm_with_tools()
+        graph = StateGraph(GraphState)
+        graph.add_node("call", self.call_model(llm_tools=llm_tools))
+        graph.add_node("execute", ToolNode(self.tools))
+        graph.add_edge(START, "call")
+        graph.add_conditional_edges(
+            "call",
+            self.should_continue,
+            {
+                "execute": "execute",
+                END: END,
+            },
         )
-        return graph
+        graph.add_edge("execute", "call")
+        return graph.compile()
 
 
 if __name__ == "__main__":
@@ -136,7 +165,7 @@ if __name__ == "__main__":
     tmp = AgenticCommentGraph(server=SERVER, model=MODEL).build()
     print(tmp)
 
-    inputs = {"messages": [HumanMessage(content="고윤정이 누구야?")]}
+    inputs = {"messages": [HumanMessage(content="?")]}
     results = tmp.invoke(inputs)
     for step in results["messages"]:
         print(step.content)
