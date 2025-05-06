@@ -26,7 +26,7 @@ class Runner:
         return self.graph.invoke(
             {
                 "input_text": text,
-                "worker_id": worker_id,
+                # "worker_id": worker_id,
             },
             {"recursion_limit": 1000},
         )
@@ -58,8 +58,8 @@ class Runner:
                 try:
                     result = future.result()
                     if result:
-                        result["worker_id"] = idx
-                        result["source_id"] = 0
+                        # result["worker_id"] = idx
+                        # result["source_id"] = 0
                         result["input_text"] = texts[idx]["text"]
                         results[idx] = result
                     logging.info(f"✅ {idx}/{len(texts)} 완료")
