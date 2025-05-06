@@ -22,6 +22,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import lru_cache
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+
 class YouTubeCommentAsyncFetcher:
     """비동기 YouTube 댓글 수집기"""
 
@@ -141,9 +142,11 @@ class YouTubeCommentAsyncFetcher:
         except Exception as e:
             logging.warning(f"⚠️ {video_id} 수집 실패: {e}")
             return []
-        
+
     @staticmethod
-    def extract_top_caption_lines_by_keywords(caption_lines: List[str], top_k: int = 50) -> List[str]:
+    def extract_top_caption_lines_by_keywords(
+        caption_lines: List[str], top_k: int = 50
+    ) -> List[str]:
         if not caption_lines:
             return []
         vectorizer = TfidfVectorizer(stop_words="english")
@@ -151,7 +154,7 @@ class YouTubeCommentAsyncFetcher:
         scores = tfidf_matrix.sum(axis=1).A1
         top_indices = np.argsort(scores)[-top_k:][::-1]
         return [caption_lines[i] for i in sorted(top_indices)]
-    
+
     @staticmethod
     async def get_youtube_captions(url: str) -> str:
         """

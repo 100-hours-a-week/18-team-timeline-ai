@@ -173,42 +173,6 @@ class SummarizationGraph:
 
         return check
 
-    '''
-    def _make_title_node(self, llm):
-        title_schema = [
-            ResponseSchema(
-                name="title",
-                description="현재 글의 제목. 1줄 이내의 완전한 문장",
-            )
-        ]
-        parser = StructuredOutputParser.from_response_schemas(title_schema)
-
-        def node(state: SummaryState) -> SummaryState:
-            system_prompt = """
-            당신은 뉴스 제목 생성 전문가입니다. 뉴스의 제목을 지어주세요.
-            - 1줄 이내, 완결된 문장, 핵심 사실만 요약만을 제시하세요.
-            - 예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
-            \'{{\'title\': \'제목\'}}\'
-            """
-            prompt = ChatPromptTemplate.from_messages(
-                [
-                    ("system", system_prompt),
-                    ("human", "{input_text}"),
-                ]
-            )
-            runnable = prompt | llm | parser
-            try:
-                result = runnable.invoke({"input_text": state["summary"]})
-                state["title"] = result["title"]
-                logger.info(f"✅요약 생성 완료: {result['title']}")
-            except Exception as e:
-                logger.exception(f"❌ 요약 생성 실패: {e}")
-                state["title"] = state["summary"]
-            return state
-
-        return node
-    '''
-
     def build(self):
         llm = self._make_llm()
         graph = StateGraph(SummaryState)

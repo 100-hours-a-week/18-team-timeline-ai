@@ -9,26 +9,19 @@ class Runner:
         self,
         graph: Any,
         max_workers: int = 6,
+        config: dict = None,
     ):
         self.graph = graph
         self.max_workers = max_workers
+        self.config = {"recursion_limit": 1000}
+        if config:
+            self.config.update(config)
 
-    def run_graph(self, text: str, worker_id: int) -> dict:
-        """_summary_
+    def run_graph(self, item: dict) -> dict:
 
-        Args:
-            text (str): _description_
-            worker_id (int): _description_
-
-        Returns:
-            dict: _description_
-        """
         return self.graph.invoke(
-            {
-                "input_text": text,
-                # "worker_id": worker_id,
-            },
-            {"recursion_limit": 1000},
+            item,
+            self.config,
         )
 
     def run(self, texts: List[dict]) -> List[dict]:
@@ -38,10 +31,11 @@ class Runner:
         Args:
             texts (List[dict]): 기사 URL, 제목, 본문을 포함하는 딕셔너리 리스트
         - 각 딕셔너리는 {"url": str, "title": str, "text": str} 형식입니다.
-        - 혹은 {"text": str} 형식으로만 제공되어도 괜찮습니다.
+        - 혹은 {"input_text": str} 형식으로만 제공되어도 괜찮습니다.
+        - 반드시 입력 state에 맞게 key를 지정해주세요.
         Returns:
             List[dict]: 각 text에 대한 처리 결과를 제공하는 딕셔너리 리스트
-            딕셔너리의 결과는 graph.invoke 메서드의 StateGraph 객체입니다.
+            딕셔너리의 결과는 각 graph.invoke 메서드의 StateGraph 객체입니다.
         """
         results = [None] * len(texts)
         start = time.time()
@@ -49,7 +43,7 @@ class Runner:
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
 
             futures = {
-                executor.submit(self.run_graph, items["text"], idx): idx
+                executor.submit(self.run_graph, items): idx
                 for idx, items in enumerate(texts)
             }
             logging.info(f"⏳ {len(texts)}개 작업 시작")
@@ -58,9 +52,7 @@ class Runner:
                 try:
                     result = future.result()
                     if result:
-                        # result["worker_id"] = idx
-                        # result["source_id"] = 0
-                        result["input_text"] = texts[idx]["text"]
+                        logging.info(result)
                         results[idx] = result
                     logging.info(f"✅ {idx}/{len(texts)} 완료")
                 except Exception as e:
