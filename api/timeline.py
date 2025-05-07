@@ -114,7 +114,7 @@ def get_timeline(request: TimelineRequest):
 
     # Timeline construction
     summarized_texts = [r["text"] for r in first_res]
-    summarized_texts = {"text": "\n\n".join(summarized_texts)}
+    summarized_texts = {"input_text": "\n\n".join(summarized_texts)}
     final_res = final_runner.run(texts=[summarized_texts])[0]
     tag_id = convert_tag(final_res['tag'])
 
