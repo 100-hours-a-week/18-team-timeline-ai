@@ -22,7 +22,7 @@ async def main():
     REST_API_KEY = os.getenv("REST_API_KEY")
     video_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
     youtube_searcher = YouTubeCommentAsyncFetcher(api_key=YOUTUBE_API_KEY)
-    df = video_searcher.search("풍월량")
+    df = video_searcher.search("랭체인")
     ripple = await youtube_searcher.search(df=df)
     return ripple
 
