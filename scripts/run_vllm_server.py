@@ -131,7 +131,7 @@ def start_vllm_server():
         "models/HyperCLOVAX-SEED-Text-Instruct-1.5B",  # 로컬 모델 경로
         "--trust-remote-code",  # 원격 코드 신뢰
         "--port",
-        "8000",  # 서버 포트
+        "8001",  # 서버 포트
         "--max-model-len",
         "8192",  # 최대 모델 길이
         "--gpu-memory-utilization",
