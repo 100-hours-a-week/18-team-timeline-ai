@@ -1,6 +1,5 @@
 import os
 import logging
-from datetime import datetime
 from dotenv import load_dotenv
 from utils.timeline_utils import convert_tag, extract_first_sentence
 
@@ -9,7 +8,7 @@ from models.timeline_card import TimelineCard
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import TimelineRequest, TimelineData
 
-from scrapers.serper import get_news_serper
+from scrapers.serper import distribute_news_serper
 from scrapers.article_extractor import ArticleExtractor
 
 from ai_models.runner import Runner
@@ -71,8 +70,8 @@ def get_timeline(request: TimelineRequest):
 
     # Scraping
     SERPER_API_KEY = get_api_key(0)
-    scraping_res = get_news_serper(query=query_str, startAt=request.startAt,
-                                   endAt=request.endAt, api_key=SERPER_API_KEY)
+    scraping_res = distribute_news_serper(query=query_str, startAt=request.startAt,
+                                          endAt=request.endAt, api_key=SERPER_API_KEY)
 
     if scraping_res:
         urls, dates = zip(*scraping_res)

@@ -1,5 +1,5 @@
 import requests
-from datetime import datetime
+from datetime import datetime, timedelta
 from scrapers.parse_date import parse_relative_date
 
 # ---------------------------------------------------
@@ -61,3 +61,23 @@ def get_news_serper(
     except Exception as e:
         print(f"Serper API 호출 실패: {e}")
         return []
+
+
+def distribute_news_serper(
+    query: str,
+    startAt: datetime,
+    endAt: datetime,
+    api_key: str,
+    interval_days: int = 5
+) -> list[tuple[str, datetime]]:
+    results = []
+    current = startAt
+
+    while current <= endAt:
+        segment_end = min(current + timedelta(days=interval_days - 1), endAt)
+        partial = get_news_serper(query, current, segment_end, api_key)
+        results.extend(partial)
+        current = segment_end + timedelta(days=1)
+
+    results.sort(key=lambda x: x[1])  # x[1] is datetime
+    return results
