@@ -41,7 +41,7 @@ def merge_timeline(request: MergeRequest):
     for card in cards:
         imgs.extend(card.source)
         contents.append(card.content)
-    concat_content = {"text": "\n\n".join(contents)}
+    concat_content = {"input_text": "\n\n".join(contents)}
     final_res = final_runner.run(texts=[concat_content])[0]
 
     # Merged card
