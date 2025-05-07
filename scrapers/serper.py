@@ -7,10 +7,7 @@ from scrapers.parse_date import parse_relative_date
 
 # 검색어, 시작 날짜, 종료 날짜, API_KEY -> 뉴스 링크 리스트
 def get_news_serper(
-    query: str,
-    startAt: datetime,
-    endAt: datetime,
-    api_key: str
+    query: str, startAt: datetime, endAt: datetime, api_key: str
 ) -> list[tuple[str, datetime]]:
     # 변수 선언
     cd_max = endAt.strftime("%m/%d/%Y")
