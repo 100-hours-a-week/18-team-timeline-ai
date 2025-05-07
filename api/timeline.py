@@ -36,11 +36,13 @@ final_runner = Runner(graph=graph_total)
 
 tag_names = ["", "ECONOMY", "ENTERTAINMENT", "SPORTS", "SCIENCE"]
 base_img_url = "https://github.com/user-attachments/assets/"
-img_links = ["1eeef1f6-3e0a-416a-bc4d-4922b27db855",
-             "6cf88794-2743-4dd1-858c-4fcd76f8f107",
-             "35ee8d58-b5d8-47c0-82e8-38073f4193eb",
-             "3f4248cb-7d8d-4532-a71a-2346e8a82957",
-             "e3b550d9-1d62-4940-b942-5b431ba6674e"]
+img_links = [
+    "1eeef1f6-3e0a-416a-bc4d-4922b27db855",
+    "6cf88794-2743-4dd1-858c-4fcd76f8f107",
+    "35ee8d58-b5d8-47c0-82e8-38073f4193eb",
+    "3f4248cb-7d8d-4532-a71a-2346e8a82957",
+    "e3b550d9-1d62-4940-b942-5b431ba6674e",
+]
 
 # -------------------------------------------------------------------
 
@@ -71,8 +73,12 @@ def get_timeline(request: TimelineRequest):
 
     # Scraping
     SERPER_API_KEY = get_api_key(0)
-    scraping_res = get_news_serper(query=query_str, startAt=request.startAt,
-                                   endAt=request.endAt, api_key=SERPER_API_KEY)
+    scraping_res = get_news_serper(
+        query=query_str,
+        startAt=request.startAt,
+        endAt=request.endAt,
+        api_key=SERPER_API_KEY,
+    )
 
     if scraping_res:
         urls, dates = zip(*scraping_res)
@@ -103,12 +109,12 @@ def get_timeline(request: TimelineRequest):
         logging.info(f"[결과 {i+1}] {res['text'][:30]}...")
 
         card = TimelineCard(
-            title=articles[i]['title'],
-            content=res['text'],
+            title=articles[i]["title"],
+            content=res["text"],
             duration="DAY",
             startAt=dates[i],
             endAt=dates[i],
-            source=[urls[i]]
+            source=[urls[i]],
         )
         card_list.append(card)
 
@@ -116,20 +122,18 @@ def get_timeline(request: TimelineRequest):
     summarized_texts = [r["text"] for r in first_res]
     summarized_texts = {"text": "\n\n".join(summarized_texts)}
     final_res = final_runner.run(texts=[summarized_texts])[0]
-    tag_id = convert_tag(final_res['tag'])
+    tag_id = convert_tag(final_res["tag"])
 
     timeline = TimelineData(
-        title=final_res['title'],
-        summary=extract_first_sentence(final_res['summary']),
+        title=final_res["title"],
+        summary=extract_first_sentence(final_res["summary"]),
         image=base_img_url + img_links[tag_id],
         category=tag_names[tag_id],
-        timeline=card_list
+        timeline=card_list,
     )
 
     # ----------------------------------------------------
 
     return CommonResponse(
-        success=True,
-        message="데이터가 성공적으로 생성되었습니다.",
-        data=timeline
+        success=True, message="데이터가 성공적으로 생성되었습니다.", data=timeline
     )

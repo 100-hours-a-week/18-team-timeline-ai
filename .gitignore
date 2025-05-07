@@ -180,7 +180,8 @@ chroma_db/
 # model
 kobart-summarization/
 EXAONE-3.5-2.4B-Instruct/
-
+HyperCLOVAX-SEED-Text-Instruct-1.5B/
+models--naver-hyperclovax--HyperCLOVAX-SEED-Text-Instruct-1.5B/
 # test
 test_comment.py
 test_inference.py
@@ -191,3 +192,5 @@ __pycache__/
 **/__pycache__/
 *.py[cod]
 
+# 로그 파일
+*.log
