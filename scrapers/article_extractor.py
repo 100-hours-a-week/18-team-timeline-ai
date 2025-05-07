@@ -34,7 +34,7 @@ class ArticleExtractor(BaseSearcher):
             title = article.title.strip()
             title = re.sub(r"^[\[\(【]{0,1}속보[\]\)】]{0,1}\s*", "", title)
             if text:
-                return {"url:": url, "title": title, "text": text}
+                return {"url:": url, "title": title, "input_text": text}
         except Exception as e:
             print(f"Error exatracting {url}: {e}")
 

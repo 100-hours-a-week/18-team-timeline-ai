@@ -1,148 +1,119 @@
-from typing import List
-from langchain_community.tools import TavilySearchResults
-from langchain_core.prompts import PromptTemplate
+from typing import List, Literal
 from langchain_openai import ChatOpenAI
-from langchain_core.tools import tool
-from langchain_core.messages import HumanMessage, SystemMessage
-from langchain_community.utilities import WikipediaAPIWrapper
 from textwrap import dedent
-from pydantic import BaseModel
-from pprint import pprint
-from langchain.agents import AgentExecutor, create_react_agent
-from langchain.agents.format_scratchpad import format_log_to_str
+from pydantic import BaseModel, Field
+from langchain.output_parsers import StructuredOutputParser, ResponseSchema
+from langchain_core.prompts import ChatPromptTemplate
+from langgraph.graph import START, END, StateGraph
+
+
 import logging
 from dotenv import load_dotenv
 
-# 로그 설정
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-load_dotenv()
 
-# 시스템 프롬프트 정의
-system_prompt = PromptTemplate(
-    input_variables=["input", "agent_scratchpad"],
-    partial_variables={
-        "tools": "\n".join(
-            [
-                "search_wiki(query: str, k: int = 3) -> str - 인물이 글에 포함이 되어있다면 위키피디아에서 검색하세요.",
-                "search_web(query: str, k: int = 3) -> str - 현재 모르는 정보 또는 최신 정보를 인터넷에서 검색합니다.",
-            ]
-        ),
-        "tool_names": ", ".join(["search_wiki", "search_web"]),
-    },
-    template=dedent(
-        """
-You are an AI assistant designed to support Korean timeline-based question answering and comment classification.
-You have access to the following tools:
-{tools}
-
-Follow these exact steps:
-
-Step-by-step:
-1. Read and understand the user comment or question.
-2. If you need information not in the timeline, use one of the tools.
-    - Use this format for tool calls:
-        Action: <tool_name>
-        Action Input: <input>
-3. Wait for the tool output ("Observation") and cite the tool source:
-        [Source: <tool_name> | <input summary> | <source url or internal>]
-4. Repeat tool usage if necessary until you gather sufficient context.
-5. Provide a final answer based on reasoning and tool results.
-
-Constraints:
-- You MUST choose only one Action from at a time.
-- Use the tools only when necessary.
-- Do not hallucinate or make claims without citation.
-- Final answers must be concise, accurate, and cite all factual sources.
-
-Use the following format:
-
-Question: the input question you must answer
-Thought: you should always think about what to do
-Action: the action to take, must be one of
-Action Input: the input to the action
-Observation: the result of the action
-Final Answer: the final answer to the question
-
-Questions: {input}
-Thought: {agent_scratchpad}
-Action: {tool_names}
+class ClassifyState(dict):
+    input_text: str
+    transcript: str
+    timeline: str
+    emotion: str
+    score: int
+    retry_count: int
 
 
-"""
-    ),
-)
-
-
-@tool
-def search_wiki(query: str, k: int = 3) -> str:
-    """인물이 글에 포함이 되어있다면 위키피디아에서 검색하세요."""
-    wiki_search = WikipediaAPIWrapper(num_results=k, lang="ko")
-    try:
-        result = wiki_search.run(query)
-    except Exception as e:
-        raise RuntimeError(f"Error in search_wiki: {e}")
-    return result
-
-
-@tool
-def search_web(query: str, k: int = 3) -> str:
-    """현재 모르는 정보 또는 최신 정보를 인터넷에서 검색합니다."""
-    tavily_search = TavilySearchResults(max_results=k)
-    try:
-        result = tavily_search.run(query)
-    except Exception as e:
-        raise RuntimeError(f"Error in search_web: {e}")
-    formatted_docs = "\n\n---\n\n".join(
-        [
-            f'<Document href="{doc["url"]}"/>\n{doc["content"]}\n</Document>'
-            for doc in result
-        ]
-    )
-    if len(result) > 0:
-        return formatted_docs
-    return "웹 검색 결과를 찾을 수 없습니다."
-
-
-tools = [search_wiki, search_web]
-
-
-class AgenticCommentGraph:
+class ClassifyGraph:
     def __init__(self, server: str, model: str, max_retries: int = 3):
         self.max_retries = max_retries
         self.server = server
         self.model = model
+        logging.info("초기화 완료")
 
     def _make_llm(self):
-        llm = ChatOpenAI(
+        return ChatOpenAI(
             base_url=f"{self.server}/v1",
             api_key="not-needed",
             model=self.model,
             temperature=0.1,
         )
-        return llm.bind_tools(tools)
+
+    def _make_classify_node(self, llm):
+        classify_schema = [
+            ResponseSchema(
+                name="emotion",
+                description="댓글의 감정을 분류합니다. 반드시 다음 중 하나: 긍정, 부정, 관련없음",
+            )
+        ]
+
+        parser = StructuredOutputParser.from_response_schemas(classify_schema)
+
+        def classify(state: ClassifyState) -> ClassifyState:
+            system = dedent(
+                f"""
+                당신은 감정 분류 전문가입니다. 댓글을 보고 분류하세요.
+                가능한 분류값은 다음 중 하나입니다: 긍정, 부정, 관련없음
+                - 예시의 형식을 따라서 반드시 JSON으로 제공하세요.
+                \'{{{{\'emotion\': \'긍정\'}}}}\'
+                다음의 문맥을 참조하세요:
+                {state.get("transcript", "")}
+                \n\n
+                {state.get("timeline", "")}
+                댓글:
+                """
+            )
+
+            prompt = ChatPromptTemplate.from_messages(
+                [("system", system), ("human", "{input_text}")]
+            )
+
+            try:
+                runnbale = prompt | llm | parser
+                logging.info(f"댓글 감정 분류 시작: {state['input_text']}")
+                result = runnbale.invoke({"input_text": state["input_text"]})
+                state["emotion"] = result["emotion"]
+                logging.info(f"댓글 감정 분류 완료: {state['emotion']}")
+                if not state["emotion"]:
+                    raise ValueError("감정 분류 실패")
+            except Exception as e:
+                logging.error(f"댓글 분류 실패: {e}, {state['input_text']}")
+                state["emotion"] = None
+
+            return state
+
+        return classify
+
+    def _make_retry_node(self):
+        def retry(state: ClassifyState) -> ClassifyState:
+            state["retry_count"] = state.get("retry_count", 0) + 1
+            return state
+
+        return retry
+
+    def _make_check_emotion(self):
+        def check(state: ClassifyState) -> str:
+            if state.get("emotion") is not None:
+                return "end"
+            elif state.get("retry_count", 0) < self.max_retries:
+                return "retry"
+            else:
+                return "end"
+
+        return check
 
     def build(self):
         llm = self._make_llm()
-        agent = create_react_agent(
-            llm=llm,
-            tools=tools,
-            prompt=system_prompt,
+        graph = StateGraph(ClassifyState)
+
+        graph.add_node("classify", self._make_classify_node(llm))
+        graph.add_node("retry", self._make_retry_node())
+
+        graph.add_edge(START, "classify")
+        graph.add_conditional_edges(
+            "classify", self._make_check_emotion(), {"end": END, "retry": "retry"}
         )
-        return AgentExecutor.from_agent_and_tools(
-            agent=agent, tools=tools, verbose=True, handle_parsing_errors=True
-        )
+        graph.add_edge("retry", "classify")
+
+        return graph.compile()
 
 
 if __name__ == "__main__":
-    SERVER = "https://81fe-34-125-119-95.ngrok-free.app"
+    SERVER = "https://b79f-34-125-17-94.ngrok-free.app"
     MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
-    tmp = AgenticCommentGraph(server=SERVER, model=MODEL).build()
-    print(tmp)
-
-    inputs = {
-        "input": "폭삭 속았수다가 뭐야?",
-    }
-    results = tmp.invoke(inputs)
-    print("\n\n=== 결과 ===")
-    pprint(results)

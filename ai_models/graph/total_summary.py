@@ -79,19 +79,17 @@ class TotalSummarizationGraph:
                     ("human", "{input_text}"),
                 ]
             )
-            runnable = prompt | llm | parser
-            result = runnable.invoke({"input_text": state["input_text"]})
-            print(f"요약 생성 결과:\n {result}")
+
             try:
-                print(f"요약 생성 시작:\n {state['input_text']}")
+                runnable = prompt | llm | parser
+                logging.info(f"요약 생성 시작:\n {state['input_text']}")
                 result = runnable.invoke({"input_text": state["input_text"]})
-                print(f"요약 생성 결과:\n {result}")
                 state["summary"] = result["summary"]
-                logger.info(f"✅요약 생성 완료: {result['summary']}")
+                logging.info(f"✅요약 생성 완료: {result['summary']}")
                 if not state["summary"]:
                     raise ValueError("요약이 비어있습니다.")
             except Exception as e:
-                logger.exception(f"❌ 요약 생성 실패: {e}, {state['summary']}")
+                logging.error(f"❌ 요약 생성 실패: {e}, {state['summary']}")
                 state["summary"] = None
 
             return state
