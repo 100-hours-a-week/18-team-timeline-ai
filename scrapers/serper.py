@@ -1,6 +1,5 @@
 import requests
 from datetime import datetime, timedelta
-from scrapers.parse_date import parse_relative_date
 
 # ---------------------------------------------------
 
@@ -8,55 +7,35 @@ from scrapers.parse_date import parse_relative_date
 # 검색어, 시작 날짜, 종료 날짜, API_KEY -> 뉴스 링크 리스트
 def get_news_serper(
     query: str,
-    startAt: datetime,
-    endAt: datetime,
+    date: datetime,
     api_key: str
-) -> list[tuple[str, datetime]]:
+) -> str:
     # 변수 선언
-    cd_max = endAt.strftime("%m/%d/%Y")
-    cd_min = startAt.strftime("%m/%d/%Y")
-    num_days = (endAt - startAt).days + 1
-    tbs_str = f"cdr:1,cd_min:{cd_min},cd_max:{cd_max}"
+    date_str = date.strftime("%Y-%m-%d")
+    query_with_date = f"{query} {date_str}"
 
     url = "https://google.serper.dev/news"
     params = {
-        "q": query,
-        "tbs": tbs_str,
+        "q": query_with_date,
         "hl": "ko",
         "gl": "KR",
-        "num": num_days * 2,  # 넉넉하게 가져오기
+        "num": 1,
         "api_key": api_key,
     }
 
     try:
+        # Getting Serper response
         response = requests.get(url, headers={}, params=params)
         response.raise_for_status()
         result = response.json().get("news", [])
+        if not result:
+            return []
 
-        # 날짜별 하나씩만 고르기
-        date_to_link = {}
-
-        for item in result:
-            link = item.get("link")
-            date_str = item.get("date")
-
-            if not link or not date_str:
-                continue
-
-            try:
-                parsed_date = parse_relative_date(date_str)
-            except Exception:
-                continue
-
-            # 날짜 범위 안에 들어가는 경우만
-            if startAt.date() <= parsed_date.date() <= endAt.date():
-                day_key = parsed_date.strftime("%Y-%m-%d")
-                if day_key not in date_to_link:
-                    date_to_link[day_key] = (link, parsed_date)  # 날짜당 하나만 저장
-
-        # 날짜 순으로 정렬해서 리스트 반환
-        ret = [date_to_link[day] for day in sorted(date_to_link.keys())]
-        return ret
+        # Getting news URL
+        link = result[0].get("link")
+        if not link:
+            return []
+        return link
 
     except Exception as e:
         print(f"Serper API 호출 실패: {e}")
@@ -68,16 +47,14 @@ def distribute_news_serper(
     startAt: datetime,
     endAt: datetime,
     api_key: str,
-    interval_days: int = 5
 ) -> list[tuple[str, datetime]]:
     results = []
     current = startAt
 
     while current <= endAt:
-        segment_end = min(current + timedelta(days=interval_days - 1), endAt)
-        partial = get_news_serper(query, current, segment_end, api_key)
-        results.extend(partial)
-        current = segment_end + timedelta(days=1)
+        partial = get_news_serper(query, current, api_key)
+        date_str = current.strftime("%Y-%m-%d")
+        results.append((partial, date_str))
+        current += timedelta(days=1)
 
-    results.sort(key=lambda x: x[1])  # x[1] is datetime
     return results
