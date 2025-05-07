@@ -22,14 +22,14 @@ async def main():
     REST_API_KEY = os.getenv("REST_API_KEY")
     video_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
     youtube_searcher = YouTubeCommentAsyncFetcher(api_key=YOUTUBE_API_KEY)
-    df = video_searcher.search("첼시 vs 리버풀")
+    df = video_searcher.search("랭체인")
     ripple = await youtube_searcher.search(df=df)
     return ripple
 
 
 def test_agentic_comment_graph():
     # ✅ 서버 및 모델 정보
-    SERVER = "https://c654-34-143-254-151.ngrok-free.app"
+    SERVER = "https://ac92-34-16-191-150.ngrok-free.app"
     MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
     loop = asyncio.get_event_loop()
     data = loop.run_until_complete(main())

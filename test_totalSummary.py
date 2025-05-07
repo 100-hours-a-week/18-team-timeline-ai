@@ -8,13 +8,7 @@ from ai_models.graph.total_summary import TotalSummarizationGraph
 from ai_models.graph.Summary import SummarizationGraph
 import dotenv
 
-
-# 로깅 설정
-logging.basicConfig(
-    level=logging.BASIC_FORMAT,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[logging.StreamHandler()],
-)
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(name)s: %(message)s")
 
 
 def test_summary_graph():
@@ -26,7 +20,7 @@ def test_summary_graph():
         "https://www.mk.co.kr/news/politics/11290687",
         "https://www.chosun.com/politics/politics_general/2025/04/14/THWVKUHQG5CKFJF6CLZLP5PKM4",
     ]
-    SERVER = "https://c654-34-143-254-151.ngrok-free.app"
+    SERVER = "https://ac92-34-16-191-150.ngrok-free.app"
     MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
 
     logging.info("📦 모델 및 그래프 초기화 중...")
@@ -73,6 +67,7 @@ def test_summary_graph():
     logging.info(f"📝 [2차 결과] {len_title_final}...")
     logging.info("✅ 최종 통합 요약 결과:")
     logging.info(final_results)
+    pprint(final_results)
 
 
 if __name__ == "__main__":

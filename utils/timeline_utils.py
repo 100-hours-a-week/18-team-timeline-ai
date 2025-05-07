@@ -19,6 +19,6 @@ def convert_tag(tag: str) -> int:
 
 
 def extract_first_sentence(text: str) -> str:
-    if '.' in text:
-        return text.split('.')[0].strip() + '.'
+    if "." in text:
+        return text.split(".")[0].strip() + "."
     return text.strip()

@@ -46,18 +46,16 @@ def merge_timeline(request: MergeRequest):
 
     # Merged card
     merged_card = TimelineCard(
-        title=final_res['title'],
-        content=final_res['summary'],
+        title=final_res["title"],
+        content=final_res["summary"],
         duration=next_timeline_type(cards[0].duration),
         startAt=cards[0].startAt,
-        endAt=cards[len(cards)-1].endAt,
-        source=imgs
+        endAt=cards[len(cards) - 1].endAt,
+        source=imgs,
     )
 
     # ----------------------------------------------------
 
     return CommonResponse(
-        success=True,
-        message="데이터가 성공적으로 생성되었습니다.",
-        data=merged_card
+        success=True, message="데이터가 성공적으로 생성되었습니다.", data=merged_card
     )
