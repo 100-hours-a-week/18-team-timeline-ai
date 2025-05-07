@@ -1,6 +1,5 @@
-import os
 import logging
-from dotenv import load_dotenv
+from utils.env_utils import get_server, get_serper_key
 from utils.timeline_utils import convert_tag, extract_first_sentence
 
 from fastapi import APIRouter, HTTPException
@@ -25,7 +24,7 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()],
 )
 
-SERVER = "https://b79f-34-125-17-94.ngrok-free.app"
+SERVER = get_server()
 MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
 graph = SummarizationGraph(SERVER, MODEL).build()
 graph_total = TotalSummarizationGraph(SERVER, MODEL).build()
@@ -44,18 +43,6 @@ img_links = ["1eeef1f6-3e0a-416a-bc4d-4922b27db855",
 # -------------------------------------------------------------------
 
 
-def get_api_key(i: int):
-    load_dotenv()
-    SERPER_API_KEYS = os.getenv("SERPER_API_KEYS")
-    if not SERPER_API_KEYS:
-        raise HTTPException(status_code=500, detail="SERPER_API_KEYS not found.")
-    SERPER_API_KEYS = SERPER_API_KEYS.split(",")
-    return SERPER_API_KEYS[i].strip()
-
-
-# -------------------------------------------------------------------
-
-
 @router.post(
     "",
     response_model=CommonResponse[TimelineData],
@@ -69,9 +56,13 @@ def get_timeline(request: TimelineRequest):
     query_str = " ".join(request.query)
 
     # Scraping
-    SERPER_API_KEY = get_api_key(0)
-    scraping_res = distribute_news_serper(query=query_str, startAt=request.startAt,
-                                          endAt=request.endAt, api_key=SERPER_API_KEY)
+    SERPER_API_KEY = get_serper_key(0)
+    if not SERPER_API_KEY:
+        raise HTTPException(status_code=500, detail="SERPER_API_KEY not found")
+    scraping_res = distribute_news_serper(query=query_str,
+                                          startAt=request.startAt,
+                                          endAt=request.endAt,
+                                          api_key=SERPER_API_KEY)
 
     if scraping_res:
         urls, dates = zip(*scraping_res)
