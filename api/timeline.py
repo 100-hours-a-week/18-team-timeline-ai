@@ -1,5 +1,5 @@
 import logging
-from utils.env_utils import get_server, get_serper_key
+from utils.env_utils import get_server, get_model, get_serper_key
 from utils.timeline_utils import convert_tag, extract_first_sentence
 
 from fastapi import APIRouter, HTTPException
@@ -26,7 +26,7 @@ logging.basicConfig(
 )
 
 SERVER = get_server()
-MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+MODEL = get_model()
 graph = SummarizationGraph(SERVER, MODEL).build()
 graph_total = TotalSummarizationGraph(SERVER, MODEL).build()
 
