@@ -90,9 +90,16 @@ def get_timeline(request: TimelineRequest):
     print("기사 추출본입니다.")
     print(articles)
 
+    # 1st Summarization
+    first_res = runner.run(texts=articles)
+    if not first_res:
+        print("1차 요약 실패!")
+        return ErrorResponse(
+            success=False, message="인공지능 1차 요약 실패"
+        )
+
     # Timeline cards
     card_list = []
-    first_res = runner.run(texts=articles)
     for i, res in enumerate(first_res):
         logging.info(f"[제목 {i+1}] {articles[i]['title']}")
         logging.info(f"[결과 {i+1}] {res['text'][:30]}...")
@@ -107,10 +114,18 @@ def get_timeline(request: TimelineRequest):
         )
         card_list.append(card)
 
-    # Timeline construction
+    # 2nd Summarization
     summarized_texts = [r["text"] for r in first_res]
     summarized_texts = {"input_text": "\n\n".join(summarized_texts)}
-    final_res = final_runner.run(texts=[summarized_texts])[0]
+    final_res = final_runner.run(texts=[summarized_texts])
+    if not final_res:
+        print("2차 요약 실패!")
+        return ErrorResponse(
+            success=False, message="인공지능 2차 요약 실패"
+        )
+
+    # Tag extraction
+    final_res = final_res[0]
     tag_id = convert_tag(final_res["tag"])
 
     # Image Extraction
@@ -118,6 +133,7 @@ def get_timeline(request: TimelineRequest):
     if not img_link:
         img_link = base_img_url + img_links[tag_id]
 
+    # Timeline
     timeline = TimelineData(
         title=final_res["title"],
         summary=extract_first_sentence(final_res["summary"]),
