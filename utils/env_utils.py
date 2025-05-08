@@ -3,8 +3,13 @@ from dotenv import load_dotenv
 
 
 def get_server():
-    load_dotenv()
+    load_dotenv(override=True)
     return os.getenv("SERVER")
+
+
+def get_model():
+    load_dotenv(override=True)
+    return os.getenv("MODEL")
 
 
 def get_serp_key(i: int):

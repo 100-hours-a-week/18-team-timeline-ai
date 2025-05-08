@@ -1,5 +1,5 @@
 import logging
-from utils.env_utils import get_server, get_serper_key
+from utils.env_utils import get_server, get_model, get_serper_key
 from utils.timeline_utils import convert_tag, extract_first_sentence
 
 from fastapi import APIRouter, HTTPException
@@ -7,6 +7,7 @@ from models.timeline_card import TimelineCard
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import TimelineRequest, TimelineData
 
+from scrapers.url_to_img import get_img_link
 from scrapers.serper import distribute_news_serper
 from scrapers.article_extractor import ArticleExtractor
 
@@ -25,7 +26,7 @@ logging.basicConfig(
 )
 
 SERVER = get_server()
-MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+MODEL = get_model()
 graph = SummarizationGraph(SERVER, MODEL).build()
 graph_total = TotalSummarizationGraph(SERVER, MODEL).build()
 
@@ -66,7 +67,6 @@ def get_timeline(request: TimelineRequest):
                                           endAt=request.endAt,
                                           api_key=SERPER_API_KEY)
 
-
     if scraping_res:
         urls, dates = zip(*scraping_res)
         urls = list(urls)
@@ -74,8 +74,10 @@ def get_timeline(request: TimelineRequest):
     else:
         urls, dates = [], []
 
-    print("URL 목록입니다.")
-    print(urls)
+    if not urls:
+        return ErrorResponse(
+            success=False, message="기사를 찾을 수 없습니다."
+        )
 
     # Extract Article
     try:
@@ -88,9 +90,16 @@ def get_timeline(request: TimelineRequest):
     print("기사 추출본입니다.")
     print(articles)
 
+    # 1st Summarization
+    first_res = runner.run(texts=articles)
+    if not first_res:
+        print("1차 요약 실패!")
+        return ErrorResponse(
+            success=False, message="인공지능 1차 요약 실패"
+        )
+
     # Timeline cards
     card_list = []
-    first_res = runner.run(texts=articles)
     for i, res in enumerate(first_res):
         logging.info(f"[제목 {i+1}] {articles[i]['title']}")
         logging.info(f"[결과 {i+1}] {res['text'][:30]}...")
@@ -105,16 +114,30 @@ def get_timeline(request: TimelineRequest):
         )
         card_list.append(card)
 
-    # Timeline construction
+    # 2nd Summarization
     summarized_texts = [r["text"] for r in first_res]
     summarized_texts = {"input_text": "\n\n".join(summarized_texts)}
-    final_res = final_runner.run(texts=[summarized_texts])[0]
+    final_res = final_runner.run(texts=[summarized_texts])
+    if not final_res:
+        print("2차 요약 실패!")
+        return ErrorResponse(
+            success=False, message="인공지능 2차 요약 실패"
+        )
+
+    # Tag extraction
+    final_res = final_res[0]
     tag_id = convert_tag(final_res["tag"])
 
+    # Image Extraction
+    img_link = get_img_link(urls[0])
+    if not img_link:
+        img_link = base_img_url + img_links[tag_id]
+
+    # Timeline
     timeline = TimelineData(
         title=final_res["title"],
         summary=extract_first_sentence(final_res["summary"]),
-        image=base_img_url + img_links[tag_id],
+        image=img_link,
         category=tag_names[tag_id],
         timeline=card_list,
     )
