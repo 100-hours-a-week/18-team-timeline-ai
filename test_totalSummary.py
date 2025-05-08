@@ -20,7 +20,7 @@ def test_summary_graph():
         "https://www.mk.co.kr/news/politics/11290687",
         "https://www.chosun.com/politics/politics_general/2025/04/14/THWVKUHQG5CKFJF6CLZLP5PKM4",
     ]
-    SERVER = "https://ac92-34-16-191-150.ngrok-free.app"
+    SERVER = "https://669a-35-240-130-158.ngrok-free.app"
     MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
 
     logging.info("📦 모델 및 그래프 초기화 중...")

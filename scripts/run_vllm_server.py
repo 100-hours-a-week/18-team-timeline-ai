@@ -143,6 +143,9 @@ def start_vllm_server():
         "--disable-log-requests",  # 요청 로깅 비활성화
         "--dtype",
         "half",  # 데이터 타입 (FP16)
+        "--device",
+        "cpu",
+        "--enforce-eager",
     ]
 
     # vLLM 서버 프로세스 시작
@@ -158,8 +161,8 @@ def start_vllm_server():
     stream_output(vllm_process)
 
     # 포트가 열릴 때까지 대기
-    logger.info("⏳ 포트 8000이 열릴 때까지 대기 중...")
-    wait_for_port(8000)
+    logger.info("⏳ 포트 8001이 열릴 때까지 대기 중...")
+    wait_for_port(8001)
     logger.info("✅ vLLM 서버가 준비되었습니다!")
 
     return vllm_process
@@ -170,7 +173,7 @@ def monitor_server():
     while True:
         try:
             # 서버 상태 확인
-            if not is_vllm_running() or not is_port_in_use(8000):
+            if not is_vllm_running() or not is_port_in_use(8001):
                 logger.warning("vLLM 서버가 실행되지 않고 있습니다. 재시작합니다...")
                 start_vllm_server()
             else:
@@ -191,7 +194,7 @@ def main():
     """vLLM 서버를 실행하고 관리하는 메인 함수"""
     try:
         # 서버가 이미 실행 중인지 확인
-        if is_vllm_running() and is_port_in_use(8000):
+        if is_vllm_running() and is_port_in_use(8001):
             logger.info("vLLM 서버가 이미 실행 중입니다.")
             return
 

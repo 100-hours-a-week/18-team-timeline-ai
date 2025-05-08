@@ -29,7 +29,6 @@ dependencies = [
     "youtube-transcript-api (>=1.0.3,<2.0.0)",
     "scikit-learn (>=1.6.1,<2.0.0)",
     "fastapi (==0.115.8)",
-    "vllm (>=0.8.5.post1,<0.9.0)",
     "pydantic (==2.10.6)",
 ]
 
@@ -38,6 +37,14 @@ name = "flashinfer"
 url = "https://flashinfer.ai/whl/cu124/torch2.6/"
 priority = "explicit"
 
+[project.optional-dependencies]
+gpu = [
+    "vllm (==0.8.5)",
+    "triton (==3.2.0)",
+]
+
+[tool.poetry.extras]
+with-gpu = ["gpu"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
-from typing import TypedDict, Any, Dict
+from typing import TypedDict
 from langchain.chat_models import ChatOpenAI
-from langgraph.graph import StateGraph, START, END
+from langgraph.graph import StateGraph
 
 
 class BaseState(TypedDict):
@@ -22,17 +22,11 @@ class BaseNode(ABC):
         pass
 
 
-class BaseGraph(ABC):
+class BaseGraph(StateGraph, ABC):
     """기본 그래프 추상 클래스"""
 
     def __init__(self, server: str, model: str, max_retries: int = 3):
-        """그래프 초기화
-
-        Args:
-            server (str): LLM 서버 URL
-            model (str): 사용할 LLM 모델 이름
-            max_retries (int, optional): 최대 재시도 횟수. Defaults to 3.
-        """
+        super().__init__()
         self.server = server
         self.model = model
         self.max_retries = max_retries
