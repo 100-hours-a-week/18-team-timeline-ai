@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 
 
 def get_server():
-    load_dotenv()
+    load_dotenv(override=True)
     return os.getenv("SERVER")
 
 
