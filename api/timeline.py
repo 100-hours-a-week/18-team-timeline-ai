@@ -7,6 +7,7 @@ from models.timeline_card import TimelineCard
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import TimelineRequest, TimelineData
 
+from scrapers.url_to_img import get_img_link
 from scrapers.serper import distribute_news_serper
 from scrapers.article_extractor import ArticleExtractor
 
@@ -66,7 +67,6 @@ def get_timeline(request: TimelineRequest):
                                           endAt=request.endAt,
                                           api_key=SERPER_API_KEY)
 
-
     if scraping_res:
         urls, dates = zip(*scraping_res)
         urls = list(urls)
@@ -74,8 +74,10 @@ def get_timeline(request: TimelineRequest):
     else:
         urls, dates = [], []
 
-    print("URL 목록입니다.")
-    print(urls)
+    if not urls:
+        return ErrorResponse(
+            success=False, message="기사를 찾을 수 없습니다."
+        )
 
     # Extract Article
     try:
@@ -111,10 +113,15 @@ def get_timeline(request: TimelineRequest):
     final_res = final_runner.run(texts=[summarized_texts])[0]
     tag_id = convert_tag(final_res["tag"])
 
+    # Image Extraction
+    img_link = get_img_link(urls[0])
+    if not img_link:
+        img_link = base_img_url + img_links[tag_id]
+
     timeline = TimelineData(
         title=final_res["title"],
         summary=extract_first_sentence(final_res["summary"]),
-        image=base_img_url + img_links[tag_id],
+        image=img_link,
         category=tag_names[tag_id],
         timeline=card_list,
     )
