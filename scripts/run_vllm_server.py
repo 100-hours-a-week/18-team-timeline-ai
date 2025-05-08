@@ -133,7 +133,7 @@ def start_vllm_server():
         "--port",
         "8001",  # 서버 포트
         "--max-model-len",
-        "8192",  # 최대 모델 길이
+        "4096",  # 최대 모델 길이
         "--gpu-memory-utilization",
         "0.9",  # GPU 메모리 사용률
         "--max-num-seqs",
@@ -143,9 +143,6 @@ def start_vllm_server():
         "--disable-log-requests",  # 요청 로깅 비활성화
         "--dtype",
         "half",  # 데이터 타입 (FP16)
-        "--device",
-        "cpu",
-        "--enforce-eager",
     ]
 
     # vLLM 서버 프로세스 시작
