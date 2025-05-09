@@ -58,4 +58,12 @@ class DaumVclipSearcher(BaseSearcher):
             )
         if df.empty:
             raise ValueError(f"'{query}'에 대한 검색 결과가 없습니다.")
+
+        # YouTube URL만 필터링 (youtube.com 또는 youtu.be 도메인)
+        youtube_pattern = r"(youtube\.com|youtu\.be)"
+        df = df[df["url"].str.contains(youtube_pattern, case=False, na=False)]
+
+        if df.empty:
+            raise ValueError(f"'{query}'에 대한 YouTube 검색 결과가 없습니다.")
+
         return df
