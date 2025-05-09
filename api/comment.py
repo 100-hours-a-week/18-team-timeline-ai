@@ -58,12 +58,11 @@ async def classify_comments(request: CommentRequest):
     # Request parsing
     num = request.num
     if not num:
-        num = 3
+        num = 5
     query_str = " ".join(request.query)
-    query_str += " youtube"
 
     # 기사 수집
-    data = await main(query_str, num)
+    data = await main(query_str + " youtube", num)
     if not data:
         return JSONResponse(
             status_code=404,
@@ -76,7 +75,8 @@ async def classify_comments(request: CommentRequest):
     # 그래프 빌드 및 실행
     graph = ClassifyGraph(server=SERVER, model=MODEL).build()
     runner = Runner(graph=graph)
-    texts = [{"input_text": d["comment"], "transcript": d["captions"]} for d in data]
+    texts = [{"input_text": d["comment"], "transcript": d["captions"],
+              "query": query_str} for d in data]
     result = runner.run(texts=texts)
     if not result:
         return JSONResponse(
