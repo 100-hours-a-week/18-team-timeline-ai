@@ -28,12 +28,12 @@ logging.basicConfig(
 # -------------------------------------------------------------------
 
 
-async def main(query: str):
+async def main(query: str, num: int):
     dotenv.load_dotenv(override=True)
     YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
     REST_API_KEY = os.getenv("REST_API_KEY")
     video_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
-    youtube_searcher = YouTubeCommentAsyncFetcher(api_key=YOUTUBE_API_KEY)
+    youtube_searcher = YouTubeCommentAsyncFetcher(api_key=YOUTUBE_API_KEY, max_comments=num)
     df = video_searcher.search(query=query)
     print("df")
     print(df)
@@ -56,11 +56,14 @@ async def main(query: str):
 )
 async def classify_comments(request: CommentRequest):
     # Request parsing
+    num = request.num
+    if not num:
+        num = 3
     query_str = " ".join(request.query)
     query_str += " youtube"
 
     # 기사 수집
-    data = await main(query_str)
+    data = await main(query_str, num)
     if not data:
         return JSONResponse(
             status_code=404,
