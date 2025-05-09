@@ -3,6 +3,7 @@ from utils.env_utils import get_server, get_model, get_serper_key
 from utils.timeline_utils import convert_tag, extract_first_sentence
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 from models.timeline_card import TimelineCard
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import TimelineRequest, TimelineData
@@ -51,6 +52,7 @@ img_links = [
     response_model=CommonResponse[TimelineData],
     responses={
         400: {"model": ErrorResponse},
+        404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
 )
@@ -75,8 +77,12 @@ def get_timeline(request: TimelineRequest):
         urls, dates = [], []
 
     if not urls:
-        return ErrorResponse(
-            success=False, message="기사를 찾을 수 없습니다."
+        return JSONResponse(
+            status_code=404,
+            content=ErrorResponse(
+                success=False,
+                message="기사를 찾을 수 없습니다."
+            ).model_dump()
         )
 
     # Extract Article
@@ -93,9 +99,12 @@ def get_timeline(request: TimelineRequest):
     # 1st Summarization
     first_res = runner.run(texts=articles)
     if not first_res:
-        print("1차 요약 실패!")
-        return ErrorResponse(
-            success=False, message="인공지능 1차 요약 실패"
+        return JSONResponse(
+            status_code=500,
+            content=ErrorResponse(
+                success=False,
+                message="인공지능 1차 요약 실패"
+            ).model_dump()
         )
 
     # Timeline cards
@@ -119,9 +128,12 @@ def get_timeline(request: TimelineRequest):
     summarized_texts = {"input_text": "\n\n".join(summarized_texts)}
     final_res = final_runner.run(texts=[summarized_texts])
     if not final_res:
-        print("2차 요약 실패!")
-        return ErrorResponse(
-            success=False, message="인공지능 2차 요약 실패"
+        return JSONResponse(
+            status_code=500,
+            content=ErrorResponse(
+                success=False,
+                message="인공지능 2차 요약 실패"
+            ).model_dump()
         )
 
     # Tag extraction

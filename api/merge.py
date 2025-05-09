@@ -1,6 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+
 from utils.env_utils import get_server, get_model
 from utils.timeline_utils import next_timeline_type
+
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import MergeRequest
 from models.timeline_card import TimelineCard
@@ -31,7 +34,13 @@ final_runner = Runner(graph=graph_total)
 def merge_timeline(request: MergeRequest):
     # Request exception
     if not request.timeline:
-        raise HTTPException(status_code=400, detail="timeline 데이터가 비어 있습니다.")
+        return JSONResponse(
+            status_code=400,
+            content=ErrorResponse(
+                success=False,
+                message="Timeline이 비어 있습니다."
+            ).model_dump()
+        )
 
     # Request parsing
     imgs = []
