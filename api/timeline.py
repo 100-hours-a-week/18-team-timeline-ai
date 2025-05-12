@@ -72,30 +72,30 @@ def get_timeline(request: TimelineRequest):
     )
 
     if scraping_res:
-        urls, dates = zip(*scraping_res)
+        urls, titles, dates = zip(*scraping_res)
         urls = list(urls)
+        titles = list(titles)
         dates = list(dates)
+        scraping_list = [{"url": u, "title": t} for u, t in zip(urls, titles)]
     else:
-        urls, dates = [], []
-
-    if not urls:
         return JSONResponse(
             status_code=404,
             content=ErrorResponse(
-                success=False, message="기사를 찾을 수 없습니다."
-            ).model_dump(),
+                success=False,
+                message="기사를 찾을 수 없습니다"
+            ).model_dump()
         )
 
     # Extract Article
     try:
-        articles = extractor.search(urls=urls)
+        articles = extractor.search(urls=scraping_list)
     except Exception as e:
         logging.exception("기사 추출 실패")
         return e
     logging.info(f"{len(articles)}개 기사 추출 완료")
 
-    print("기사 추출본입니다.")
-    print(articles)
+    print("기사 추출본 일부입니다.")
+    print(articles[0])
 
     # 1st Summarization
     first_res = runner.run(texts=articles)
@@ -110,11 +110,10 @@ def get_timeline(request: TimelineRequest):
     # Timeline cards
     card_list = []
     for i, res in enumerate(first_res):
-        logging.info(f"[제목 {i+1}] {articles[i]['title']}")
-        logging.info(f"[결과 {i+1}] {res['text'][:30]}...")
+        logging.info(f"[제목 {i+1}] {titles[i]}")
 
         card = TimelineCard(
-            title=articles[i]["title"],
+            title=extract_first_sentence(titles[i]),
             content=res["text"],
             duration="DAY",
             startAt=dates[i],
@@ -146,7 +145,7 @@ def get_timeline(request: TimelineRequest):
 
     # Timeline
     timeline = TimelineData(
-        title=final_res["title"],
+        title=extract_first_sentence(final_res["title"]),
         summary=extract_first_sentence(final_res["summary"]),
         image=img_link,
         category=tag_names[tag_id],
