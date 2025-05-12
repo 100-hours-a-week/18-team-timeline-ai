@@ -4,13 +4,11 @@ from bs4 import BeautifulSoup
 
 def get_img_link(url: str) -> str:
     try:
-        headers = {
-            "User-Agent": "Mozilla/5.0"
-        }
+        headers = {"User-Agent": "Mozilla/5.0"}
         response = requests.get(url, headers=headers, timeout=5)
         response.raise_for_status()
 
-        soup = BeautifulSoup(response.text, 'html.parser')
+        soup = BeautifulSoup(response.text, "html.parser")
         og_image = soup.find("meta", property="og:image")
 
         if og_image and og_image.get("content"):

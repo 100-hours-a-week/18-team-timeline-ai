@@ -37,9 +37,8 @@ def merge_timeline(request: MergeRequest):
         return JSONResponse(
             status_code=400,
             content=ErrorResponse(
-                success=False,
-                message="Timeline이 비어 있습니다."
-            ).model_dump()
+                success=False, message="Timeline이 비어 있습니다."
+            ).model_dump(),
         )
 
     # Request parsing

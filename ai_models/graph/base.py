@@ -1,16 +1,27 @@
 from abc import ABC, abstractmethod
-from typing import TypedDict
+from typing import TypedDict, Optional, Dict, Any
 from langchain.chat_models import ChatOpenAI
 from langgraph.graph import StateGraph
 
 
 class BaseState(TypedDict):
-    """기본 상태 클래스"""
+    """기본 상태 클래스
+
+    Attributes:
+        input_text (str): 입력 텍스트
+        status (str): 현재 상태
+        worker_id (int): 작업자 ID
+        retry_count (int): 재시도 횟수
+        score (Optional[int]): 점수 (선택적)
+        fail_reason (Optional[str]): 실패 이유 (선택적)
+    """
 
     input_text: str
     status: str
     worker_id: int
     retry_count: int
+    score: Optional[int]
+    fail_reason: Optional[str]
 
 
 class BaseNode(ABC):
@@ -18,31 +29,53 @@ class BaseNode(ABC):
 
     @abstractmethod
     def process(self, state: BaseState) -> BaseState:
-        """상태를 처리하는 메서드"""
+        """상태를 처리하는 메서드
+
+        Args:
+            state (BaseState): 현재 상태
+
+        Returns:
+            BaseState: 업데이트된 상태
+        """
         pass
 
 
 class BaseGraph(StateGraph, ABC):
     """기본 그래프 추상 클래스"""
 
-    def __init__(self, server: str, model: str, max_retries: int = 3):
-        super().__init__()
+    def __init__(
+        self, server: str, model: str, max_retries: int = 3, temperature: float = 0.1
+    ):
+        """BaseGraph 초기화
+
+        Args:
+            server (str): LLM 서버 URL
+            model (str): 사용할 LLM 모델 이름
+            max_retries (int, optional): 최대 재시도 횟수. Defaults to 3.
+            temperature (float, optional): LLM temperature. Defaults to 0.1.
+        """
+        super().__init__(state_schema=BaseState)
         self.server = server
         self.model = model
         self.max_retries = max_retries
+        self.temperature = temperature
+        self._llm: Optional[ChatOpenAI] = None
 
-    def _make_llm(self) -> ChatOpenAI:
-        """LLM 인스턴스 생성
+    @property
+    def llm(self) -> ChatOpenAI:
+        """LLM 인스턴스 생성 및 반환
 
         Returns:
             ChatOpenAI: 설정된 LLM 인스턴스
         """
-        return ChatOpenAI(
-            base_url=f"{self.server}/v1",
-            api_key="not-needed",
-            model=self.model,
-            temperature=0.1,
-        )
+        if self._llm is None:
+            self._llm = ChatOpenAI(
+                base_url=f"{self.server}/v1",
+                api_key="not-needed",
+                model=self.model,
+                temperature=self.temperature,
+            )
+        return self._llm
 
     @abstractmethod
     def build(self) -> StateGraph:

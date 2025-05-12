@@ -64,10 +64,12 @@ def get_timeline(request: TimelineRequest):
     SERPER_API_KEY = get_serper_key(0)
     if not SERPER_API_KEY:
         raise HTTPException(status_code=500, detail="SERPER_API_KEY not found")
-    scraping_res = distribute_news_serper(query=query_str,
-                                          startAt=request.startAt,
-                                          endAt=request.endAt,
-                                          api_key=SERPER_API_KEY)
+    scraping_res = distribute_news_serper(
+        query=query_str,
+        startAt=request.startAt,
+        endAt=request.endAt,
+        api_key=SERPER_API_KEY,
+    )
 
     if scraping_res:
         urls, dates = zip(*scraping_res)
@@ -80,9 +82,8 @@ def get_timeline(request: TimelineRequest):
         return JSONResponse(
             status_code=404,
             content=ErrorResponse(
-                success=False,
-                message="기사를 찾을 수 없습니다."
-            ).model_dump()
+                success=False, message="기사를 찾을 수 없습니다."
+            ).model_dump(),
         )
 
     # Extract Article
@@ -102,9 +103,8 @@ def get_timeline(request: TimelineRequest):
         return JSONResponse(
             status_code=500,
             content=ErrorResponse(
-                success=False,
-                message="인공지능 1차 요약 실패"
-            ).model_dump()
+                success=False, message="인공지능 1차 요약 실패"
+            ).model_dump(),
         )
 
     # Timeline cards
@@ -131,9 +131,8 @@ def get_timeline(request: TimelineRequest):
         return JSONResponse(
             status_code=500,
             content=ErrorResponse(
-                success=False,
-                message="인공지능 2차 요약 실패"
-            ).model_dump()
+                success=False, message="인공지능 2차 요약 실패"
+            ).model_dump(),
         )
 
     # Tag extraction

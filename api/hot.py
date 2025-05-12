@@ -26,9 +26,8 @@ def get_hot_topics(request: HotRequest):
         return JSONResponse(
             status_code=500,
             content=ErrorResponse(
-                success=False,
-                message="SERP_API_KEY 없음"
-            ).model_dump()
+                success=False, message="SERP_API_KEY 없음"
+            ).model_dump(),
         )
 
     # 핫이슈 수집
@@ -37,9 +36,8 @@ def get_hot_topics(request: HotRequest):
         return JSONResponse(
             status_code=404,
             content=ErrorResponse(
-                success=False,
-                message="핫이슈가 없습니다"
-            ).model_dump()
+                success=False, message="핫이슈가 없습니다"
+            ).model_dump(),
         )
 
     # -------------------------------------------

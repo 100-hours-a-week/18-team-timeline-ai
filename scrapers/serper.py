@@ -5,11 +5,7 @@ from datetime import datetime, timedelta
 
 
 # 검색어, 시작 날짜, 종료 날짜, API_KEY -> 뉴스 링크 리스트
-def get_news_serper(
-    query: str,
-    date: datetime,
-    api_key: str
-) -> str:
+def get_news_serper(query: str, date: datetime, api_key: str) -> str:
     # 변수 선언
     date_str = date.strftime("%Y-%m-%d")
     query_with_date = f"{query} {date_str}"
