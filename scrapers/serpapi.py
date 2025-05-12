@@ -1,16 +1,16 @@
-import os
 import re
 import requests
 
 # ---------------------------------------------------
 
-def get_trending_keywords(SERP_API_KEY):
+
+def get_trending_keywords(api_key):
     url = "https://serpapi.com/search"
     params = {
         "engine": "google_trends_trending_now",
         "geo": "KR",
         "hl": "ko",
-        "api_key": SERP_API_KEY
+        "api_key": api_key,
     }
 
     try:

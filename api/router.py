@@ -1,4 +1,5 @@
 from fastapi import APIRouter
+
 from .timeline import router as timeline_router
 from .merge import router as merge_router
 from .hot import router as hot_router

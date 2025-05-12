@@ -21,6 +21,15 @@ dependencies = [
     "torch (>=2.6.0,<3.0.0)",
     "pyzmq (==25.1.1)",
     "openai (>=1.76.0,<2.0.0)",
+    "pykakao (>=0.0.7,<0.0.8)",
+    "google-auth-oauthlib (>=1.2.1,<2.0.0)",
+    "google-auth-httplib2 (>=0.2.0,<1.0.0)",
+    "google-api-python-client (>=2.166.0,<3.0.0)",
+    "langchain-openai (>=0.3.14,<0.4.0)",
+    "youtube-transcript-api (>=1.0.3,<2.0.0)",
+    "scikit-learn (>=1.6.1,<2.0.0)",
+    "fastapi (==0.115.8)",
+    "pydantic (==2.10.6)",
 ]
 
 [[tool.poetry.source]]
@@ -28,10 +37,19 @@ name = "flashinfer"
 url = "https://flashinfer.ai/whl/cu124/torch2.6/"
 priority = "explicit"
 
+[project.optional-dependencies]
+gpu = [
+    "vllm (==0.8.5)",
+    "triton (==3.2.0)",
+]
+
+[tool.poetry.extras]
+with-gpu = ["gpu"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+
 
 # 아래 섹션은 black의 설정
 [tool.black]

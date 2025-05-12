@@ -1,39 +1,56 @@
-import os
 import requests
-import json
 from datetime import datetime, timedelta
 
 # ---------------------------------------------------
 
-def get_news_serper(query: str, cnt: int, SERPER_API_KEY: str) -> list:
-    today = datetime.today()
-    cd_max = today.strftime("%Y-%m-%d")
-    cd_min = (today - timedelta(days=cnt)).strftime("%Y-%m-%d")
 
-    tbs_str = f"cdr:1,cd_min:{cd_min},cd_max:{cd_max}"
+# 검색어, 시작 날짜, 종료 날짜, API_KEY -> 뉴스 링크 리스트
+def get_news_serper(query: str, date: datetime, api_key: str) -> str:
+    # 변수 선언
+    date_str = date.strftime("%Y-%m-%d")
+    query_with_date = f"{query} {date_str}"
 
     url = "https://google.serper.dev/news"
-    headers = {
-        "X-API-KEY": SERPER_API_KEY,
-        "Content-Type": "application/json"
-    }
-    payload = {
-        "q": query,
-        "tbs": tbs_str,
+    params = {
+        "q": query_with_date,
         "hl": "ko",
         "gl": "KR",
-        "num": cnt
+        "num": 1,
+        "api_key": api_key,
     }
 
     try:
-        response = requests.post(url, headers=headers, json=payload)
-        response.raise_for_status()  # 요청 실패시 예외 발생
-        data = response.json()
+        # Getting Serper response
+        response = requests.get(url, headers={}, params=params)
+        response.raise_for_status()
+        result = response.json().get("news", [])
+        if not result:
+            return []
 
-        news_items = data.get('news', [])
-        links = [item['link'] for item in news_items if 'link' in item]
-        return links
+        # Getting news URL
+        link = result[0].get("link")
+        if not link:
+            return []
+        return link
 
     except Exception as e:
         print(f"Serper API 호출 실패: {e}")
         return []
+
+
+def distribute_news_serper(
+    query: str,
+    startAt: datetime,
+    endAt: datetime,
+    api_key: str,
+) -> list[tuple[str, datetime]]:
+    results = []
+    current = startAt
+
+    while current <= endAt:
+        partial = get_news_serper(query, current, api_key)
+        date_str = current.strftime("%Y-%m-%d")
+        results.append((partial, date_str))
+        current += timedelta(days=1)
+
+    return results
