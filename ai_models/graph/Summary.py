@@ -10,7 +10,9 @@ from langchain.schema import BaseOutputParser
 import json
 import re
 from typing import TypedDict
-import logging
+from utils.logger import Logger
+
+logger = Logger.get_logger("summary")
 
 
 class SummaryState(TypedDict):
@@ -27,6 +29,8 @@ class SummaryState(TypedDict):
         status (str): 현재 상태
     """
 
+    url: str
+    title: str
     input_text: str
     text: str
     score: int
@@ -35,6 +39,7 @@ class SummaryState(TypedDict):
     status: str
 
 
+'''
 class SummaryScoreParser(BaseOutputParser):
     """요약 점수 파싱기
 
@@ -62,6 +67,7 @@ class SummaryScoreParser(BaseOutputParser):
             if matched:
                 return json.loads(matched.group())
             raise ValueError("Invalid JSON format")
+'''
 
 
 class SummarizationGraph:
@@ -121,11 +127,10 @@ class SummarizationGraph:
 
         def summarize(state: SummaryState) -> SummaryState:
             system_prompt = """
-            당신은 뉴스 요약 전문가입니다. 뉴스를 요약해주세요.
-            - 반드시 24자 이내의 1줄의 완결된 문장으로 제시하세요.
+            - 반드시 1줄의 문장만을 제시하세요.
+            - 핵심 사실만 요약하여 제시하세요.
             - 예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
-            \'{{\'summary\': \'요약\'}}\'
-            - 예측, 해석, 사견은 금지합니다.
+            \'{{\'summary\': \'...\'}}\'
             """
             prompt = ChatPromptTemplate.from_messages(
                 [
@@ -136,14 +141,14 @@ class SummarizationGraph:
 
             try:
                 runnable = prompt | llm | parser
-                logging.info(f"요약 생성 시작:\n {state['input_text']}")
+                logger.info(f"요약 생성 시작:\n {state['input_text']}")
                 result = runnable.invoke({"input_text": state["input_text"]})
                 state["text"] = result["summary"]
-                logging.info(f"✅요약 생성 완료: {result['summary']}")
+                logger.info(f"✅요약 생성 완료: {result['summary']}")
                 if not state["text"]:
                     raise ValueError("요약이 비어있습니다.")
             except Exception as e:
-                logging.error(f"❌ 요약 생성 실패: {e}, {state['text']}")
+                logger.error(f"❌ 요약 생성 실패: {e}")
                 state["text"] = None
 
             return state
@@ -177,10 +182,10 @@ class SummarizationGraph:
                         예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
                         예시: \'{{\'score\': 75}}\'
                         - 90~100: 문장에 의견이 들어가지 않고 문법 상 어색함이 없으며
-                          문장이 24자 이하의 한 줄이며 핵심 사실을 정확히 요약함.
-                        - 70~89: 24자 이내의 한 줄이고 대체로 좋음
+                          문장이 1줄이며 핵심 사실을 정확히 요약함.
+                        - 70~89: 1줄이고 대체로 좋음
                           (약간의 어색함이나 불명확한 부분이 있을 수 있음)
-                        - 50~69: 24자 이상의 여러 줄이며 불완전 (핵심 누락 또는 문법적 문제가 존재함)
+                        - 50~69: 1줄 초과이며 불완전 (핵심 누락 또는 문법적 문제가 존재함)
                         - 0~49: 실패 (요약이 원문과 거의 무관하거나 문법이 심각하게 어색함)
                         """
                     ),
@@ -192,7 +197,7 @@ class SummarizationGraph:
             runnable = eval_prompt | llm | parser
             if state["text"] is None:
                 state["score"] = 0
-                logging.info("요약이 비어있어 평가를 건너뜁니다.")
+                logger.info("요약이 비어있어 평가를 건너뜁니다.")
                 return state
 
             try:
@@ -203,10 +208,10 @@ class SummarizationGraph:
                     }
                 )
                 state["score"] = int(result["score"])
-                logging.info(f"평가 완료: {result['score']}")
+                logger.info(f"평가 완료: {result['score']}")
             except Exception as e:
                 state["score"] = 0
-                logging.exception(f"평가 실패: {e}")
+                logger.error(f"평가 실패: {e}")
             return state
 
         return node
@@ -270,7 +275,7 @@ class SummarizationGraph:
             elif retries < self.max_retries:
                 return "retry"
             else:
-                state["summary"] = state["input_text"]
+                state["text"] = state["input_text"]
                 return "log_fail"
 
         return check

@@ -53,7 +53,6 @@ def test_summary_graph():
     logging.info(
         f"✅ {len(articles)}개 기사 본문 추출 완료 (소요 시간: {time.time() - start_time:.2f}s)"
     )
-    exit(0)
     len_text = 0
     logging.info("📄 1차 요약(개별 기사) 시작...")
     runner = Runner(graph=graph)

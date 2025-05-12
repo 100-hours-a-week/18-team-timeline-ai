@@ -37,8 +37,6 @@ class ArticleExtractor(BaseSearcher):
             article.parse()
             text = article.text.strip()
             title = url["title"]
-
-            # 속보 태그 제거
             title = re.sub(r"^[\[\(【]{0,1}속보[\]\)】]{0,1}\s*", "", title)
 
             if not text:
@@ -59,7 +57,7 @@ class ArticleExtractor(BaseSearcher):
             )
             return None
 
-    def search(self, urls: List[dict]) -> List[Dict[str, str]]:
+    def search(self, urls: List[dict]) -> List[dict]:
         """여러 URL에서 기사를 병렬로 추출하는 메서드
 
         Args:
@@ -67,7 +65,7 @@ class ArticleExtractor(BaseSearcher):
                 [{"url": str, "title": str}, ...]
 
         Returns:
-            List[Dict[str, str]]: 추출된 기사 정보 리스트
+            List[dict]: 추출된 기사 정보 리스트
                 [{"url": str, "title": str, "input_text": str}, ...]
         """
         if not urls:
@@ -77,8 +75,8 @@ class ArticleExtractor(BaseSearcher):
         results = [None] * len(urls)
         with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
             futures = {
-                executor.submit(self._extract_single, url): idx
-                for idx, url in enumerate(urls)
+                executor.submit(self._extract_single, items): idx
+                for idx, items in enumerate(urls)
             }
             for future in as_completed(futures):
                 idx = futures[future]
