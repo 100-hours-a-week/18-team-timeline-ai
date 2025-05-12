@@ -14,7 +14,7 @@ logging.basicConfig(
     level=logging.INFO,  # ← 이 부분이 핵심
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
-QUERY = "김원훈 유튜브"
+QUERY = "SKT 유튜브"
 
 
 async def main():
@@ -24,7 +24,7 @@ async def main():
     REST_API_KEY = os.getenv("REST_API_KEY")
     video_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
     youtube_searcher = YouTubeCommentAsyncFetcher(
-        api_key=YOUTUBE_API_KEY, max_comments=10
+        api_key=YOUTUBE_API_KEY, max_comments=100
     )
     df = video_searcher.search(QUERY)
     ripple = await youtube_searcher.search(df=df)
