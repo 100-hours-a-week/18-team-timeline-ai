@@ -116,21 +116,26 @@ class ClassifyGraph:
                     ("human", "댓글: {input_text}"),
                 ]
             )
-            runnable = prompt | llm | parser
+            runnable = prompt | llm
             try:
                 result = runnable.invoke(
                     {"input_text": state["input_text"], "query": state["query"]}
                 )
                 if (
-                    result["emotion"] != "긍정"
-                    and result["emotion"] != "부정"
-                    and result["emotion"] != "중립"
+                    "긍정" not in result.content
+                    and "부정" not in result.content
+                    and "중립" not in result.content
                 ):
-                    raise ValueError(f"{result['emotion']}")
-                state["emotion"] = result["emotion"]
+                    raise ValueError()
+                if "긍정" in result.content:
+                    state["emotion"] = "긍정"
+                elif "부정" in result.content:
+                    state["emotion"] = "부정"
+                else:
+                    state["emotion"] = "중립"
                 logger.info(
                     f"감정 분류 완료 - 쿼리: {state['query']}, "
-                    f"텍스트: {state['input_text']}, 감정: {result['emotion']}"
+                    f"텍스트: {state['input_text']}"
                 )
             except Exception as e:
                 logger.error(
