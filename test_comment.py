@@ -6,7 +6,7 @@ from scrapers.youtube_searcher import YouTubeCommentAsyncFetcher
 from ai_models.graph.classify import ClassifyGraph
 from ai_models.runner import Runner
 from pprint import pprint
-import logging
+import time
 import logging
 
 
@@ -14,7 +14,7 @@ logging.basicConfig(
     level=logging.INFO,  # ← 이 부분이 핵심
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
-QUERY = "SNL 유튜브"
+QUERY = "SKT 유튜브"
 
 
 async def main():
@@ -35,6 +35,7 @@ def test_agentic_comment_graph():
     # ✅ 서버 및 모델 정보
     SERVER = "http://35.216.120.155:8001"
     MODEL = "models/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+    time_start = time.time()
     loop = asyncio.get_event_loop()
     data = loop.run_until_complete(main())
     pprint(data)
@@ -65,6 +66,8 @@ def test_agentic_comment_graph():
     for sentiment, count in sentiment_counts.items():
         percentage = (count / total) * 100
         print(f"{sentiment}: {count}개 ({percentage:.1f}%)")
+    time_end = time.time()
+    print(f"총 실행 시간: {time_end - time_start:.2f}초")
 
 
 if __name__ == "__main__":
