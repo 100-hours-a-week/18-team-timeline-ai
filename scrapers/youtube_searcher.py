@@ -35,6 +35,11 @@ class YouTubeCommentAsyncFetcher:
         model (str): Ollama 모델 이름
     """
 
+    # URL 패턴 정의
+    URL_PATTERN = re.compile(
+        r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+    )
+
     def __init__(
         self,
         api_key: str,
@@ -157,6 +162,20 @@ class YouTubeCommentAsyncFetcher:
         """
         return self.get_embeddings(list(lines_tuple))
 
+    def _is_valid_comment(self, comment: str) -> bool:
+        """댓글이 유효한지 검사
+
+        Args:
+            comment (str): 검사할 댓글
+
+        Returns:
+            bool: URL이 포함되지 않은 유효한 댓글인 경우 True
+        """
+        # URL이 포함된 댓글 제외
+        if self.URL_PATTERN.search(comment):
+            return False
+        return True
+
     async def fetch_video_comments(
         self, session: aiohttp.ClientSession, video_id: str
     ) -> List[str]:
@@ -175,7 +194,7 @@ class YouTubeCommentAsyncFetcher:
             "videoId": video_id,
             "key": self.api_key,
             "textFormat": "plainText",
-            "maxResults": self.max_comments,
+            "maxResults": self.max_comments * 2,  # URL 필터링을 위해 더 많은 댓글 수집
             "order": "relevance",
         }
         try:
@@ -186,7 +205,11 @@ class YouTubeCommentAsyncFetcher:
                     comment = item["snippet"]["topLevelComment"]["snippet"]
                     text = comment.get("textDisplay", "")
                     like_count = comment.get("likeCount", 0)
-                    comments.append((like_count, text))
+
+                    # URL이 포함되지 않은 댓글만 추가
+                    if self._is_valid_comment(text):
+                        comments.append((like_count, text))
+
                 logging.info(f"✅ ID {video_id} 댓글 {len(comments)}개 수집 완료")
                 comments.sort(key=lambda x: x[0], reverse=True)
                 sorted_comments = [

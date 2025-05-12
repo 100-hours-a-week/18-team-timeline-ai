@@ -122,7 +122,7 @@ class SummarizationGraph:
         def summarize(state: SummaryState) -> SummaryState:
             system_prompt = """
             당신은 뉴스 요약 전문가입니다. 뉴스를 요약해주세요.
-            - 반드시 24자 이내의 1줄의 완결된 문장, 핵심 사실만 요약하여 제시하세요.
+            - 반드시 24자 이내의 1줄의 완결된 문장으로 제시하세요.
             - 예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
             \'{{\'summary\': \'요약\'}}\'
             - 예측, 해석, 사견은 금지합니다.

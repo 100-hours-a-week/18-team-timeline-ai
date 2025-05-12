@@ -9,13 +9,12 @@ from pprint import pprint
 import logging
 import logging
 
-"""
+
 logging.basicConfig(
     level=logging.INFO,  # ← 이 부분이 핵심
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
-"""
-QUERY = "오타니 유튜브"
+QUERY = "SNL 유튜브"
 
 
 async def main():

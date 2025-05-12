@@ -13,15 +13,24 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(name)s: %(messa
 
 def test_summary_graph():
     URLS = [
-        "https://www.hani.co.kr/arti/society/society_general/1192251.html",
-        "https://www.hani.co.kr/arti/society/society_general/1192255.html",
-        "https://www.hankyung.com/article/2025041493977",
-        "https://www.khan.co.kr/article/202504141136001",
-        "https://www.mk.co.kr/news/politics/11290687",
-        "https://www.chosun.com/politics/politics_general/2025/04/14/THWVKUHQG5CKFJF6CLZLP5PKM4",
+        {
+            "url": "https://www.hani.co.kr/arti/society/society_general/1192251.html",
+            "title": "조선일보",
+        },
+        {
+            "url": "https://www.hani.co.kr/arti/society/society_general/1192255.html",
+            "title": "조선일보",
+        },
+        {"url": "https://www.hankyung.com/article/2025041493977", "title": "한겨레"},
+        {"url": "https://www.khan.co.kr/article/202504141136001", "title": "경향신문"},
+        {"url": "https://www.mk.co.kr/news/politics/11290687", "title": "매일경제"},
+        {
+            "url": "https://www.chosun.com/politics/politics_general/2025/04/14/THWVKUHQG5CKFJF6CLZLP5PKM4",
+            "title": "조선일보",
+        },
     ]
-    SERVER = "https://669a-35-240-130-158.ngrok-free.app"
-    MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+    SERVER = "http://35.216.120.155:8001"
+    MODEL = "models/HyperCLOVAX-SEED-Text-Instruct-1.5B"
 
     logging.info("📦 모델 및 그래프 초기화 중...")
     graph = SummarizationGraph(SERVER, MODEL).build()
@@ -44,6 +53,7 @@ def test_summary_graph():
     logging.info(
         f"✅ {len(articles)}개 기사 본문 추출 완료 (소요 시간: {time.time() - start_time:.2f}s)"
     )
+    exit(0)
     len_text = 0
     logging.info("📄 1차 요약(개별 기사) 시작...")
     runner = Runner(graph=graph)
