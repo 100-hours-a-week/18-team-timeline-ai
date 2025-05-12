@@ -33,7 +33,9 @@ async def main(query: str, num: int):
     YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
     REST_API_KEY = os.getenv("REST_API_KEY")
     video_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
-    youtube_searcher = YouTubeCommentAsyncFetcher(api_key=YOUTUBE_API_KEY, max_comments=num)
+    youtube_searcher = YouTubeCommentAsyncFetcher(
+        api_key=YOUTUBE_API_KEY, max_comments=num
+    )
     df = video_searcher.search(query=query)
     print("df")
     print(df)
@@ -67,24 +69,24 @@ async def classify_comments(request: CommentRequest):
         return JSONResponse(
             status_code=404,
             content=ErrorResponse(
-                success=False,
-                message="기사를 찾을 수 없습니다."
-            ).model_dump()
+                success=False, message="기사를 찾을 수 없습니다."
+            ).model_dump(),
         )
 
     # 그래프 빌드 및 실행
     graph = ClassifyGraph(server=SERVER, model=MODEL).build()
     runner = Runner(graph=graph)
-    texts = [{"input_text": d["comment"], "transcript": d["captions"],
-              "query": query_str} for d in data]
+    texts = [
+        {"input_text": d["comment"], "transcript": d["captions"], "query": query_str}
+        for d in data
+    ]
     result = runner.run(texts=texts)
     if not result:
         return JSONResponse(
             status_code=500,
             content=ErrorResponse(
-                success=False,
-                message="댓글 분류기 내부 에러 발생"
-            ).model_dump()
+                success=False, message="댓글 분류기 내부 에러 발생"
+            ).model_dump(),
         )
 
     # 통계

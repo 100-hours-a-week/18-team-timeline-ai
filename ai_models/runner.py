@@ -1,7 +1,9 @@
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from typing import List, Tuple, Any
-import logging
+from typing import List, Any
+from utils.logger import Logger
+
+logger = Logger.get_logger("ai_runner")
 
 
 class Runner:
@@ -35,23 +37,30 @@ class Runner:
         self.config = {"recursion_limit": 1000}
         if config:
             self.config.update(config)
+            logger.info(f"설정 업데이트: {config}")
 
     def run_graph(self, item: dict) -> dict:
         """단일 입력에 대해 그래프를 실행
 
-                Args:
-                    item (dict): 그래프에 입력할 데이터
-                        - {"url": str, "title": str, "text": str} 형식
-                        - 또는 {"input_text": str} 형식
-        ß
-                Returns:
-                    dict: 그래프 실행 결과
-                        결과는 graph.invoke 메서드의 StateGraph 객체입니다.
+        Args:
+            item (dict): 그래프에 입력할 데이터
+                - {"url": str, "title": str, "text": str} 형식
+                - 또는 {"input_text": str} 형식
+
+        Returns:
+            dict: 그래프 실행 결과
+                결과는 graph.invoke 메서드의 StateGraph 객체입니다.
         """
-        return self.graph.invoke(
-            item,
-            self.config,
-        )
+        try:
+            result = self.graph.invoke(item, self.config)
+            logger.debug(f"그래프 실행 성공 - 입력: {item.get('url', 'N/A')}")
+            return result
+        except Exception as e:
+            logger.error(
+                f"그래프 실행 실패 - 입력: {item.get('url', 'N/A')}, "
+                f"에러: {type(e).__name__}: {str(e)}"
+            )
+            raise
 
     def run(self, texts: List[dict]) -> List[dict]:
         """여러 입력을 병렬로 처리하는 메서드
@@ -71,6 +80,10 @@ class Runner:
             - 처리 시간과 진행 상황이 로그로 기록됩니다.
             - 실패한 입력에 대한 오류도 로그로 기록됩니다.
         """
+        if not texts:
+            logger.warning("입력 데이터가 비어있습니다.")
+            return []
+
         results = [None] * len(texts)
         start = time.time()
 
@@ -80,7 +93,7 @@ class Runner:
                 executor.submit(self.run_graph, items): idx
                 for idx, items in enumerate(texts)
             }
-            logging.info(f"{len(texts)}개 작업 시작")
+            logger.info(f"작업 시작 - 총 {len(texts)}개")
 
             # 완료된 작업의 결과 수집
             for future in as_completed(futures):
@@ -88,13 +101,20 @@ class Runner:
                 try:
                     result = future.result()
                     if result:
-                        logging.info(result)
                         results[idx] = result
-                    logging.info(f"{idx}/{len(texts)} 완료")
+                        logger.info(f"작업 완료 - {idx + 1}/{len(texts)}")
                 except Exception as e:
-                    logging.error(f"{idx}/{len(texts)} 실패: {e}")
+                    logger.error(
+                        f"작업 실패 - {idx + 1}/{len(texts)}, "
+                        f"에러: {type(e).__name__}: {str(e)}"
+                    )
 
         # 전체 처리 시간 기록
-        logging.info(f"{len(texts)}개 작업 완료")
-        logging.info(f"\n총 소요 시간: {time.time() - start:.2f}s")
+        elapsed_time = time.time() - start
+        success_count = len([r for r in results if r is not None])
+        logger.info(
+            f"작업 완료 - 전체: {len(texts)}, 성공: {success_count}, "
+            f"실패: {len(texts) - success_count}, "
+            f"소요시간: {elapsed_time:.2f}초"
+        )
         return [r for r in results if r is not None]

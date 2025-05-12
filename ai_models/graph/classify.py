@@ -6,9 +6,9 @@ from langchain.output_parsers import StructuredOutputParser, ResponseSchema
 from langchain_core.prompts import ChatPromptTemplate
 from langgraph.graph import START, END, StateGraph
 
+from utils.logger import Logger
 
-import logging
-from dotenv import load_dotenv
+logger = Logger.get_logger("classify_graph")
 
 
 class ClassifyState(dict):
@@ -128,9 +128,15 @@ class ClassifyGraph:
                 ):
                     raise ValueError(f"{result['emotion']}")
                 state["emotion"] = result["emotion"]
-                logging.info(f"✅감정 분류 완료: {result['emotion']}")
+                logger.info(
+                    f"감정 분류 완료 - 쿼리: {state['query']}, "
+                    f"텍스트: {state['input_text']}, 감정: {result['emotion']}"
+                )
             except Exception as e:
-                logging.exception(f"❌ 감정 분류 실패: {e}")
+                logger.error(
+                    f"감정 분류 실패 - 쿼리: {state['query']}, "
+                    f"텍스트: {state['input_text']}, 에러: {str(e)}"
+                )
                 state["emotion"] = "중립"
             return state
 
@@ -181,9 +187,17 @@ class ClassifyGraph:
                     }
                 )
                 state["score"] = int(result["score"])
-                logging.info(f"✅감정 평가 완료: 점수: {result['score']}")
+                logger.info(
+                    f"감정 평가 완료 - 쿼리: {state['query']}, "
+                    f"텍스트: {state['input_text']}, "
+                    f"감정: {state['emotion']}, 점수: {result['score']}"
+                )
             except Exception as e:
-                logging.exception(f"❌ 감정 평가 실패: {e}")
+                logger.error(
+                    f"감정 평가 실패 - 쿼리: {state['query']}, "
+                    f"텍스트: {state['input_text']}, "
+                    f"감정: {state['emotion']}, 에러: {str(e)}"
+                )
                 state["score"] = 0
             return state
 
