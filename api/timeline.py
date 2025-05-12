@@ -112,7 +112,7 @@ def get_timeline(request: TimelineRequest):
         logging.info(f"[제목 {i+1}] {titles[i]}")
 
         card = TimelineCard(
-            title=titles[i],
+            title=extract_first_sentence(titles[i]),
             content=res["text"],
             duration="DAY",
             startAt=dates[i],
@@ -145,7 +145,7 @@ def get_timeline(request: TimelineRequest):
 
     # Timeline
     timeline = TimelineData(
-        title=final_res["title"],
+        title=extract_first_sentence(final_res["title"]),
         summary=extract_first_sentence(final_res["summary"]),
         image=img_link,
         category=tag_names[tag_id],
