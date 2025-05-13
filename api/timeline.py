@@ -94,8 +94,9 @@ def get_timeline(request: TimelineRequest):
         return e
     logging.info(f"{len(articles)}개 기사 추출 완료")
 
-    print("기사 추출본 일부입니다.")
-    print(articles[0])
+    # Naver Clova - Maximum 4096 Tokens
+    for i, article in enumerate(articles):
+        articles[i]["input_text"] = articles[i]["input_text"][:4000]
 
     # 1st Summarization
     first_res = runner.run(texts=articles)
