@@ -1,5 +1,6 @@
 import requests
 from datetime import datetime, timedelta
+from utils.timeline_utils import available_url
 
 # ---------------------------------------------------
 
@@ -19,7 +20,7 @@ def get_news_serper(
         "q": query_with_date,
         "hl": "ko",
         "gl": "KR",
-        "num": 1,
+        "num": 10,
         "api_key": api_key,
     }
 
@@ -32,8 +33,14 @@ def get_news_serper(
             return []
 
         # Getting news URL
-        link = result[0].get("link")
-        title = result[0].get("title")
+        for news in result:
+            link = news.get("link")
+            title = news.get("title")
+            if available_url(link):
+                break
+            else:
+                link = ""
+
         if not link or not title:
             return None
         return (link, title)
