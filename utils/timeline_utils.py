@@ -1,3 +1,6 @@
+import re
+
+
 def next_timeline_type(current: str) -> str:
     order = ["DAY", "WEEK", "MONTH"]
     if current not in order:
@@ -18,9 +21,35 @@ def convert_tag(tag: str) -> int:
         return 0
 
 
-def extract_first_sentence(text: str) -> str:
+def short_sentence(text: str) -> str:
+    # 각종 괄호 제거
+    patterns = [r"\[.*?\]", r"\(.*?\)", r"<.*?>", r"【.*?】", r"《.*?》"]
+    for pattern in patterns:
+        text = re.sub(pattern, "", text)
+
+    # 마침표 뒤 제거
     if "." in text:
-        return text.split(".")[0].strip() + "."
+        text = text.split(".")[0].strip()
+    if "…" in text:
+        text = text.split(".")[0].strip()
+
+    # 전각 뒤 제거
+    if "|" in text:
+        text = text.split("|")[0].strip()
+    if "｜" in text:
+        text = text.split("|")[0].strip()
+
+    # 쉼표 파싱
+    parts = [part.strip() for part in text.split(",") if part.strip()]
+    if len(parts) >= 3:
+        parts = [parts[0], parts[-1]]
+    if len(parts) >= 2 and len(parts[0]) >= 10:
+        parts.pop(0)
+    text = ", ".join(parts)
+
+    # 연속 공백 정리
+    text = re.sub(r"\s+", " ", text).strip()
+
     return text.strip()
 
 

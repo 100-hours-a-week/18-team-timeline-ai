@@ -1,6 +1,6 @@
 import logging
 from utils.env_utils import get_server, get_model, get_serper_key
-from utils.timeline_utils import convert_tag, extract_first_sentence
+from utils.timeline_utils import convert_tag, short_sentence
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
@@ -106,14 +106,24 @@ def get_timeline(request: TimelineRequest):
                 success=False, message="인공지능 1차 요약 실패"
             ).model_dump(),
         )
+    for i, res in enumerate(first_res):
+        if not res["text"]:
+            print(f"기사 내용이 없습니다! \"{titles[i][:15]}...\"")
+            return JSONResponse(
+                status_code=404,
+                content=ErrorResponse(
+                    success=False, message="인공지능 1차 요약 도중 빈 요약 반환"
+                ).model_dump(),
+            )
 
     # Timeline cards
     card_list = []
     for i, res in enumerate(first_res):
-        logging.info(f"[제목 {i+1}] {titles[i]}")
+        news_title = short_sentence(titles[i])
+        logging.info(f"[제목 {i+1}] {news_title}")
 
         card = TimelineCard(
-            title=extract_first_sentence(titles[i]),
+            title=news_title,
             content=res["text"],
             duration="DAY",
             startAt=dates[i],
@@ -145,8 +155,8 @@ def get_timeline(request: TimelineRequest):
 
     # Timeline
     timeline = TimelineData(
-        title=extract_first_sentence(final_res["title"]),
-        summary=extract_first_sentence(final_res["summary"]),
+        title=short_sentence(final_res["title"]),
+        summary=short_sentence(final_res["summary"]),
         image=img_link,
         category=tag_names[tag_id],
         timeline=card_list,
