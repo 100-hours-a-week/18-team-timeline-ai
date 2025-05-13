@@ -22,3 +22,11 @@ def extract_first_sentence(text: str) -> str:
     if "." in text:
         return text.split(".")[0].strip() + "."
     return text.strip()
+
+
+def available_url(url: str) -> bool:
+    publishers = ["chosun", "sbs"]
+    for publisher in publishers:
+        if publisher in url:
+            return False
+    return True
