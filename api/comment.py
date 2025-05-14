@@ -4,7 +4,6 @@ import logging
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
-from utils.env_utils import get_model, get_server
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import CommentRequest, CommentData
 
@@ -17,8 +16,10 @@ from ai_models.graph.classify import ClassifyGraph
 # -------------------------------------------------------------------
 
 router = APIRouter()
-SERVER = get_server()
-MODEL = get_model()
+
+dotenv.load_dotenv(override=True)
+SERVER = os.getenv("SERVER")
+MODEL = os.getenv("MODEL")
 
 logging.basicConfig(
     level=logging.INFO,  # ← 이 부분이 핵심
