@@ -1,6 +1,6 @@
 import logging
 from utils.env_utils import get_server, get_model, get_serper_key
-from utils.timeline_utils import convert_tag, short_sentence
+from utils.timeline_utils import convert_tag, short_sentence, compress_sentence
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
@@ -125,7 +125,7 @@ def get_timeline(request: TimelineRequest):
 
         card = TimelineCard(
             title=news_title,
-            content=res["text"],
+            content=compress_sentence(res["text"]),
             duration="DAY",
             startAt=dates[i],
             endAt=dates[i],
