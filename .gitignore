@@ -194,3 +194,12 @@ __pycache__/
 
 # 로그 파일
 *.log
+
+# Vector DB
+qdrant_storage/
+
+# Dataset
+.dataset/
+
+# Model
+.model/

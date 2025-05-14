@@ -126,6 +126,18 @@ fi
 log_info "Ollama 서비스를 종료합니다..."
 kill $OLLAMA_PID
 
+# 데이터셋 다운로드
+log_info "데이터셋을 다운로드합니다..."
+poetry run python scripts/download_dataset.py
+
+# 다운로드 완료 확인
+if [ $? -eq 0 ]; then
+    log_info "데이터셋 다운로드가 완료되었습니다."
+else
+    log_error "데이터셋 다운로드에 실패했습니다."
+    exit 1
+fi
+
 # HuggingFace 모델 다운로드
 log_info "HuggingFace 모델을 다운로드합니다..."
 poetry run python scripts/download_model.py
