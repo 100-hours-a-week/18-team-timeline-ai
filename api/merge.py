@@ -1,7 +1,9 @@
+import os
+import dotenv
+
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
-from utils.env_utils import get_server, get_model
 from utils.timeline_utils import next_timeline_type
 
 from models.response_schema import CommonResponse, ErrorResponse
@@ -15,8 +17,10 @@ from ai_models.graph.total_summary import TotalSummarizationGraph
 
 router = APIRouter()
 
-SERVER = get_server()
-MODEL = get_model()
+dotenv.load_dotenv(override=True)
+SERVER = os.getenv("SERVER")
+MODEL = os.getenv("MODEL")
+
 graph_total = TotalSummarizationGraph(SERVER, MODEL).build()
 final_runner = Runner(graph=graph_total)
 

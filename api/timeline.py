@@ -1,5 +1,8 @@
+import os
+import dotenv
 import logging
-from utils.env_utils import get_server, get_model, get_serper_key
+
+from utils.env_utils import get_serper_key
 from utils.timeline_utils import convert_tag, short_sentence, compress_sentence
 
 from fastapi import APIRouter, HTTPException
@@ -10,6 +13,7 @@ from models.response_schema import TimelineRequest, TimelineData
 
 from scrapers.url_to_img import get_img_link
 from scrapers.serper import distribute_news_serper
+from scrapers.filter import DaumKeywordMeaningChecker
 from scrapers.article_extractor import ArticleExtractor
 
 from ai_models.runner import Runner
@@ -26,13 +30,17 @@ logging.basicConfig(
     handlers=[logging.StreamHandler()],
 )
 
-SERVER = get_server()
-MODEL = get_model()
+dotenv.load_dotenv(override=True)
+SERVER = os.getenv("SERVER")
+MODEL = os.getenv("MODEL")
+REST_API_KEY = os.getenv("REST_API_KEY")
+
 graph = SummarizationGraph(SERVER, MODEL).build()
 graph_total = TotalSummarizationGraph(SERVER, MODEL).build()
 
 runner = Runner(graph=graph)
 final_runner = Runner(graph=graph_total)
+checker = DaumKeywordMeaningChecker(REST_API_KEY)
 
 tag_names = ["", "ECONOMY", "ENTERTAINMENT", "SPORTS", "SCIENCE"]
 base_img_url = "https://github.com/user-attachments/assets/"
@@ -60,6 +68,16 @@ def get_timeline(request: TimelineRequest):
     # Request parsing
     query_str = " ".join(request.query)
 
+    # Meaningful checking
+    if not checker.is_meaningful(query_str):
+        return JSONResponse(
+            status_code=404,
+            content=ErrorResponse(
+                success=False,
+                message="기사가 나오지 않는 검색어입니다."
+            ).model_dump()
+        )
+
     # Scraping
     SERPER_API_KEY = get_serper_key(0)
     if not SERPER_API_KEY:
@@ -82,7 +100,7 @@ def get_timeline(request: TimelineRequest):
             status_code=404,
             content=ErrorResponse(
                 success=False,
-                message="기사를 찾을 수 없습니다"
+                message="스크래핑에 실패했습니다"
             ).model_dump()
         )
 
@@ -96,7 +114,7 @@ def get_timeline(request: TimelineRequest):
 
     # Naver Clova - Maximum 4096 Tokens
     for i, article in enumerate(articles):
-        articles[i]["input_text"] = articles[i]["input_text"][:4000]
+        articles[i]["input_text"] = articles[i]["input_text"][:3000]
 
     # 1st Summarization
     first_res = runner.run(texts=articles)
