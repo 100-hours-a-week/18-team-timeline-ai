@@ -7,11 +7,12 @@ from scrapers.article_extractor import ArticleExtractor
 from ai_models.graph.total_summary import TotalSummarizationGraph
 from ai_models.graph.Summary import SummarizationGraph
 import dotenv
+import asyncio
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(name)s: %(message)s")
 
 
-def test_summary_graph():
+async def test_summary_graph():
     URLS = [
         {
             "url": "https://www.hani.co.kr/arti/society/society_general/1192251.html",
@@ -56,7 +57,7 @@ def test_summary_graph():
     len_text = 0
     logging.info("📄 1차 요약(개별 기사) 시작...")
     runner = Runner(graph=graph)
-    first_results = runner.run(texts=articles)
+    first_results = await runner.run(texts=articles)
     for i, res in enumerate(first_results):
         len_text += len(res["text"])
         logging.info(f"📝 [1차 제목 {i+1}] {articles[i]['title']}")
@@ -69,7 +70,7 @@ def test_summary_graph():
 
     logging.info("📚 2차 요약(통합 요약) 시작...")
     final_runner = Runner(graph=graph_total)
-    final_results = final_runner.run(texts=[summarized_texts])
+    final_results = await final_runner.run(texts=[summarized_texts])
     len_text_final = len(final_results[0]["summary"])
     len_title_final = len(final_results[0]["title"])
     logging.info(f"평균 최종 요약 길이: {len_text_final}")
@@ -81,4 +82,4 @@ def test_summary_graph():
 
 if __name__ == "__main__":
     dotenv.load_dotenv(override=True)
-    test_summary_graph()
+    asyncio.run(test_summary_graph())

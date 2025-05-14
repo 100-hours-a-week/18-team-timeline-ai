@@ -6,9 +6,6 @@ from langchain_core.prompts import (
     HumanMessagePromptTemplate,
 )
 from langchain.output_parsers import StructuredOutputParser, ResponseSchema
-from langchain.schema import BaseOutputParser
-import json
-import re
 from typing import TypedDict
 from utils.logger import Logger
 
@@ -37,37 +34,6 @@ class SummaryState(TypedDict):
     worker_id: int
     retry_count: int
     status: str
-
-
-'''
-class SummaryScoreParser(BaseOutputParser):
-    """요약 점수 파싱기
-
-    LLM의 출력을 파싱하여 요약 점수를 추출합니다.
-    JSON 형식의 출력을 처리하며, 파싱 실패 시 정규식을 사용하여 복구를 시도합니다.
-    """
-
-    def parse(self, text: str):
-        """텍스트에서 JSON을 파싱하여 점수를 추출
-
-        Args:
-            text (str): 파싱할 텍스트
-
-        Returns:
-            dict: 파싱된 JSON 객체
-
-        Raises:
-            ValueError: JSON 파싱 실패 시
-        """
-        cleaned = re.sub(r"^```json\s*|\s*```$", "", text.strip(), flags=re.MULTILINE)
-        try:
-            return json.loads(cleaned)
-        except json.JSONDecodeError:
-            matched = re.search(r"\{.*\}", text, re.DOTALL)
-            if matched:
-                return json.loads(matched.group())
-            raise ValueError("Invalid JSON format")
-'''
 
 
 class SummarizationGraph:
@@ -117,20 +83,10 @@ class SummarizationGraph:
             function: 요약 함수
                 입력된 텍스트를 요약하여 상태를 업데이트합니다.
         """
-        summary_schema = [
-            ResponseSchema(
-                name="summary",
-                description="요약된 24자 이내의 예측, 해석, 사견이 없는 완전한 문장",
-            )
-        ]
-        parser = StructuredOutputParser.from_response_schemas(summary_schema)
 
         def summarize(state: SummaryState) -> SummaryState:
             system_prompt = """
-            - 반드시 1줄의 문장만을 제시하세요.
-            - 핵심 사실만 요약하여 제시하세요.
-            - 예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
-            \'{{\'summary\': \'...\'}}\'
+            - 주어진 글에 대해서 한 문장을 원문에서 그대로 인용하세요.
             """
             prompt = ChatPromptTemplate.from_messages(
                 [
@@ -140,16 +96,16 @@ class SummarizationGraph:
             )
 
             try:
-                runnable = prompt | llm | parser
+                runnable = prompt | llm
                 logger.info(f"요약 생성 시작:\n {state['input_text']}")
                 result = runnable.invoke({"input_text": state["input_text"]})
-                state["text"] = result["summary"]
-                logger.info(f"✅요약 생성 완료: {result['summary']}")
+                state["text"] = result.content
+                logger.info(f"✅요약 생성 완료: {result.content}")
                 if not state["text"]:
                     raise ValueError("요약이 비어있습니다.")
             except Exception as e:
                 logger.error(f"❌ 요약 생성 실패: {e}")
-                state["text"] = None
+                state["text"] = state["input_text"]
 
             return state
 
@@ -270,7 +226,7 @@ class SummarizationGraph:
         def check(state: SummaryState) -> str:
             score = state.get("score", 0)
             retries = state.get("retry_count", 0)
-            if score >= 85:
+            if score >= 75:
                 return "save"
             elif retries < self.max_retries:
                 return "retry"

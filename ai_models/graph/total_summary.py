@@ -119,20 +119,10 @@ class TotalSummarizationGraph:
             function: 요약 함수
                 입력된 텍스트를 요약하여 상태를 업데이트합니다.
         """
-        summary_schema = [
-            ResponseSchema(
-                name="summary",
-                description="요약된 36자 이내의 예측, 해석, 사견이 없는 완전한 문장",
-            )
-        ]
-        parser = StructuredOutputParser.from_response_schemas(summary_schema)
 
         def summarize(state: SummaryState) -> SummaryState:
             system_prompt = """
-            - 반드시 36자 이내의 2줄 이내의 문장을 제시하세요.
-            - 주어진 글에 대해 간략한 요약을 제시하세요.
-            - 예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
-            \'{{\'summary\': \'요약\'}}\'
+            - 반드시 36자 이내의 요약을 제시하세요.
             """
             prompt = ChatPromptTemplate.from_messages(
                 [
@@ -142,16 +132,16 @@ class TotalSummarizationGraph:
             )
 
             try:
-                runnable = prompt | llm | parser
+                runnable = prompt | llm
                 logging.info(f"요약 생성 시작:\n {state['input_text']}")
                 result = runnable.invoke({"input_text": state["input_text"]})
-                state["summary"] = result["summary"]
-                logging.info(f"✅요약 생성 완료: {result['summary']}")
+                state["summary"] = result.content
+                logging.info(f"✅요약 생성 완료: {result.content}")
                 if not state["summary"]:
                     raise ValueError("요약이 비어있습니다.")
             except Exception as e:
                 logging.error(f"❌ 요약 생성 실패: {e}, {state['summary']}")
-                state["summary"] = None
+                state["summary"] = state["input_text"]
 
             return state
 
@@ -302,7 +292,7 @@ class TotalSummarizationGraph:
 
             except Exception as e:
                 logging.exception(f"카테고리 분류 실패: {e}")
-                state["tag"] = ""
+                state["tag"] = "기타"
             return state
 
         return classify_tag
@@ -427,7 +417,7 @@ class TotalSummarizationGraph:
         def check(state: SummaryState) -> str:
             score = state.get(cur_score, 0)
             retries = state.get(retry_count, 0)
-            if score >= 85:
+            if score >= 70:
                 return "save"
             elif retries < self.max_retries:
                 return "retry"
