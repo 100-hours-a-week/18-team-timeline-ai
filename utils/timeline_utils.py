@@ -21,6 +21,14 @@ def convert_tag(tag: str) -> int:
         return 0
 
 
+def available_url(url: str) -> bool:
+    publishers = ["chosun", "sbs"]
+    for publisher in publishers:
+        if publisher in url:
+            return False
+    return True
+
+
 def short_sentence(text: str) -> str:
     # 각종 괄호 제거
     patterns = [r"\[.*?\]", r"\(.*?\)", r"<.*?>", r"【.*?】", r"《.*?》"]
@@ -53,9 +61,16 @@ def short_sentence(text: str) -> str:
     return text.strip()
 
 
-def available_url(url: str) -> bool:
-    publishers = ["chosun", "sbs"]
-    for publisher in publishers:
-        if publisher in url:
-            return False
-    return True
+def compress_sentence(text: str, target_len: int = 70) -> str:
+    # 마침표 기준으로 문장 분할
+    sentences = re.split(r'[.…]', text)
+    sentences = [s.strip() for s in sentences if s.strip()]
+
+    # 특정 길이 이상이면 스캔 멈춤
+    result = ""
+    for sentence in sentences:
+        result += (sentence + '. ')
+        if len(result) >= target_len:
+            break
+
+    return result.strip()
