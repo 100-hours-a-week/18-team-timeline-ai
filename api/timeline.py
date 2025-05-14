@@ -68,6 +68,16 @@ def get_timeline(request: TimelineRequest):
     # Request parsing
     query_str = " ".join(request.query)
 
+    # Meaningful checking
+    if not checker.is_meaningful(query_str):
+        return JSONResponse(
+            status_code=404,
+            content=ErrorResponse(
+                success=False,
+                message="기사가 나오지 않는 검색어입니다."
+            ).model_dump()
+        )
+
     # Scraping
     SERPER_API_KEY = get_serper_key(0)
     if not SERPER_API_KEY:
@@ -90,7 +100,7 @@ def get_timeline(request: TimelineRequest):
             status_code=404,
             content=ErrorResponse(
                 success=False,
-                message="기사를 찾을 수 없습니다"
+                message="스크래핑에 실패했습니다"
             ).model_dump()
         )
 
