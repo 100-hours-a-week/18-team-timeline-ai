@@ -78,8 +78,7 @@ async def classify_comments(request: CommentRequest):
     graph = ClassifyGraph(server=SERVER, model=MODEL).build()
     runner = Runner(graph=graph)
     texts = [
-        {"input_text": d["comment"], "transcript": d["captions"], "query": query_str}
-        for d in data
+        {"input_text": d["comment"], "query": query_str} for d in data
     ]
     result = runner.run(texts=texts)
     if not result:
