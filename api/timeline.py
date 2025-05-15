@@ -7,7 +7,6 @@ from utils.timeline_utils import convert_tag, short_sentence, compress_sentence
 
 from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse
-from slowapi.errors import RateLimitExceeded
 
 from models.timeline_card import TimelineCard
 from models.response_schema import CommonResponse, ErrorResponse
@@ -66,10 +65,10 @@ img_links = [
         500: {"model": ErrorResponse},
     },
 )
-def get_timeline(request: TimelineRequest):
+def get_timeline(request_global: Request, request: TimelineRequest):
     # Rate limit
-    limiter = request.app.state.limiter
-    limiter.limit("30/minute;1000/day")(request)
+    limiter = request_global.app.state.limiter
+    limiter.limit("30/minute;1000/day")(request_global)
 
     # Request parsing
     query_str = " ".join(request.query)
