@@ -62,7 +62,7 @@ class BaseGraph(StateGraph, ABC):
         self._llm: Optional[ChatOpenAI] = None
 
     @property
-    def llm(self) -> ChatOpenAI:
+    def _llm(self) -> ChatOpenAI:
         """LLM 인스턴스 생성 및 반환
 
         Returns:

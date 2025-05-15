@@ -138,7 +138,7 @@ class ArticleParser:
                 "url": text["url"],
                 "sentences": [
                     line.strip()
-                    for line in re.split(r"[.,]", text["input_text"].strip())
+                    for line in re.split(r"[.]", text["input_text"].strip())
                     if is_meaningful_sentence(line)
                 ],
             }
@@ -159,7 +159,7 @@ class ArticleFilter:
         base_url: str = OLLAMA_HOST,
         model: str = OLLAMA_MODEL,
         batch_size: int = BATCH_SIZE,
-        top_k: int = 3,
+        top_k: int = 2,
     ):
         """
         Args:

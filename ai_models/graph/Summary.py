@@ -101,7 +101,7 @@ class SummarizationGraph:
             base_url=f"{self.server}/v1",
             api_key="not-needed",
             model=self.model,
-            temperature=0.1,
+            temperature=0.2,
         )
 
     def _make_summarize_node(self, llm):
@@ -124,22 +124,22 @@ class SummarizationGraph:
 
         def summarize(state: SummaryState) -> SummaryState:
             system_prompt = """
-            - 반드시 1줄의 문장만을 제시하세요.
-            - 핵심 사실만 요약하여 제시하세요.
+            - 반드시 1줄 요약을 제시하세요.
             - 예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
             \'{{\'summary\': \'...\'}}\'
             """
             prompt = ChatPromptTemplate.from_messages(
                 [
                     ("system", system_prompt),
-                    ("human", "{input_text}"),
+                    ("human", "제목: \n{title}\n\n본문: \n{input_text}"),
                 ]
             )
-
             try:
                 runnable = prompt | llm | parser
                 logger.info(f"요약 생성 시작:\n {state['input_text']}")
-                result = runnable.invoke({"input_text": state["input_text"]})
+                result = runnable.invoke(
+                    {"title": state["title"], "input_text": state["input_text"]}
+                )
                 state["text"] = result["summary"]
                 logger.info(f"✅요약 생성 완료: {result['summary']}")
                 if not state["text"]:
