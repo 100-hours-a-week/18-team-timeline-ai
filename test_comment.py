@@ -14,39 +14,37 @@ logging.basicConfig(
     level=logging.INFO,  # ← 이 부분이 핵심
     format="%(asctime)s - %(levelname)s - %(message)s",
 )
-QUERY = "곽튜브 유튜브"
+QUERY = "김문수 유튜브"
 
 
 async def main():
-    MODEL = "bge-m3:latest"
     dotenv.load_dotenv(override=True)
     YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
     REST_API_KEY = os.getenv("REST_API_KEY")
     video_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
     youtube_searcher = YouTubeCommentAsyncFetcher(
-        api_key=YOUTUBE_API_KEY, max_comments=20
+        api_key=YOUTUBE_API_KEY, max_comments=200
     )
     df = video_searcher.search(QUERY)
     ripple = await youtube_searcher.search(df=df)
     return ripple
 
 
-def test_agentic_comment_graph():
+async def test_agentic_comment_graph():
     # ✅ 서버 및 모델 정보
-    SERVER = "http://35.216.120.155:8001"
-    MODEL = "models/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+    # SERVER = "http://35.216.120.155:8001"
+    # MODEL = "models/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+    SERVER = "https://b530-34-34-56-0.ngrok-free.app"
+    MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
     time_start = time.time()
-    loop = asyncio.get_event_loop()
-    data = loop.run_until_complete(main())
+
+    data = await main()
     pprint(data)
     # ✅ 그래프 빌드 및 실행
     graph = ClassifyGraph(server=SERVER, model=MODEL).build()
     runner = Runner(graph=graph)
-    texts = [
-        {"input_text": d["comment"], "transcript": d["captions"], "query": QUERY[:-4]}
-        for d in data
-    ]
-    result = runner.run(texts=texts)
+    texts = [{"input_text": d["comment"], "query": QUERY[:-4]} for d in data]
+    result = await runner.run(texts=texts)
 
     # ✅ 결과 출력
     print("=== 최종 결과 ===")
@@ -71,4 +69,4 @@ def test_agentic_comment_graph():
 
 
 if __name__ == "__main__":
-    test_agentic_comment_graph()
+    asyncio.run(test_agentic_comment_graph())

@@ -1,13 +1,3 @@
-"""
-스토리지 모듈
-
-이 모듈은 벡터 데이터베이스(Qdrant)와의 상호작용을 담당합니다.
-주요 기능:
-- 벡터 저장소 초기화
-- 벡터 검색
-- 벡터 저장
-"""
-
 from typing import List, Dict, Any
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
@@ -32,9 +22,12 @@ logger = Logger.get_logger("storage")
 
 def is_qdrant_running(host: str, port: int, timeout: float = 1.0) -> bool:
     try:
+        logger.debug(f"[QdrantStorage] Qdrant 서버 실행 확인: {host}:{port}")
         with socket.create_connection((host, port), timeout=timeout):
+            logger.debug(f"[QdrantStorage] Qdrant 서버 실행 확인 완료: {host}:{port}")
             return True
     except OSError:
+        logger.error(f"[QdrantStorage] Qdrant 서버 실행 확인 실패: {host}:{port}")
         return False
 
 
@@ -62,13 +55,14 @@ def start_qdrant_container(
         ],
         check=True,
     )
-
+    logger.info(f"[QdrantStorage] Qdrant 컨테이너 실행 완료: {name}")
     for _ in range(10):
         if is_qdrant_running("localhost", host_port):
-            logger.info("Qdrant 서버가 성공적으로 실행되었습니다.")
+            logger.info("[QdrantStorage] Qdrant 서버가 성공적으로 실행되었습니다.")
             return
         time.sleep(1)
-    raise RuntimeError("Qdrant 서버가 시작되지 않았습니다.")
+    logger.error("[QdrantStorage] Qdrant 서버가 시작되지 않았습니다.")
+    raise RuntimeError("[QdrantStorage] Qdrant 서버가 시작되지 않았습니다.")
 
 
 class QdrantStorage:
@@ -100,22 +94,28 @@ class QdrantStorage:
             self.vector_size = vector_size
 
             if not is_qdrant_running(host, port):
+                logger.info(
+                    f"[QdrantStorage] Qdrant 서버가 꺼져 있어 컨테이너를 실행합니다."
+                )
                 start_qdrant_container(host, port)
 
             self.client = QdrantClient(host=host, port=port)
+            logger.info(f"[QdrantStorage] 클라이언트 생성 완료: {host}/{port}")
             self._init_collection()
+            logger.info(f"[QdrantStorage] 컬렉션 초기화 완료: {self.collection_name}")
             logger.info(f"클라이언트: {host}/{port}")
             logger.info(f"컬렉션: {self.collection_name}")
         except Exception as e:
-            logger.error(f"실패: {str(e)}")
-            raise OSError(f"실패: {str(e)}")
+            logger.error(f"[QdrantStorage] 초기화 실패: {str(e)}")
+            raise OSError(f"[QdrantStorage] 초기화 실패: {str(e)}")
 
     def _init_collection(self) -> None:
         """컬렉션을 초기화합니다."""
         try:
+            logger.info(f"[QdrantStorage] 컬렉션 초기화 시작: {self.collection_name}")
             collections = self.client.get_collections().collections
             exists = any(c.name == self.collection_name for c in collections)
-
+            logger.info(f"[QdrantStorage] 컬렉션 존재 여부: {exists}")
             if not exists:
                 self.client.create_collection(
                     collection_name=self.collection_name,
@@ -123,12 +123,12 @@ class QdrantStorage:
                         size=self.vector_size, distance=Distance.COSINE
                     ),
                 )
-                logger.info(f"컬렉션 생성 완료: {self.collection_name}")
+                logger.info(f"[QdrantStorage] 컬렉션 생성 완료: {self.collection_name}")
             else:
-                logger.info(f"컬렉션 이미 존재: {self.collection_name}")
+                logger.info(f"[QdrantStorage] 컬렉션 이미 존재: {self.collection_name}")
 
         except Exception as e:
-            logger.error(f"컬렉션 초기화 실패: {str(e)}")
+            logger.error(f"[QdrantStorage] 컬렉션 초기화 실패: {str(e)}")
             raise
 
     async def search(
@@ -152,19 +152,22 @@ class QdrantStorage:
         """
         try:
             async with embedding_constructor() as embedder:
+                logger.info(f"[QdrantStorage] 임베딩 생성 시작: {query}")
                 vector = await embedder.embed_query(query)
+                logger.info(f"[QdrantStorage] 임베딩 생성 완료: {vector}")
                 results = await asyncio.to_thread(
                     self.client.search,
                     collection_name=self.collection_name,
                     query_vector=vector,
                     limit=limit,
                 )
+                logger.info(f"[QdrantStorage] 검색 결과: {results}")
                 return [
                     {"id": hit.id, "score": hit.score, "payload": hit.payload}
                     for hit in results
                 ]
         except Exception as e:
-            logger.error(f"벡터 검색 실패: {str(e)}")
+            logger.error(f"[QdrantStorage] 벡터 검색 실패: {str(e)}")
             raise
 
     async def store_batch(
@@ -196,13 +199,13 @@ class QdrantStorage:
                 }
                 for i, (doc, embedding) in enumerate(zip(documents, embeddings))
             ]
-
+            logger.info(f"[QdrantStorage] 저장 준비 완료: {len(points)}개 문서")
             await asyncio.to_thread(
                 self.client.upsert, collection_name=self.collection_name, points=points
             )
-            logger.info(f"배치 저장 완료: {len(points)}개 문서")
+            logger.info(f"[QdrantStorage] 배치 저장 완료: {len(points)}개 문서")
         except Exception as e:
-            logger.error(f"배치 저장 실패: {str(e)}")
+            logger.error(f"[QdrantStorage] 배치 저장 실패: {str(e)}")
             raise
 
 

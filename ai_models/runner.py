@@ -1,14 +1,8 @@
-"""
-AI 모델 실행기
-
-AI 모델의 그래프를 비동기로 실행하고 결과를 수집하는 클래스입니다.
-asyncio를 사용하여 여러 입력을 동시에 처리하며, 배치 단위로 처리합니다.
-"""
-
 import time
 import asyncio
 from typing import List, Any, Generator
 from utils.logger import Logger
+from tqdm import tqdm
 
 logger = Logger.get_logger("ai_runner")
 
@@ -29,7 +23,7 @@ class Runner:
     def __init__(
         self,
         graph: Any,
-        max_workers: int = 6,
+        max_workers: int = 5,
         batch_size: int = 32,
         config: dict = None,
     ):
@@ -60,6 +54,7 @@ class Runner:
             List[dict]: 배치 단위의 입력 데이터
         """
         for i in range(0, len(items), self.batch_size):
+            logger.info(f"[Runner] 배치 생성 - {i + 1}/{len(items)}")
             yield items[i : i + self.batch_size]
 
     async def run_graph(self, item: dict) -> dict:
@@ -75,13 +70,14 @@ class Runner:
                 결과는 graph.invoke 메서드의 StateGraph 객체입니다.
         """
         try:
-            result = await self.graph.invoke(item, self.config)
-            logger.debug(f"그래프 실행 성공 - 입력: {item.get('url', 'N/A')}")
+            logger.info(f"[Runner] 그래프 실행 시작 - 입력: {item.get('url', 'N/A')}")
+            result = await self.graph.ainvoke(item, self.config)
+            logger.debug(f"[Runner] 그래프 실행 성공 - 입력: {item.get('url', 'N/A')}")
             return result
         except Exception as e:
             logger.error(
-                f"그래프 실행 실패 - 입력: {item.get('url', 'N/A')}, "
-                f"에러: {type(e).__name__}: {str(e)}"
+                f"[Runner] 그래프 실행 실패 - 입력: {item.get('url', 'N/A')}, "
+                f"[Runner] 에러: {type(e).__name__}: {str(e)}"
             )
             raise
 
@@ -95,24 +91,40 @@ class Runner:
             List[dict]: 배치 처리 결과
         """
         results = [None] * len(batch)
-        semaphore = asyncio.Semaphore(self.max_workers)
+        try:
+            logger.info(f"[Runner] 세마포어 생성 - {self.max_workers}")
+            semaphore = asyncio.Semaphore(self.max_workers)
+            logger.info(f"[Runner] 세마포어 생성 완료 - {self.max_workers}")
+        except Exception as e:
+            logger.error(f"[Runner] 세마포어 생성 실패: {e}")
+            raise
 
         async def process_with_semaphore(idx: int, item: dict):
             async with semaphore:
                 try:
+                    logger.info(f"[Runner] 그래프 실행 시작 - {idx + 1}/{len(batch)}")
                     result = await self.run_graph(item)
+                    logger.info(f"[Runner] 그래프 실행 완료 - {idx + 1}/{len(batch)}")
                     if result:
                         results[idx] = result
-                        logger.info(f"작업 완료 - {idx + 1}/{len(batch)}")
+                        logger.info(f"[Runner] 작업 완료 - {idx + 1}/{len(batch)}")
                 except Exception as e:
                     logger.error(
-                        f"작업 실패 - {idx + 1}/{len(batch)}, "
-                        f"에러: {type(e).__name__}: {str(e)}"
+                        f"[Runner] 작업 실패 - {idx + 1}/{len(batch)}, "
+                        f"[Runner] 에러: {type(e).__name__}: {str(e)}"
                     )
 
-        tasks = [process_with_semaphore(idx, item) for idx, item in enumerate(batch)]
-        await asyncio.gather(*tasks)
-        return [r for r in results if r is not None]
+        try:
+            logger.info(f"[Runner] 그래프 실행 시작 - {len(batch)}")
+            tasks = [
+                process_with_semaphore(idx, item) for idx, item in enumerate(batch)
+            ]
+            await asyncio.gather(*tasks)
+            logger.info(f"[Runner] 그래프 실행 완료 - {len(batch)}")
+            return [r for r in results if r is not None]
+        except Exception as e:
+            logger.error(f"[Runner] 그래프 실행 실패: {e}")
+            return []
 
     async def run(self, texts: List[dict]) -> List[dict]:
         """여러 입력을 배치 단위로 비동기 처리하는 메서드
@@ -133,35 +145,42 @@ class Runner:
             - 실패한 입력에 대한 오류도 로그로 기록됩니다.
         """
         if not texts:
-            logger.warning("입력 데이터가 비어있습니다.")
+            logger.warning("[Runner] 입력 데이터가 비어있습니다.")
             return []
 
         start = time.time()
+        logger.info(f"[Runner] 입력 데이터 개수: {len(texts)}")
         all_results = []
-
+        batches = list(self._create_batches(texts))
         # 배치 단위로 처리
-        for batch_idx, batch in enumerate(self._create_batches(texts), 1):
-            logger.info(f"배치 처리 시작 - {batch_idx}번째 배치 ({len(batch)}개)")
+        for batch_idx, batch in enumerate(tqdm(batches, desc="배치"), 1):
+            logger.info(
+                f"[Runner] 배치 처리 시작 - {batch_idx}번째 배치 ({len(batch)}개)"
+            )
             batch_start = time.time()
 
             # 배치 처리
-            batch_results = await self.run_batch(batch)
-            all_results.extend(batch_results)
+            try:
+                batch_results = await self.run_batch(batch)
+                all_results.extend(batch_results)
+            except Exception as e:
+                logger.error(f"[Runner] 배치 처리 실패: {e}")
+                raise
 
             # 배치 처리 시간 기록
             batch_time = time.time() - batch_start
             logger.info(
-                f"배치 처리 완료 - {batch_idx}번째 배치, "
-                f"성공: {len(batch_results)}/{len(batch)}, "
-                f"소요시간: {batch_time:.2f}초"
+                f"[Runner] 배치 처리 완료 - {batch_idx}번째 배치, "
+                f"[Runner] 성공: {len(batch_results)}/{len(batch)}, "
+                f"[Runner] 소요시간: {batch_time:.2f}초"
             )
 
         # 전체 처리 시간 기록
         elapsed_time = time.time() - start
         success_count = len(all_results)
         logger.info(
-            f"작업 완료 - 전체: {len(texts)}, 성공: {success_count}, "
-            f"실패: {len(texts) - success_count}, "
-            f"소요시간: {elapsed_time:.2f}초"
+            f"[Runner] 작업 완료 - 전체: {len(texts)}, 성공: {success_count}, "
+            f"[Runner] 실패: {len(texts) - success_count}, "
+            f"[Runner] 소요시간: {elapsed_time:.2f}초"
         )
         return all_results

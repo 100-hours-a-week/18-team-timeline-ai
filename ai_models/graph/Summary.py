@@ -6,9 +6,6 @@ from langchain_core.prompts import (
     HumanMessagePromptTemplate,
 )
 from langchain.output_parsers import StructuredOutputParser, ResponseSchema
-from langchain.schema import BaseOutputParser
-import json
-import re
 from typing import TypedDict
 from utils.logger import Logger
 
