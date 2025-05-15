@@ -1,11 +1,12 @@
 import os
 import dotenv
 import logging
+from main import limiter
 
 from utils.env_utils import get_serper_key
 from utils.timeline_utils import convert_tag, short_sentence, compress_sentence
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 
 from models.timeline_card import TimelineCard
@@ -65,11 +66,8 @@ img_links = [
         500: {"model": ErrorResponse},
     },
 )
-def get_timeline(request_global: Request, request: TimelineRequest):
-    # Rate limit
-    limiter = request_global.app.state.limiter
-    limiter.limit("30/minute;1000/day")(request_global)
-
+@limiter.limit("30/minute;1000/day")
+def get_timeline(request: TimelineRequest):
     # Request parsing
     query_str = " ".join(request.query)
 
