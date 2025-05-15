@@ -5,8 +5,10 @@ import logging
 from utils.env_utils import get_serper_key
 from utils.timeline_utils import convert_tag, short_sentence, compress_sentence
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Request, HTTPException
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
+
 from models.timeline_card import TimelineCard
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import TimelineRequest, TimelineData
@@ -65,6 +67,10 @@ img_links = [
     },
 )
 def get_timeline(request: TimelineRequest):
+    # Rate limit
+    limiter = request.app.state.limiter
+    limiter.limit("30/minute;1000/day")(request)
+
     # Request parsing
     query_str = " ".join(request.query)
 

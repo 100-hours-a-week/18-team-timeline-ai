@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel
 from datetime import datetime
 from typing import List
 
@@ -11,23 +11,6 @@ class TimelineCard(BaseModel):
     endAt: datetime
     source: List[str]
 
-    @field_validator('startAt', 'endAt', mode='before')
-    @classmethod
-    def parse_date_or_datetime(cls, value):
-        if isinstance(value, datetime):
-            return value
-        if isinstance(value, str):
-            try:
-                # ISO 8601 full datetime
-                return datetime.fromisoformat(value)
-            except ValueError:
-                pass
-            try:
-                # Date only → add midnight time
-                return datetime.strptime(value, "%Y-%m-%d")
-            except ValueError:
-                pass
-        raise ValueError(f"Invalid date/datetime format: {value}")
 
 """
 card = TimelineCard(

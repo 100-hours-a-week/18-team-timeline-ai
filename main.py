@@ -1,7 +1,26 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from api.router import router as api_router
 
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 app = FastAPI(title="AI News Timeline API", version="1.0.0")
+
+# SlowAPI Rate Limit
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(
+        status_code=429,
+        content={"detail": "현재 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."},
+    )
+
+# Router
 app.include_router(api_router, prefix="/api")
 
 

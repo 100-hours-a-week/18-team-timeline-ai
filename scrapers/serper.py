@@ -59,12 +59,16 @@ def distribute_news_serper(
     results = []
     current = startAt
 
+    # 3개월 이상 차단, 안전장치
+    if current < endAt - timedelta(days=90):
+        current = endAt-timedelta(days=90)
+
+    # 기사 수집
     while current <= endAt:
         url_title = get_news_serper(query, current, api_key)
-        if not url_title:
-            continue
-        date_str = current.strftime("%Y-%m-%d")
-        results.append((url_title[0], url_title[1], date_str))
+        if url_title:
+            date_str = current.strftime("%Y-%m-%d")
+            results.append((url_title[0], url_title[1], date_str))
         current += timedelta(days=1)
 
     return results
