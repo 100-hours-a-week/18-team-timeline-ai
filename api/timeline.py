@@ -6,7 +6,7 @@ from limiter import limiter
 from utils.env_utils import get_serper_key
 from utils.timeline_utils import convert_tag, short_sentence, compress_sentence
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
 
 from models.timeline_card import TimelineCard
@@ -67,9 +67,9 @@ img_links = [
     },
 )
 @limiter.limit("30/minute;1000/day")
-def get_timeline(request: TimelineRequest):
+def get_timeline(request: Request, payload: TimelineRequest):
     # Request parsing
-    query_str = " ".join(request.query)
+    query_str = " ".join(payload.query)
 
     # Meaningful checking
     if not checker.is_meaningful(query_str):
@@ -87,8 +87,8 @@ def get_timeline(request: TimelineRequest):
         raise HTTPException(status_code=500, detail="SERPER_API_KEY not found")
     scraping_res = distribute_news_serper(
         query=query_str,
-        startAt=request.startAt,
-        endAt=request.endAt,
+        startAt=payload.startAt,
+        endAt=payload.endAt,
         api_key=SERPER_API_KEY,
     )
 
