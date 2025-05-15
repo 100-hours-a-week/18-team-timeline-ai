@@ -3,7 +3,6 @@ import asyncio
 from typing import List, Any, Generator
 from utils.logger import Logger
 from tqdm import tqdm
-from aiohttp import ClientConnectorError, ServerDisconnectedError, ClientResponseError
 
 logger = Logger.get_logger("ai_runner")
 

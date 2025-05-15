@@ -154,14 +154,14 @@ class QdrantStorage:
             async with embedding_constructor() as embedder:
                 logger.info(f"[QdrantStorage] 임베딩 생성 시작: {query}")
                 vector = await embedder.embed_query(query)
-                logger.info(f"[QdrantStorage] 임베딩 생성 완료: {len(vector)}")
+                logger.info(f"[QdrantStorage] 임베딩 생성 완료: {vector}")
                 results = await asyncio.to_thread(
                     self.client.search,
                     collection_name=self.collection_name,
                     query_vector=vector,
                     limit=limit,
                 )
-                logger.info(f"[QdrantStorage] 검색 결과: {len(results)}개")
+                logger.info(f"[QdrantStorage] 검색 결과: {results}")
                 return [
                     {"id": hit.id, "score": hit.score, "payload": hit.payload}
                     for hit in results
