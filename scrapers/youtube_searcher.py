@@ -146,7 +146,7 @@ class YouTubeCommentAsyncFetcher(BaseSearcher):
                 - comment: 댓글
                 - captions: 댓글과 관련된 자막
         """
-        if not df:
+        if df.empty or "url" not in df.columns:
             logger.error(
                 "[YouTubeCommentAsyncFetcher] DataFrame이 비어있거나 'url' 컬럼이 없습니다."
             )
