@@ -148,8 +148,8 @@ def get_timeline(request: Request, payload: TimelineRequest):
             title=news_title,
             content=compress_sentence(res["text"]),
             duration="DAY",
-            startAt=dates[i],
-            endAt=dates[i],
+            startAt=dates[i].date().isoformat(),
+            endAt=dates[i].date().isoformat(),
             source=[urls[i]],
         )
         card_list.append(card)

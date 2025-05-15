@@ -61,8 +61,8 @@ def merge_timeline(request: MergeRequest):
         title=final_res["title"],
         content=final_res["summary"],
         duration=next_timeline_type(cards[0].duration),
-        startAt=cards[0].startAt,
-        endAt=cards[len(cards) - 1].endAt,
+        startAt=cards[0].startAt.date().isoformat(),
+        endAt=cards[len(cards) - 1].endAt.date().isoformat(),
         source=imgs,
     )
 
