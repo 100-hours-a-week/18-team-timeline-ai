@@ -87,8 +87,6 @@ class SummarizationGraph:
         def summarize(state: SummaryState) -> SummaryState:
             system_prompt = """
             - 반드시 1줄 요약을 제시하세요.
-            - 반드시 핵심 인물, 사건, 숫자를 포함하세요.
-            - 요약은 사실 기반이며 주어·서술어·목적어를 명확히 포함해야 합니다.
             - 예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
             \'{{\'summary\': \'...\'}}\'
             """
