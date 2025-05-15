@@ -2,14 +2,10 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from api.router import router as api_router
 
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+from limiter import limiter
 from slowapi.errors import RateLimitExceeded
 
 app = FastAPI(title="AI News Timeline API", version="1.0.0")
-
-# SlowAPI Rate Limit
-limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
 
 

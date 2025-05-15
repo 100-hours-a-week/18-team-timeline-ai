@@ -1,7 +1,7 @@
 import os
 import dotenv
 import logging
-from main import limiter
+from limiter import limiter
 
 from utils.env_utils import get_serper_key
 from utils.timeline_utils import convert_tag, short_sentence, compress_sentence
