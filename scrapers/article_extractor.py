@@ -37,6 +37,15 @@ class ArticleExtractor(BaseSearcher):
         """
         return await asyncio.to_thread(self._extract_single, url)
 
+    async def extract_single(self, url: dict) -> Optional[Dict[str, str]]:
+        """기사 URL로부터 본문을 추출하는 메서드
+
+        Args:
+            url (dict): 기사 URL과 제목이 포함된 딕셔너리
+                {"url": str, "title": str}
+        """
+        return await asyncio.to_thread(self._extract_single, url)
+
     def _extract_single(self, url: dict) -> Optional[Dict[str, str]]:
         """기사 URL로부터 본문을 추출하는 메서드
 
@@ -138,7 +147,7 @@ class ArticleParser:
                 "url": text["url"],
                 "sentences": [
                     line.strip()
-                    for line in re.split(r"[.]", text["input_text"].strip())
+                    for line in re.split(r"[.,]", text["input_text"].strip())
                     if is_meaningful_sentence(line)
                 ],
             }
@@ -159,7 +168,7 @@ class ArticleFilter:
         base_url: str = OLLAMA_HOST,
         model: str = OLLAMA_MODEL,
         batch_size: int = BATCH_SIZE,
-        top_k: int = 2,
+        top_k: int = 3,
     ):
         """
         Args:
@@ -199,12 +208,8 @@ class ArticleFilter:
                 f"{self.base_url}/api/embeddings",
                 json={"model": self.model, "prompt": text},
             ) as response:
-                logger.info(f"[ArticleFilter] 임베딩 요청 응답: {response.status}")
-                if response.status == 200:
-                    logger.info(f"[ArticleFilter] 임베딩 요청 완료 - {text}")
-                    return await response.json()
-                error_text = await response.text()
-                raise Exception(f"{error_text}")
+                logger.info(f"[ArticleFilter] 임베딩 요청 완료 - {text}")
+                return await response.json()
         except Exception as e:
             logger.error(f"[ArticleFilter] 임베딩 요청 실패 : {e}")
             return []
