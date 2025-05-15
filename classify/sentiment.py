@@ -64,14 +64,14 @@ class SentimentAggregator:
             for i, r in enumerate(ret):
                 tmp = {"긍정": 0, "부정": 0, "중립": 0}
                 logger.info(
-                    f"[SentimentAggregator] {i + 1}] {r['id']} : {r['payload']['comment']}, {r['score']}, {len(r['payload']['labels'])}"
+                    f"[SentimentAggregator] {i + 1}] {r['id']} : {r['payload']['comment']}, {r['score']}"
                 )
                 for label in r["payload"]["labels"]:
+                    logger.info(f"[SentimentAggregator] {label}: {dict_labels[label]}")
                     tmp[SENTIMENT_MAP[dict_labels[label]]] += 1
                 logger.info(f"[SentimentAggregator] 현재 감정: {tmp}")
-                total = sum(tmp.values())
                 for key, value in tmp.items():
-                    results[key] = value / total * r["score"]
+                    results[key] += r["score"] * value / len(ret)
                 logger.info(f"[SentimentAggregator] 현재 감정: {results}")
         except Exception as e:
             logger.error(f"[SentimentAggregator] 감정 집계 실패: {str(e)}")
@@ -121,13 +121,16 @@ class SentimentAggregator:
             logger.error(f"[SentimentAggregator] 다중 쿼리 집계 실패: {str(e)}")
             raise
         # 실패한 작업이 있다면 로그
-        ret = {"긍정": 0, "부정": 0, "중립": 0}
         for i, result in enumerate(results):
-            if not await handle_http_error(result, queries[i], logger):
-                continue
-            ret["긍정"] += result["긍정"]
-            ret["부정"] += result["부정"]
-            ret["중립"] += result["중립"]
+            if isinstance(result, Exception):
+                logger.error(
+                    f"[SentimentAggregator] 쿼리 '{queries[i]}' 실패: {str(result)}"
+                )
+        ret = {"긍정": 0, "부정": 0, "중립": 0}
+        for r in results:
+            ret["긍정"] += r["긍정"]
+            ret["부정"] += r["부정"]
+            ret["중립"] += r["중립"]
         logger.info(f"[SentimentAggregator] 최종 감정: {ret}")
         return ret
 
@@ -140,9 +143,9 @@ async def main():
     REST_API_KEY = os.getenv("REST_API_KEY")
     daum_vclip_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
     youtube_searcher = YouTubeCommentAsyncFetcher(
-        api_key=YOUTUBE_API_KEY, max_comments=10
+        api_key=YOUTUBE_API_KEY, max_comments=20
     )
-    df = daum_vclip_searcher.search(query="이경규 유튜브")
+    df = daum_vclip_searcher.search(query="윤석열 유튜브")
     ripple = await youtube_searcher.search(df=df)
     ripple = [r["comment"] for r in ripple]
     aggregator = SentimentAggregator()

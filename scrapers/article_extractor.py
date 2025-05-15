@@ -208,8 +208,12 @@ class ArticleFilter:
                 f"{self.base_url}/api/embeddings",
                 json={"model": self.model, "prompt": text},
             ) as response:
-                logger.info(f"[ArticleFilter] 임베딩 요청 완료 - {text}")
-                return await response.json()
+                logger.info(f"[ArticleFilter] 임베딩 요청 응답: {response.status}")
+                if response.status == 200:
+                    logger.info(f"[ArticleFilter] 임베딩 요청 완료 - {text}")
+                    return await response.json()
+                error_text = await response.text()
+                raise Exception(f"{error_text}")
         except Exception as e:
             logger.error(f"[ArticleFilter] 임베딩 요청 실패 : {e}")
             return []
