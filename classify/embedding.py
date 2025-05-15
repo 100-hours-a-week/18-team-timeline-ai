@@ -108,15 +108,24 @@ class OllamaEmbeddingService(EmbeddingModel):
         Raises:
             Exception: 임베딩 생성 실패 시
         """
-        async with self.session.post(
-            f"{self.base_url}/api/embeddings",
-            json={"model": self.model, "prompt": text},
-        ) as response:
-            if response.status == 200:
-                data = await response.json()
-                return data["embedding"]
-            error_text = await response.text()
-            raise Exception(f"임베딩 생성 실패: {error_text}")
+        logger.info(f"[OllamaEmbeddingService] 임베딩 생성 시작: {text}")
+        try:
+            async with self.session.post(
+                f"{self.base_url}/api/embeddings",
+                json={"model": self.model, "prompt": text},
+            ) as response:
+                logger.info(
+                    f"[OllamaEmbeddingService] 임베딩 생성 응답: {response.status}"
+                )
+                if response.status == 200:
+                    logger.info(f"[OllamaEmbeddingService] 임베딩 생성 성공")
+                    data = await response.json()
+                    return data["embedding"]
+                error_text = await response.text()
+                raise Exception(f"{error_text}")
+        except Exception as e:
+            logger.error(f"[OllamaEmbeddingService] 임베딩 생성 실패: {e}")
+            raise
 
     async def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """문서 리스트를 배치 단위로 임베딩합니다.
@@ -129,13 +138,21 @@ class OllamaEmbeddingService(EmbeddingModel):
         """
 
         all_embeddings = []
-        for i in range(0, len(texts), self.batch_size):
-            batch = texts[i : i + self.batch_size]
-            tasks = [self._make_embedding_request(text) for text in batch]
-            embeddings = await asyncio.gather(*tasks)
-            all_embeddings.extend(embeddings)
-            logger.info(f"배치 처리 완료: {i + len(batch)}/{len(texts)}")
-        return all_embeddings
+        try:
+            for i in range(0, len(texts), self.batch_size):
+                batch = texts[i : i + self.batch_size]
+                logger.info(
+                    f"[OllamaEmbeddingService] 임베딩 생성 시작: {i} : {i + self.batch_size}"
+                )
+                tasks = [self._make_embedding_request(text) for text in batch]
+                logger.info(f"[OllamaEmbeddingService] 임베딩 생성 대기: {tasks}")
+                embeddings = await asyncio.gather(*tasks)
+                all_embeddings.extend(embeddings)
+                logger.info(f"배치 처리 완료: {i + len(batch)}/{len(texts)}")
+            return all_embeddings
+        except Exception as e:
+            logger.error(f"[OllamaEmbeddingService] 임베딩 생성 실패: {e}")
+            raise
 
     async def embed_query(self, text: str) -> List[float]:
         """단일 쿼리를 임베딩합니다.
@@ -146,23 +163,29 @@ class OllamaEmbeddingService(EmbeddingModel):
         Returns:
             List[float]: 임베딩된 벡터
         """
-        return await self._make_embedding_request(text)
+        try:
+            return await self._make_embedding_request(text)
+        except Exception as e:
+            logger.error(f"[OllamaEmbeddingService] 임베딩 생성 실패: {e}")
+            raise
 
 
 def create_documents(dataset) -> List[Document]:
     """데이터셋을 Document 객체 리스트로 변환합니다."""
     documents = []
     logger.info(f"dataset: {type(dataset)}")
-    print(dataset[0])
-    for iter in dataset:
-        doc = Document(
-            page_content=iter["text"],
-            metadata={"labels": iter["labels"], "ID": iter["ID"]},
-        )
-        logger.debug(f"문서 생성 완료: {iter['ID']} - {iter['text']}")
-        logger.debug(f"문서 레이블: {iter['labels']}")
-        documents.append(doc)
-
+    try:
+        for iter in dataset:
+            doc = Document(
+                page_content=iter["text"],
+                metadata={"labels": iter["labels"], "ID": iter["ID"]},
+            )
+            logger.debug(f"문서 생성 완료: {iter['ID']} - {iter['text']}")
+            logger.debug(f"문서 레이블: {iter['labels']}")
+            documents.append(doc)
+    except Exception as e:
+        logger.error(f"[create_documents] 문서 생성 실패: {e}")
+        raise
     logger.info(f"총 {len(documents)}개의 문서 생성 완료")
     return documents
 
@@ -175,11 +198,11 @@ def load_kote_dataset(
         ds = load_dataset(dataset_name, cache_dir=cache_dir, trust_remote_code=True)
         # print(ds.keys())
         logger.info(
-            f"데이터셋 로드 완료: {len(ds['train'])+ len(ds['test']) + len(ds['validation'])} 샘플"
+            f"[load_kote_dataset] 데이터셋 로드 완료: {len(ds['train'])+ len(ds['test']) + len(ds['validation'])} 샘플"
         )
         return ds
     except Exception as e:
-        logger.error(f"데이터셋 로드 실패: {str(e)}")
+        logger.error(f"[load_kote_dataset] 데이터셋 로드 실패: {str(e)}")
         raise
 
 

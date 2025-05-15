@@ -23,7 +23,7 @@ class DaumVclipSearcher(BaseSearcher):
             InvalidAPIKeyError: 유효한 API Key가 아닐 경우 반환
         """
         self.service_key = api_key
-        logger.info(f"Daum Vclip 검색기 초기화: API Key 설정")
+        logger.info(f"[DaumVclipSearcher] API Key 설정")
         try:
             self.api = (
                 daum_service
@@ -31,7 +31,7 @@ class DaumVclipSearcher(BaseSearcher):
                 else DaumSearch(service_key=self.service_key)
             )
         except Exception as e:
-            logger.error(f"API Key 초기화 실패: {e}")
+            logger.error(f"[DaumVclipSearcher] API Key 초기화 실패: {e}")
             raise InvalidAPIKeyError(f"API Key가 유효하지 않습니다.{e}")
 
     def search(self, query: str, page: int = 1) -> pd.DataFrame:
@@ -49,25 +49,25 @@ class DaumVclipSearcher(BaseSearcher):
             pd.DataFrame: {author, datetime, play_time, thumbnail, title, url}을 column으로 가지는 DataFrame 객체 반환
         """
         if not query or query.strip() == "":
-            logger.warning("빈 검색어로 검색 시도")
+            logger.warning("[DaumVclipSearcher] 빈 검색어로 검색 시도")
             raise ValueError("검색어를 입력해야 합니다.")
 
-        logger.info(f"검색 시작: query='{query}', page={page}")
+        logger.info(f"[DaumVclipSearcher] 검색 시작: query='{query}', page={page}")
         try:
             df = self.api.search_vclip(
                 query=query, page=page, dataframe=True, data_type="json"
             )
         except Exception as e:
-            logger.error(f"검색 요청 실패: {e}")
+            logger.error(f"[DaumVclipSearcher]검색 요청 실패: {e}")
             raise SearchRequestFailedError(f"문제가 생겼습니다: {e}")
 
         if df is None:
-            logger.error(f"검색 결과 없음: '{query}'")
+            logger.error(f"[DaumVclipSearcher] 검색 결과 없음: '{query}'")
             raise SearchRequestFailedError(
                 f"'{query}'에 대한 검색 요청에 실패했습니다."
             )
         if df.empty:
-            logger.warning(f"검색 결과 없음: '{query}'")
+            logger.warning(f"[DaumVclipSearcher] 검색 결과 없음: '{query}'")
             raise ValueError(f"'{query}'에 대한 검색 결과가 없습니다.")
 
         # YouTube URL만 필터링 (youtube.com 또는 youtu.be 도메인)
@@ -75,8 +75,8 @@ class DaumVclipSearcher(BaseSearcher):
         df = df[df["url"].str.contains(youtube_pattern, case=False, na=False)]
 
         if df.empty:
-            logger.warning(f"YouTube 검색 결과 없음: '{query}'")
+            logger.warning(f"[DaumVclipSearcher] YouTube 검색 결과 없음: '{query}'")
             raise ValueError(f"'{query}'에 대한 YouTube 검색 결과가 없습니다.")
 
-        logger.info(f"검색 완료: {len(df)}개의 결과 발견")
+        logger.info(f"[DaumVclipSearcher] 검색 완료: {len(df)}개의 결과 발견")
         return df
