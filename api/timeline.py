@@ -148,8 +148,8 @@ def get_timeline(request: Request, payload: TimelineRequest):
             title=news_title,
             content=compress_sentence(res["text"]),
             duration="DAY",
-            startAt=dates[i].date().isoformat(),
-            endAt=dates[i].date().isoformat(),
+            startAt=dates[i],
+            endAt=dates[i],
             source=[urls[i]],
         )
         card_list.append(card)
@@ -174,6 +174,11 @@ def get_timeline(request: Request, payload: TimelineRequest):
     img_link = get_img_link(urls[0])
     if not img_link:
         img_link = base_img_url + img_links[tag_id]
+
+    # Datetime to Date (ISO format)
+    for card in card_list:
+        card.startAt = card.startAt.date().isoformat()
+        card.endAt = card.endAt.date().isoformat()
 
     # Timeline
     timeline = TimelineData(
