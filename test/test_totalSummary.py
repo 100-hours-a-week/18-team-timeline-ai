@@ -10,11 +10,10 @@ from scrapers.article_extractor import (
 )
 from ai_models.graph.total_summary import TotalSummarizationGraph
 from ai_models.graph.Summary import SummarizationGraph
-from line_profiler import profile
+
 
 if __name__ == "__main__":
 
-    @profile
     async def main():
         URLS = [
             {
