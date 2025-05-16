@@ -1,6 +1,6 @@
 import os
 from datasets import load_dataset
-from config.labels import DATASET_NAME, DATASET_CACHE_DIR
+from config.settings import DATASET_NAME, DATASET_CACHE_DIR
 
 # .dataset 폴더 생성
 dataset_dir = DATASET_CACHE_DIR

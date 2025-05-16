@@ -4,6 +4,7 @@ from langchain_core.prompts import (
     ChatPromptTemplate,
     SystemMessagePromptTemplate,
     HumanMessagePromptTemplate,
+    AIMessagePromptTemplate,
 )
 from langchain.output_parsers import StructuredOutputParser, ResponseSchema
 from langchain.schema import BaseOutputParser
@@ -106,7 +107,7 @@ class TotalSummarizationGraph:
             base_url=f"{self.server}/v1",
             api_key="not-needed",
             model=self.model,
-            temperature=0.1,
+            temperature=0.2,
         )
 
     def _make_summarize_node(self, llm):
@@ -222,9 +223,8 @@ class TotalSummarizationGraph:
                         - 0~49: 실패 (요약이 원문과 거의 무관하거나 문법이 심각하게 어색함)
                         """
                     ),
-                    HumanMessagePromptTemplate.from_template(
-                        "원문:\n{summary}\n\n제목:\n{title}"
-                    ),
+                    HumanMessagePromptTemplate.from_template("원문:\n{summary}\n\n"),
+                    AIMessagePromptTemplate.from_template("제목:\n{title}\n\n"),
                 ]
             )
             runnable = eval_prompt | llm | parser
