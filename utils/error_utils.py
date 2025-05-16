@@ -1,5 +1,5 @@
 from fastapi.responses import JSONResponse
-from models.response_schema import CommonResponse, ErrorResponse
+from models.response_schema import ErrorResponse
 
 
 def error_response(code, msg: str):

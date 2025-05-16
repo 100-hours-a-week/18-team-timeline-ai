@@ -2,8 +2,8 @@ import os
 import dotenv
 
 from fastapi import APIRouter
-from fastapi.responses import JSONResponse
 
+from utils.error_utils import error_response
 from utils.timeline_utils import next_timeline_type
 
 from models.response_schema import CommonResponse, ErrorResponse
@@ -38,12 +38,7 @@ final_runner = Runner(graph=graph_total)
 def merge_timeline(request: MergeRequest):
     # Request exception
     if not request.timeline:
-        return JSONResponse(
-            status_code=400,
-            content=ErrorResponse(
-                success=False, message="Timeline이 비어 있습니다."
-            ).model_dump(),
-        )
+        return error_response(400, "Timeline이 비어 있습니다.")
 
     # Request parsing
     imgs = []
@@ -56,6 +51,8 @@ def merge_timeline(request: MergeRequest):
         contents.append(card.content)
     concat_content = {"input_text": "\n\n".join(contents)}
     final_res = final_runner.run(texts=[concat_content])[0]
+    if not final_res:
+        return error_response(500, "인공지능이 병합 요약에 실패했습니다.")
 
     # Merged card
     merged_card = TimelineCard(
