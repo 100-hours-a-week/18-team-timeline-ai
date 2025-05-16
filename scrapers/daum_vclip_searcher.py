@@ -62,12 +62,12 @@ class DaumVclipSearcher(BaseSearcher):
             logger.error(f"[DaumVclipSearcher]검색 요청 실패: {e}")
             raise SearchRequestFailedError(f"문제가 생겼습니다: {e}")
 
-        if df is None:
+        if results is None:
             logger.error(f"[DaumVclipSearcher] 검색 결과 없음: '{query}'")
             raise SearchRequestFailedError(
                 f"'{query}'에 대한 검색 요청에 실패했습니다."
             )
-        if df.empty:
+        if not results["documents"]:
             logger.warning(f"[DaumVclipSearcher] 검색 결과 없음: '{query}'")
             raise ValueError(f"'{query}'에 대한 검색 결과가 없습니다.")
 
@@ -79,9 +79,9 @@ class DaumVclipSearcher(BaseSearcher):
             if "url" in item and re.search(youtube_pattern, item["url"], re.IGNORECASE)
         ]
 
-        if df.empty:
+        if not filtered:
             logger.warning(f"[DaumVclipSearcher] YouTube 검색 결과 없음: '{query}'")
             raise ValueError(f"'{query}'에 대한 YouTube 검색 결과가 없습니다.")
 
-        logger.info(f"[DaumVclipSearcher] 검색 완료: {len(df)}개의 결과 발견")
-        return df
+        logger.info(f"[DaumVclipSearcher] 검색 완료: {len(filtered)}개의 결과 발견")
+        return filtered
