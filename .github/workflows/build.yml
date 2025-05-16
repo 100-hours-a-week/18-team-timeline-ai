@@ -1,0 +1,63 @@
+name: Build and Push tamnara-api Docker Image to ECR
+
+on:
+  push:
+    branches:
+      - release
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+    
+    env:
+      AWS_REGION: ap-northeast-2
+      AWS_ACCOUNT_ID: 346011888304
+      IMAGE_NAME: tamnara-api
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@3
+
+      - name: Get short commit SHA
+        id: meta
+        run: echo "tag=$(echo $GITHUB_SHA | cut -c1-7)" >> $GITHUB_OUTPUT
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::346011888304:role/github-action-role
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Try to pull previous image for cache (latest)
+        continue-on-error: true
+        run: |
+          docker pull ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}:latest || true
+
+      - name: Build Docker image (with optional cache)
+        run: |
+          REG=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}
+          if docker image inspect $REG:latest > /dev/null 2>&1; then
+            echo "✅ Using cache from latest"
+            docker build --cache-from $REG:latest -t $REG:latest .
+          else
+            echo "⚠️ No cache image available, building from scratch"
+            docker build -t $REG:latest .
+          fi
+
+      - name: Tag image with commit SHA
+        run: |
+          REG=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}
+          docker tag $REG:latest $REG:${{ steps.meta.outputs.tag }}
+      
+      - name: Push both tags to ECR
+        run: |
+          REG=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}
+          docker push $REG:latest
+          docker push $REG:${{ steps.meta.outputs.tag }}
