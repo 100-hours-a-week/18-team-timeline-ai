@@ -3,7 +3,7 @@ import dotenv
 import logging
 
 from fastapi import APIRouter
-from fastapi.responses import JSONResponse
+from utils.error_utils import error_response
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import CommentRequest, CommentData
 
@@ -52,7 +52,6 @@ async def main(query: str, num: int):
     "",
     response_model=CommonResponse[CommentData],
     responses={
-        400: {"model": ErrorResponse},
         404: {"model": ErrorResponse},
         500: {"model": ErrorResponse},
     },
@@ -60,19 +59,14 @@ async def main(query: str, num: int):
 async def classify_comments(request: CommentRequest):
     # Request parsing
     num = request.num
-    if not num:
-        num = 5
+    if not num or not isinstance(num, int) or num > 50:
+        num = 10
     query_str = " ".join(request.query)
 
     # 기사 수집
     data = await main(query_str + " youtube", num)
     if not data:
-        return JSONResponse(
-            status_code=404,
-            content=ErrorResponse(
-                success=False, message="기사를 찾을 수 없습니다."
-            ).model_dump(),
-        )
+        return error_response(404, "관련 유튜브 뉴스를 찾을 수 없습니다.")
 
     # 그래프 빌드 및 실행
     graph = ClassifyGraph(server=SERVER, model=MODEL).build()
@@ -82,12 +76,7 @@ async def classify_comments(request: CommentRequest):
     ]
     result = runner.run(texts=texts)
     if not result:
-        return JSONResponse(
-            status_code=500,
-            content=ErrorResponse(
-                success=False, message="댓글 분류기 내부 에러 발생"
-            ).model_dump(),
-        )
+        return error_response(500, "댓글 분류기 내부 에러 발생!")
 
     # 통계
     summary = CommentData(

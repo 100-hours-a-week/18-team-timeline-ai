@@ -4,10 +4,10 @@ import logging
 from limiter import limiter
 
 from utils.env_utils import get_serper_key
+from utils.error_utils import error_response
 from utils.timeline_utils import convert_tag, short_sentence, compress_sentence
 
-from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Request
 
 from models.timeline_card import TimelineCard
 from models.response_schema import CommonResponse, ErrorResponse
@@ -73,18 +73,12 @@ def get_timeline(request: Request, payload: TimelineRequest):
 
     # Meaningful checking
     if not checker.is_meaningful(query_str):
-        return JSONResponse(
-            status_code=404,
-            content=ErrorResponse(
-                success=False,
-                message="기사가 나오지 않는 검색어입니다."
-            ).model_dump()
-        )
+        return error_response(404, "기사가 나오지 않는 검색어입니다.")
 
     # Scraping
     SERPER_API_KEY = get_serper_key(0)
     if not SERPER_API_KEY:
-        raise HTTPException(status_code=500, detail="SERPER_API_KEY not found")
+        return error_response(500, "SERPER_API_KEY를 찾을 수 없습니다.")
     scraping_res = distribute_news_serper(
         query=query_str,
         startAt=payload.startAt,
@@ -99,13 +93,7 @@ def get_timeline(request: Request, payload: TimelineRequest):
         dates = list(dates)
         scraping_list = [{"url": u, "title": t} for u, t in zip(urls, titles)]
     else:
-        return JSONResponse(
-            status_code=404,
-            content=ErrorResponse(
-                success=False,
-                message="스크래핑에 실패했습니다"
-            ).model_dump()
-        )
+        return error_response(404, "스크래핑에 실패했습니다.")
 
     # Extract Article
     try:
@@ -122,21 +110,11 @@ def get_timeline(request: Request, payload: TimelineRequest):
     # 1st Summarization
     first_res = runner.run(texts=articles)
     if not first_res:
-        return JSONResponse(
-            status_code=500,
-            content=ErrorResponse(
-                success=False, message="인공지능 1차 요약 실패"
-            ).model_dump(),
-        )
+        return error_response(500, "인공지능 1차 요약 실패!")
     for i, res in enumerate(first_res):
         if not res["text"]:
             print(f"기사 내용이 없습니다! \"{titles[i][:15]}...\"")
-            return JSONResponse(
-                status_code=404,
-                content=ErrorResponse(
-                    success=False, message="인공지능 1차 요약 도중 빈 요약 반환"
-                ).model_dump(),
-            )
+            return error_response(500, "인공지능 1차 요약 도중 빈 요약 반환")
 
     # Timeline cards
     card_list = []
@@ -159,12 +137,7 @@ def get_timeline(request: Request, payload: TimelineRequest):
     summarized_texts = {"input_text": "\n\n".join(summarized_texts)}
     final_res = final_runner.run(texts=[summarized_texts])
     if not final_res:
-        return JSONResponse(
-            status_code=500,
-            content=ErrorResponse(
-                success=False, message="인공지능 2차 요약 실패"
-            ).model_dump(),
-        )
+        error_response(500, "인공지능 2차 요약 실패!")
 
     # Tag extraction
     final_res = final_res[0]
