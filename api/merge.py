@@ -49,6 +49,7 @@ def merge_timeline(request: MergeRequest):
     imgs = []
     contents = []
     cards = request.timeline
+    cards = sorted(cards, key=lambda card: card.startAt)
 
     for card in cards:
         imgs.extend(card.source)
