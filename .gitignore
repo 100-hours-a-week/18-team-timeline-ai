@@ -191,6 +191,7 @@ summarizer.py
 __pycache__/
 **/__pycache__/
 *.py[cod]
+*.lprof
 
 # 로그 파일
 *.log

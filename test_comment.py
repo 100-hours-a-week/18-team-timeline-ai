@@ -42,10 +42,7 @@ def test_agentic_comment_graph():
     # ✅ 그래프 빌드 및 실행
     graph = ClassifyGraph(server=SERVER, model=MODEL).build()
     runner = Runner(graph=graph)
-    texts = [
-        {"input_text": d["comment"], "transcript": d["captions"], "query": QUERY[:-4]}
-        for d in data
-    ]
+    texts = [{"input_text": d["comment"], "query": QUERY[:-4]} for d in data]
     result = runner.run(texts=texts)
 
     # ✅ 결과 출력

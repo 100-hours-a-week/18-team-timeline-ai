@@ -1,26 +1,9 @@
-import re, os
+import re
 import pandas as pd
-import dotenv
 from typing import List
-from googleapiclient.discovery import build
-from googleapiclient.errors import HttpError
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from scrapers.base_searcher import BaseSearcher
-from utils.exceptions import SearchRequestFailedError, InvalidQueryError
-from youtube_transcript_api import YouTubeTranscriptApi
-from youtube_transcript_api import TranscriptsDisabled, NoTranscriptFound
+from utils.exceptions import SearchRequestFailedError
 import asyncio
 import aiohttp
-import logging
-import subprocess
-import requests
-import time
-import numpy as np
-import requests
-import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from functools import lru_cache
-from sklearn.feature_extraction.text import TfidfVectorizer
 from utils.logger import Logger
 
 logger = Logger.get_logger("youtube_searcher")
