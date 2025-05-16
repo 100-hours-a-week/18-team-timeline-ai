@@ -3,6 +3,7 @@ import asyncio
 from typing import List, Any, Generator
 from utils.logger import Logger
 from tqdm import tqdm
+from aiohttp import ClientConnectorError, ServerDisconnectedError, ClientResponseError
 
 logger = Logger.get_logger("ai_runner")
 
@@ -32,11 +33,12 @@ class Runner:
             graph (Any): 실행할 AI 모델 그래프
             max_workers (int, optional): 동시에 처리할 최대 스레드 수. Defaults to 6.
             config (dict, optional): 그래프 실행에 필요한 설정값. Defaults to None.
-                설정값이 제공되지 않으면 기본값 {"recursion_limit": 1000}이 사용됩니다.
+                설정값이 제공되지 않으면 기본값 {"recursion_limit": 100}이 사용됩니다.
         """
         self.graph = graph
         self.max_workers = max_workers
-        self.config = {"recursion_limit": 1000}
+        self.batch_size = batch_size
+        self.config = {"recursion_limit": 100}
         if config:
             self.config.update(config)
 
