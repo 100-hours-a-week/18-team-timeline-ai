@@ -129,7 +129,7 @@ class YouTubeCommentAsyncFetcher(BaseSearcher):
             logger.error(f"[YouTubeCommentAsyncFetcher] ID {video_id} 수집 실패: {e}")
             return []
 
-    async def search(self, df: pd.DataFrame) -> List[dict]:
+    async def search(self, df: List[str]) -> List[dict]:
         """DataFrame의 URL에서 댓글과 자막을 수집하고 분석
 
         Args:
@@ -146,13 +146,13 @@ class YouTubeCommentAsyncFetcher(BaseSearcher):
                 - comment: 댓글
                 - captions: 댓글과 관련된 자막
         """
-        if df.empty or "url" not in df.columns:
+        if not df:
             logger.error(
                 "[YouTubeCommentAsyncFetcher] DataFrame이 비어있거나 'url' 컬럼이 없습니다."
             )
             raise ValueError("DataFrame이 비어있거나 'url' 컬럼이 없습니다.")
 
-        urls = df["url"].tolist()
+        urls = df
         async with aiohttp.ClientSession() as session:
             comment_tasks = []
             for url in urls:

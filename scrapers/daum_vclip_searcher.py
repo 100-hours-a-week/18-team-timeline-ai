@@ -1,4 +1,4 @@
-import pandas as pd
+import re
 from typing import Optional
 from PyKakao import DaumSearch
 from scrapers.base_searcher import BaseSearcher
@@ -34,7 +34,7 @@ class DaumVclipSearcher(BaseSearcher):
             logger.error(f"[DaumVclipSearcher] API Key 초기화 실패: {e}")
             raise InvalidAPIKeyError(f"API Key가 유효하지 않습니다.{e}")
 
-    def search(self, query: str, page: int = 1) -> pd.DataFrame:
+    def search(self, query: str, page: int = 1) -> list[dict]:
         """비디오 클립 검색 후 목록을 반환
 
         Args:
@@ -54,29 +54,34 @@ class DaumVclipSearcher(BaseSearcher):
 
         logger.info(f"[DaumVclipSearcher] 검색 시작: query='{query}', page={page}")
         try:
-            df = self.api.search_vclip(
-                query=query, page=page, dataframe=True, data_type="json"
+            results = self.api.search_vclip(
+                query=query, page=page, dataframe=False, data_type="json"
             )
+            print(results)
         except Exception as e:
             logger.error(f"[DaumVclipSearcher]검색 요청 실패: {e}")
             raise SearchRequestFailedError(f"문제가 생겼습니다: {e}")
 
-        if df is None:
+        if results is None:
             logger.error(f"[DaumVclipSearcher] 검색 결과 없음: '{query}'")
             raise SearchRequestFailedError(
                 f"'{query}'에 대한 검색 요청에 실패했습니다."
             )
-        if df.empty:
+        if not results["documents"]:
             logger.warning(f"[DaumVclipSearcher] 검색 결과 없음: '{query}'")
             raise ValueError(f"'{query}'에 대한 검색 결과가 없습니다.")
 
         # YouTube URL만 필터링 (youtube.com 또는 youtu.be 도메인)
         youtube_pattern = r"(youtube\.com|youtu\.be)"
-        df = df[df["url"].str.contains(youtube_pattern, case=False, na=False)]
+        filtered = [
+            item["url"]
+            for item in results["documents"]
+            if "url" in item and re.search(youtube_pattern, item["url"], re.IGNORECASE)
+        ]
 
-        if df.empty:
+        if not filtered:
             logger.warning(f"[DaumVclipSearcher] YouTube 검색 결과 없음: '{query}'")
             raise ValueError(f"'{query}'에 대한 YouTube 검색 결과가 없습니다.")
 
-        logger.info(f"[DaumVclipSearcher] 검색 완료: {len(df)}개의 결과 발견")
-        return df
+        logger.info(f"[DaumVclipSearcher] 검색 완료: {len(filtered)}개의 결과 발견")
+        return filtered

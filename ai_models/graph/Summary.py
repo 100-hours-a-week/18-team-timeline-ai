@@ -36,37 +36,6 @@ class SummaryState(TypedDict):
     status: str
 
 
-'''
-class SummaryScoreParser(BaseOutputParser):
-    """요약 점수 파싱기
-
-    LLM의 출력을 파싱하여 요약 점수를 추출합니다.
-    JSON 형식의 출력을 처리하며, 파싱 실패 시 정규식을 사용하여 복구를 시도합니다.
-    """
-
-    def parse(self, text: str):
-        """텍스트에서 JSON을 파싱하여 점수를 추출
-
-        Args:
-            text (str): 파싱할 텍스트
-
-        Returns:
-            dict: 파싱된 JSON 객체
-
-        Raises:
-            ValueError: JSON 파싱 실패 시
-        """
-        cleaned = re.sub(r"^```json\s*|\s*```$", "", text.strip(), flags=re.MULTILINE)
-        try:
-            return json.loads(cleaned)
-        except json.JSONDecodeError:
-            matched = re.search(r"\{.*\}", text, re.DOTALL)
-            if matched:
-                return json.loads(matched.group())
-            raise ValueError("Invalid JSON format")
-'''
-
-
 class SummarizationGraph:
     """요약 그래프
 
@@ -125,6 +94,8 @@ class SummarizationGraph:
         def summarize(state: SummaryState) -> SummaryState:
             system_prompt = """
             - 반드시 1줄 요약을 제시하세요.
+            - 반드시 핵심 인물, 사건, 숫자를 포함하세요.
+            - 요약은 사실 기반이며 주어·서술어·목적어를 명확히 포함해야 합니다.
             - 예시의 형식을 참고하여 반드시 JSON으로 작성하세요.
             \'{{\'summary\': \'...\'}}\'
             """

@@ -3,6 +3,7 @@ import asyncio
 from typing import List, Any, Generator
 from utils.logger import Logger
 from tqdm import tqdm
+from aiohttp import ClientConnectorError, ServerDisconnectedError, ClientResponseError
 
 logger = Logger.get_logger("ai_runner")
 
@@ -34,12 +35,12 @@ class Runner:
             max_workers (int, optional): 동시에 처리할 최대 태스크 수. Defaults to 6.
             batch_size (int, optional): 한 번에 처리할 배치 크기. Defaults to 32.
             config (dict, optional): 그래프 실행에 필요한 설정값. Defaults to None.
-                설정값이 제공되지 않으면 기본값 {"recursion_limit": 1000}이 사용됩니다.
+                설정값이 제공되지 않으면 기본값 {"recursion_limit": 100}이 사용됩니다.
         """
         self.graph = graph
         self.max_workers = max_workers
         self.batch_size = batch_size
-        self.config = {"recursion_limit": 1000}
+        self.config = {"recursion_limit": 100}
         if config:
             self.config.update(config)
             logger.info(f"설정 업데이트: {config}")
