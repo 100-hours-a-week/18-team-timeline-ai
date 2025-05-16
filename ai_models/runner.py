@@ -11,12 +11,13 @@ logger = Logger.get_logger("ai_runner")
 class Runner:
     """AI 모델 실행기
 
-    AI 모델의 그래프를 병렬로 실행하고 결과를 수집하는 클래스입니다.
-    ThreadPoolExecutor를 사용하여 여러 입력을 동시에 처리합니다.
+    AI 모델의 그래프를 비동기로 실행하고 결과를 수집하는 클래스입니다.
+    asyncio를 사용하여 여러 입력을 동시에 처리하며, 배치 단위로 처리합니다.
 
     Attributes:
         graph (Any): 실행할 AI 모델 그래프
-        max_workers (int): 동시에 처리할 최대 스레드 수
+        max_workers (int): 동시에 처리할 최대 태스크 수
+        batch_size (int): 한 번에 처리할 배치 크기
         config (dict): 그래프 실행에 필요한 설정값
     """
 
@@ -31,7 +32,8 @@ class Runner:
 
         Args:
             graph (Any): 실행할 AI 모델 그래프
-            max_workers (int, optional): 동시에 처리할 최대 스레드 수. Defaults to 6.
+            max_workers (int, optional): 동시에 처리할 최대 태스크 수. Defaults to 6.
+            batch_size (int, optional): 한 번에 처리할 배치 크기. Defaults to 32.
             config (dict, optional): 그래프 실행에 필요한 설정값. Defaults to None.
                 설정값이 제공되지 않으면 기본값 {"recursion_limit": 100}이 사용됩니다.
         """
@@ -41,6 +43,7 @@ class Runner:
         self.config = {"recursion_limit": 100}
         if config:
             self.config.update(config)
+            logger.info(f"설정 업데이트: {config}")
 
     def _create_batches(self, items: List[dict]) -> Generator[List[dict], None, None]:
         """입력 데이터를 배치로 나누는 제너레이터
@@ -58,14 +61,14 @@ class Runner:
     async def run_graph(self, item: dict) -> dict:
         """단일 입력에 대해 그래프를 실행
 
-                Args:
-                    item (dict): 그래프에 입력할 데이터
-                        - {"url": str, "title": str, "text": str} 형식
-                        - 또는 {"input_text": str} 형식
-        ß
-                Returns:
-                    dict: 그래프 실행 결과
-                        결과는 graph.invoke 메서드의 StateGraph 객체입니다.
+        Args:
+            item (dict): 그래프에 입력할 데이터
+                - {"url": str, "title": str, "text": str} 형식
+                - 또는 {"input_text": str} 형식
+
+        Returns:
+            dict: 그래프 실행 결과
+                결과는 graph.invoke 메서드의 StateGraph 객체입니다.
         """
         try:
             logger.info(f"[Runner] 그래프 실행 시작 - 입력: {item.get('url', 'N/A')}")
@@ -79,8 +82,8 @@ class Runner:
             )
             raise
 
-    def run(self, texts: List[dict]) -> List[dict]:
-        """여러 입력을 병렬로 처리하는 메서드
+    async def run_batch(self, batch: List[dict]) -> List[dict]:
+        """단일 배치를 비동기로 처리
 
         Args:
             batch (List[dict]): 처리할 배치 데이터
