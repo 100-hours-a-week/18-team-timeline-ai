@@ -191,10 +191,11 @@ summarizer.py
 __pycache__/
 **/__pycache__/
 *.py[cod]
+poetry.lock
 
 # 로그 파일
 *.log
-
+*.lprof
 # Vector DB
 qdrant_storage/
 
