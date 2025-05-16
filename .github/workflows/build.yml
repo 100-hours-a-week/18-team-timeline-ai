@@ -3,7 +3,7 @@ name: Build and Push tamnara-api Docker Image to ECR
 on:
   push:
     branches:
-      - release
+      - release/**
 
 jobs:
   build-and-push:
