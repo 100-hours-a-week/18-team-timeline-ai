@@ -12,15 +12,20 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      checks: write
+      pull-requests: write
     
     env:
       AWS_REGION: ap-northeast-2
       AWS_ACCOUNT_ID: 346011888304
-      IMAGE_NAME: tamnara-api
+      ECR_REPO_NAME: tamnara
+      IMAGE_NAME: tamnara-ai-api
 
     steps:
       - name: Checkout source
-        uses: actions/checkout@3
+        uses: actions/checkout@4
+        with:
+          persist-credentials: true
 
       - name: Get short commit SHA
         id: meta
@@ -35,29 +40,35 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v1
 
+      - name: Ensure ECR repository exists
+        run: |
+          aws ecr describe-repositories --repository-names ${{ env.ECR_REPO_NAME }} || \
+          aws ecr create-repository --repository-name ${{ env.ECR_REPO_NAME }}
+
       - name: Try to pull previous image for cache (latest)
         continue-on-error: true
         run: |
-          docker pull ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}:latest || true
+          docker pull ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_NAME }}:${{ env.IMAGE_NAME }}-latest || true
 
       - name: Build Docker image (with optional cache)
         run: |
-          REG=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}
+          REG=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_NAME }}
+          TAG=${{ env.IMAGE_NAME }}-latest
           if docker image inspect $REG:latest > /dev/null 2>&1; then
             echo "✅ Using cache from latest"
-            docker build --cache-from $REG:latest -t $REG:latest .
+            docker build --cache-from $REG:$TAG -t $REG:$TAG -f ./docker/Dockerfile.api .
           else
             echo "⚠️ No cache image available, building from scratch"
-            docker build -t $REG:latest .
+            docker build -t $REG:$TAG -f ./docker/Dockerfile.api .
           fi
 
       - name: Tag image with commit SHA
         run: |
-          REG=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}
-          docker tag $REG:latest $REG:${{ steps.meta.outputs.tag }}
+          REG=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_NAME }}
+          docker tag $REG:${{ env.IMAGE_NAME }}-latest $REG:${{ env.IMAGE_NAME }}-${{ steps.meta.outputs.tag }}
       
       - name: Push both tags to ECR
         run: |
-          REG=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.IMAGE_NAME }}
-          docker push $REG:latest
-          docker push $REG:${{ steps.meta.outputs.tag }}
+          REG=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_NAME }}
+          docker push $REG:${{ env.IMAGE_NAME }}-latest
+          docker push $REG:${{ env.IMAGE_NAME }}-${{ steps.meta.outputs.tag }}
