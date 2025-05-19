@@ -9,12 +9,10 @@ ECR_REPO=tamnara/ai-api
 REGISTRY=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 IMAGE=$REGISTRY/$ECR_REPO:latest
 
-# AWS configure
 aws configure set aws_access_key_id "$AWS_ACCESS_KEY_ID"
 aws configure set aws_secret_access_key "$AWS_SECRET_ACCESS_KEY"
 aws configure set region "$AWS_REGION"
 
-# Docker 로그인 및 이미지 가져오기
 aws ecr get-login-password --region $AWS_REGION \
   | docker login --username AWS --password-stdin $REGISTRY
 
@@ -27,7 +25,6 @@ if [ -n "$CONTAINER_ID" ]; then
   docker rm -f "$CONTAINER_ID || true"
 fi
 
-# 테스트 컨테이너 실행
 docker run -d \
   --name ai-api-test \
   --env-file ./ai.env \
@@ -35,15 +32,21 @@ docker run -d \
   -p 8100:8000 \
   $IMAGE
 
-echo "🧪 헬스체크 시작..."
 sleep 5
 
-HEALTH=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:8100/health || echo "000")
+# Health check
+HEALTH_JSON=$(curl -s http://localhost:8100/health || echo "")
 
-if [ "$HEALTH" == "200" ]; then
-  echo "✅ 헬스체크 통과 → 배포 성공"
+STATUS_CODE=$(echo "$HEALTH_JSON" | jq -r '.status')
+MODEL_OK=$(echo "$HEALTH_JSON" | jq -r '.model_loaded')
+DB_OK=$(echo "$HEALTH_JSON" | jq -r '.db_connected')
+
+if [ "$STATUS_CODE" == "ok" ] && [ "$MODEL_OK" == "true" ] && [ "$DB_OK" == "true" ]; then
+  echo "AI api server heatlcheck 200 ok"
 else
-  echo "❌ 헬스체크 실패 (code $HEALTH)"
+  echo "AI api server heatlcheck fail"
+  echo "응답 내용:"
+  echo "$HEALTH_JSON"
   docker logs ai-api-test
   exit 1
 fi
