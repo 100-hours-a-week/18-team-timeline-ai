@@ -5,6 +5,8 @@ from api.router import router as api_router
 from limiter import limiter
 from slowapi.errors import RateLimitExceeded
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
+import os
+import time
 
 app = FastAPI(title="AI News Timeline API", version="1.0.0")
 app.state.limiter = limiter
