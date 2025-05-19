@@ -24,6 +24,7 @@ dependencies = [
     "fastapi (==0.115.8)",
     "pydantic (==2.10.6)",
     "slowapi (==0.1.9)",
+    "uvicorn (==0.34.2)"
 ]
 
 [[tool.poetry.source]]
