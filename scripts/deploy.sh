@@ -19,15 +19,21 @@ aws ecr get-login-password --region $AWS_REGION \
 docker pull $IMAGE
 
 CONTAINER_ID=$(docker ps --filter "publish=8100" --format "{{.ID}}")
+container_name="ai-api-test"
 
 if [ -n "$CONTAINER_ID" ]; then
-  echo "포트 8100을 점유 중인 컨테이너가 있습니다.: $CONTAINER_ID"
+  echo "포트 8100을 점유 중인 컨테이너가 있습니다: $CONTAINER_ID"
   docker rm -f "$CONTAINER_ID || true"
 fi
 
+if docker ps -a --format '{{.Names}}' | grep -q "^$container_name$"; then
+  echo "이름 중복 컨테이너($container_name) 제거"
+  docker rm -f "$container_name" || true
+fi
+
 docker run -d \
-  --name ai-api-test \
-  --env-file ./ai.env \
+  --name "$container_name" \
+  --env-file ./.env \
   --add-host host.docker.internal:host-gateway \
   -p 8100:8000 \
   $IMAGE
