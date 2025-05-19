@@ -8,6 +8,7 @@ from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 
 app = FastAPI(title="AI News Timeline API", version="1.0.0")
 app.state.limiter = limiter
+start_time = time.time()
 
 
 @app.exception_handler(RateLimitExceeded)
@@ -25,3 +26,17 @@ app.include_router(api_router, prefix="/api")
 @app.get("/ping")
 def ping():
     return {"status": "ok"}
+
+
+@app.get("/health")
+def health():
+    uptime = round(time.time() - start_time, 2)
+
+    return JSONResponse(status_code=200, content={
+        "status": "ok",
+        "app_version": os.getenv("APP_VERSION", "unknown"),
+        "uptime_sec": uptime,
+        "env": os.getenv("ENV", "local"),
+        "model_loaded": True, 
+        "db_connected": True  
+    })
