@@ -18,21 +18,21 @@ if __name__ == "__main__":
     async def main():
         URLS = [
             {
-                "url": "https://www.hani.co.kr/arti/society/society_general/1192251.html",
-                "title": "말 바꾼 윤석열 “계엄 길어야 하루”…헌재선 “며칠 예상”",
+                "url": "https://people.com/donald-trump-reacts-joe-biden-aggressive-prostate-cancer-diagnosis-11737239",
+                "title": "Former president Joe Biden diagnosed with aggressive prostate cancer",
             },
             {
-                "url": "https://www.hani.co.kr/arti/society/society_general/1192255.html",
-                "title": "윤석열 40분간 “계엄은 평화적 메시지”…판사도 발언 ‘시간조절’ 당부",
+                "url": "https://www.washingtonpost.com/politics/2025/05/18/biden-prostate-cancer",
+                "title": "Joe Biden diagnosed with 'aggressive' prostate cancer",
             },
             {
-                "url": "https://www.hankyung.com/article/2025041493977",
-                "title": "'[속보] 韓대행 '국무위원들과 제게 부여된 마지막 소명 다할 것'",
+                "url": "https://theconversation.com/joe-biden-has-advanced-prostate-cancer-with-a-gleason-score-of-9-what-does-this-mean-256998",
+                "title": "Joe Biden has advanced prostate cancer with a Gleason score of 9. What does this mean?",
             },
         ]
         URLS = assign_id_from_URLS(URLS)
         start_time = time.time()
-        runner = ArticleExtractor()
+        runner = ArticleExtractor(lang="en")
         parser = ArticleParser()
         filter = ArticleFilter(top_k=2)
         results = [None] * len(URLS)
@@ -48,8 +48,8 @@ if __name__ == "__main__":
         results = [r for r in results if r["input_text"] is not None]
         # SERVER = "http://35.216.120.155:8001"
         # MODEL = "models/HyperCLOVAX-SEED-Text-Instruct-1.5B"
-        SERVER = "https://b530-34-34-56-0.ngrok-free.app"
-        MODEL = "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B"
+        SERVER = "https://80b6-34-125-151-224.ngrok-free.app"
+        MODEL = "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
         graph = SummarizationGraph(SERVER, MODEL).build()
         graph_total = TotalSummarizationGraph(SERVER, MODEL).build()
         runner = Runner(graph=graph)

@@ -19,13 +19,14 @@ logger = Logger.get_logger("article_extractor")
 class ArticleExtractor(BaseSearcher):
     """기사 URL로부터 본문을 추출하는 클래스"""
 
-    def __init__(self, max_workers: int = 6):
+    def __init__(self, lang: str = "ko", max_workers: int = 6):
         """초기화
 
         Args:
             max_workers (int, optional): 스레드 숫자. Defaults to 6.
         """
         self.max_workers = max_workers
+        self.lang = lang
 
     async def extract_single(self, url: dict) -> Optional[Dict[str, str]]:
         """기사 URL로부터 본문을 추출하는 메서드
@@ -49,13 +50,12 @@ class ArticleExtractor(BaseSearcher):
                 실패 시 None
         """
         try:
-            article = Article(url=url["url"], language="ko")
+            article = Article(url=url["url"], language=self.lang)
             article.download()
             article.parse()
             text = article.text.strip()
             title = url["title"]
             title = re.sub(r"^[\[\(【]{0,1}속보[\]\)】]{0,1}\s*", "", title)
-
             if not text:
                 logger.warning(
                     f"[ArticleExtractor] 본문이 비어있음 - URL: {url['url']}"
