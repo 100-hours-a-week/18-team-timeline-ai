@@ -23,7 +23,7 @@ container_name="ai-api-test"
 
 if [ -n "$CONTAINER_ID" ]; then
   echo "포트 8100을 점유 중인 컨테이너가 있습니다: $CONTAINER_ID"
-  docker rm -f "$CONTAINER_ID || true"
+  docker rm -f "$CONTAINER_ID" || true
 fi
 
 if docker ps -a --format '{{.Names}}' | grep -q "^$container_name$"; then
