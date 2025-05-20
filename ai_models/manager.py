@@ -23,9 +23,22 @@ class BatchManager:
         self.running = False
 
     async def submit(self, task: SystemRole, payload: dict):
+        """
+        요청 추가
+        Args:
+            task (SystemRole): 요청 타입
+            payload (dict): 요청 데이터
+        """
+
         await self.queue.put((task, payload))
 
     async def _gather_batch(self) -> List[dict]:
+        """
+        요청 모음
+
+        Returns:
+            List[dict]: 요청 모음
+        """
         batch = []
         start = asyncio.get_event_loop().time()
         while len(batch) < self.batch_size:
@@ -40,6 +53,9 @@ class BatchManager:
         return batch
 
     async def run(self):
+        """
+        실행
+        """
         self.running = True
         while self.running:
             batch = await self._gather_batch()
@@ -48,6 +64,12 @@ class BatchManager:
             await self.process_batch(batch)
 
     async def process_batch(self, batch: List[dict]):
+        """
+        요청 처리
+
+        Args:
+            batch (List[dict]): 요청 모음
+        """
         task_map: Dict[SystemRole, List[dict]] = defaultdict(list)
         for task_type, payload in batch:
             task_map[task_type].append(payload)
