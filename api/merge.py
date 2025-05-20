@@ -5,7 +5,7 @@ from fastapi import APIRouter
 
 from utils.error_utils import error_response
 from utils.timeline_utils import next_timeline_type
-from utils.timeline_utils import compress_sentence, shrink_if_needed
+from utils.timeline_utils import shrink_if_needed
 
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import MergeRequest
