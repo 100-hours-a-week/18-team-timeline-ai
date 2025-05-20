@@ -91,7 +91,7 @@ jobs:
             cd /tmp
             echo '[INFO] Running deploy.sh...'
             bash deploy.sh 2>&1   # 표준에러 포함 모든 출력
-            echo '[INFO] Finished deploy.sh. 
+            echo '[INFO] Finished deploy.sh.' 
 
             rm .env
             rm deploy.sh

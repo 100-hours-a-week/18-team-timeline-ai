@@ -18,11 +18,11 @@ aws ecr get-login-password --region $AWS_REGION \
 
 docker pull $IMAGE
 
-CONTAINER_ID=$(docker ps --filter "publish=8100" --format "{{.ID}}")
-container_name="ai-api-test"
+CONTAINER_ID=$(docker ps --filter "publish=8000" --format "{{.ID}}")
+container_name="ai-api"
 
 if [ -n "$CONTAINER_ID" ]; then
-  echo "포트 8100을 점유 중인 컨테이너가 있습니다: $CONTAINER_ID"
+  echo "포트 8000을 점유 중인 컨테이너가 있습니다: $CONTAINER_ID"
   docker rm -f "$CONTAINER_ID || true"
 fi
 
@@ -35,14 +35,14 @@ docker run -d \
   --name "$container_name" \
   --env-file ./.env \
   --add-host host.docker.internal:host-gateway \
-  -p 8100:8000 \
+  -p 8000:8000 \
   $IMAGE
 
 sleep 10
 
-HEALTH_JSON=$(curl -s --fail http://localhost:8100/health 2>/dev/null) || {
+HEALTH_JSON=$(curl -s --fail http://localhost:8000/health 2>/dev/null) || {
   echo "curl 요청 실패 → 서버 미응답"
-  docker logs ai-api-test
+  docker logs ai-api
   exit 1
 }
 
@@ -52,6 +52,6 @@ DB_OK=$(echo "$HEALTH_JSON" | jq -r '.db_connected')
 
 if [ -z "$HEALTH_JSON" ]; then
   echo "서버 응답 없음"
-  docker logs ai-api-test
+  docker logs ai-api
   exit 1
 fi
