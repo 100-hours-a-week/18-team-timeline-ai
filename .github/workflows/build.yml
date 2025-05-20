@@ -69,5 +69,5 @@ jobs:
           docker push $REG:latest
           docker push $REG:${{ steps.meta.outputs.tag }}
 
-    deploy-docker-container:
-      uses: ./.github/workflows/deploy-ai-api.yml
+  deploy-docker-container:
+    uses: ./.github/workflows/deploy-ai-api.yml

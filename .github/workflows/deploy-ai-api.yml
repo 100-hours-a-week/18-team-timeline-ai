@@ -18,19 +18,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Write .env file
-      run: |
-        echo 'LANGSMITH_TRACING=false' > ./.env
-        echo 'LANGSMITH_ENDPOINT="https://api.smith.langchain.com/"' >> ./.env
-        echo 'LANGSMITH_PROJECT="Project_1st"' >> ./.env
-        echo 'MODEL=models/HyperCLOVAX-SEED-Text-Instruct-1.5B' >> ./.env
-        echo 'TOKENIZERS_PARALLELISM=false' >> ./.env
-        echo 'LANGSMITH_API_KEY=${{ secrets.LANGSMITH_API_KEY }}' >> ./.env
-        echo 'HF_TOKEN=${{ secrets.HF_TOKEN }}' >> ./.env
-        echo 'REST_API_KEY=${{ secrets.REST_API_KEY }}' >> ./.env
-        echo 'YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }}' >> ./.env
-        echo 'SERP_API_KEYS=${{ secrets.SERP_API_KEYS }}' >> ./.env
-        echo 'SERPER_API_KEYS=${{ secrets.SERPER_API_KEYS }}' >> ./.env
-        echo 'SERVER=${{ secrets.SERVER_URL }}' >> ./.env
+        run: |
+          echo 'LANGSMITH_TRACING=false' > ./.env
+          echo 'LANGSMITH_ENDPOINT="https://api.smith.langchain.com/"' >> ./.env
+          echo 'LANGSMITH_PROJECT="Project_1st"' >> ./.env
+          echo 'MODEL=models/HyperCLOVAX-SEED-Text-Instruct-1.5B' >> ./.env
+          echo 'TOKENIZERS_PARALLELISM=false' >> ./.env
+          echo 'LANGSMITH_API_KEY=${{ secrets.LANGSMITH_API_KEY }}' >> ./.env
+          echo 'HF_TOKEN=${{ secrets.HF_TOKEN }}' >> ./.env
+          echo 'REST_API_KEY=${{ secrets.REST_API_KEY }}' >> ./.env
+          echo 'YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }}' >> ./.env
+          echo 'SERP_API_KEYS=${{ secrets.SERP_API_KEYS }}' >> ./.env
+          echo 'SERPER_API_KEYS=${{ secrets.SERPER_API_KEYS }}' >> ./.env
+          echo 'SERVER=${{ secrets.SERVER_URL }}' >> ./.env
 
 
       - name: Setup SSH key
