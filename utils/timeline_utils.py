@@ -74,3 +74,12 @@ def compress_sentence(text: str, target_len: int = 70) -> str:
             break
 
     return result.strip()
+
+
+def shrink_if_needed(strings, threshold=4000):
+    total_len = sum(len(s) for s in strings)
+    if total_len <= threshold:
+        return strings
+    # Short enough
+
+    return shrink_if_needed([s for i, s in enumerate(strings) if i % 2 == 0])
