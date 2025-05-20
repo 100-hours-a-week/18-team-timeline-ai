@@ -133,7 +133,7 @@ def get_timeline(request: Request, payload: TimelineRequest):
         card_list.append(card)
 
     # 2nd Summarization
-    summarized_texts = [r["text"] for r in first_res]
+    summarized_texts = [short_sentence(r["text"]) for r in first_res]
     summarized_texts = {"input_text": "\n\n".join(summarized_texts)}
     final_res = final_runner.run(texts=[summarized_texts])
     if not final_res:
