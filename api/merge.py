@@ -5,7 +5,7 @@ from fastapi import APIRouter
 from fastapi.responses import JSONResponse
 
 from utils.timeline_utils import next_timeline_type
-from utils.timeline_utils import compress_sentence, shrink_if_needed
+from utils.timeline_utils import shrink_if_needed
 
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import MergeRequest
@@ -53,7 +53,7 @@ def merge_timeline(request: MergeRequest):
 
     for card in cards:
         imgs.extend(card.source)
-        contents.append(compress_sentence(card.content))
+        contents.append(card.content)
     contents = shrink_if_needed(contents)
     concat_content = {"input_text": "\n\n".join(contents)}
     final_res = final_runner.run(texts=[concat_content])[0]
