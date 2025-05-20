@@ -1,0 +1,59 @@
+name: Deploy to GCP VM
+
+on:
+  workflow_run:
+    workflows: ["Build and Push tamnara/ai-api Docker Image to ECR"]
+    types:
+      - completed
+
+jobs:
+  deploy:
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout (필요 시)
+        uses: actions/checkout@v4
+
+      - name: Write .env file
+      run: |
+        echo 'LANGSMITH_TRACING=false' > ./.env
+        echo 'LANGSMITH_ENDPOINT="https://api.smith.langchain.com/"' >> ./.env
+        echo 'LANGSMITH_PROJECT="Project_1st"' >> ./.env
+        echo 'MODEL=models/HyperCLOVAX-SEED-Text-Instruct-1.5B' >> ./.env
+        echo 'TOKENIZERS_PARALLELISM=false' >> ./.env
+        echo 'LANGSMITH_API_KEY=${{ secrets.LANGSMITH_API_KEY }}' >> ./.env
+        echo 'HF_TOKEN=${{ secrets.HF_TOKEN }}' >> ./.env
+        echo 'REST_API_KEY=${{ secrets.REST_API_KEY }}' >> ./.env
+        echo 'YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }}' >> ./.env
+        echo 'SERP_API_KEYS=${{ secrets.SERP_API_KEYS }}' >> ./.env
+        echo 'SERPER_API_KEYS=${{ secrets.SERPER_API_KEYS }}' >> ./.env
+        echo 'SERVER=${{ secrets.SERVER_URL }}' >> ./.env
+
+
+      - name: Setup SSH key
+        run: |
+          echo "${{ secrets.GCP_SSH_KEY }}" > key.pem
+          chmod 600 key.pem
+
+      - name: Upload deploy.sh + .env to GCP VM
+        run: |
+          scp -i key.pem -o StrictHostKeyChecking=no ./scripts/deploy.sh ${{ secrets.GCP_SSH_USER }}@${{ secrets.GCP_VM_HOST }}:/tmp/deploy.sh
+          scp -i key.pem -o StrictHostKeyChecking=no ./.env ${{ secrets.GCP_SSH_USER }}@${{ secrets.GCP_VM_HOST }}:/tmp/.env
+
+      - name: Execute deploy.sh on GCP VM
+        run: |
+          ssh -i key.pem -o StrictHostKeyChecking=no ${{ secrets.GCP_SSH_USER }}@${{ secrets.GCP_VM_HOST }} "
+            export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+            export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+            cd /tmp
+            bash deploy.sh 
+
+            rm .env
+            rm deploy.sh
+          "

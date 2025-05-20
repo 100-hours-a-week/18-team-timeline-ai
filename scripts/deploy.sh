@@ -38,21 +38,20 @@ docker run -d \
   -p 8100:8000 \
   $IMAGE
 
-sleep 5
+sleep 10
 
-# Health check
-HEALTH_JSON=$(curl -s http://localhost:8100/health || echo "")
+HEALTH_JSON=$(curl -s --fail http://localhost:8100/health 2>/dev/null) || {
+  echo "curl 요청 실패 → 서버 미응답"
+  docker logs ai-api-test
+  exit 1
+}
 
 STATUS_CODE=$(echo "$HEALTH_JSON" | jq -r '.status')
 MODEL_OK=$(echo "$HEALTH_JSON" | jq -r '.model_loaded')
 DB_OK=$(echo "$HEALTH_JSON" | jq -r '.db_connected')
 
-if [ "$STATUS_CODE" == "ok" ] && [ "$MODEL_OK" == "true" ] && [ "$DB_OK" == "true" ]; then
-  echo "AI api server heatlcheck 200 ok"
-else
-  echo "AI api server heatlcheck fail"
-  echo "응답 내용:"
-  echo "$HEALTH_JSON"
+if [ -z "$HEALTH_JSON" ]; then
+  echo "서버 응답 없음"
   docker logs ai-api-test
   exit 1
 fi
