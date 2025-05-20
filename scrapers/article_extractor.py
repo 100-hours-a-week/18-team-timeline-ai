@@ -37,15 +37,6 @@ class ArticleExtractor(BaseSearcher):
         """
         return await asyncio.to_thread(self._extract_single, url)
 
-    async def extract_single(self, url: dict) -> Optional[Dict[str, str]]:
-        """기사 URL로부터 본문을 추출하는 메서드
-
-        Args:
-            url (dict): 기사 URL과 제목이 포함된 딕셔너리
-                {"url": str, "title": str}
-        """
-        return await asyncio.to_thread(self._extract_single, url)
-
     def _extract_single(self, url: dict) -> Optional[Dict[str, str]]:
         """기사 URL로부터 본문을 추출하는 메서드
 

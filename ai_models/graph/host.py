@@ -21,7 +21,6 @@ SYSTEM_PROMPT = {
 
 
 class Host:
-    # 초기화
     def __init__(
         self,
         host: str,
@@ -42,15 +41,6 @@ class Host:
         self.concurrency = concurrency
 
     async def __aenter__(self):
-        """
-        초기화
-
-        Raises:
-            RuntimeError: 호스트 연결 실패
-
-        Returns:
-            Host: 호스트 객체
-        """
         self.session = aiohttp.ClientSession(
             connector=aiohttp.TCPConnector(limit=self.concurrency)
         )
@@ -62,32 +52,15 @@ class Host:
         return self
 
     async def __aexit__(self, exc_type, exc_value, traceback):
-        """
-        종료
-
-        Args:
-            exc_type (_type_): 예외 타입
-            exc_value (_type_): 예외 값
-            traceback (_type_): 예외 추적 정보
-        """
         logger.info(f"[Host] Closing the host: {self.host}")
         await self.session.close()
 
     async def close(self):
-        """
-        종료
-        """
         if self.session:
             await self.session.close()
             self.session = None
 
     async def check_connection(self):
-        """
-        연결 확인
-
-        Returns:
-            bool: 연결 여부
-        """
         url = f"{self.host}/v1/models"
         logger.info(f"[Host] Checking connection to the host: {url}")
         try:
@@ -107,20 +80,6 @@ class Host:
             return False
 
     async def query(self, task: SystemRole, payload: dict):
-        """
-        요청
-
-        Args:
-            task (SystemRole): 요청 타입
-            payload (dict): 요청 데이터
-
-        Raises:
-            Exception: 요청 실패
-            e: 예외 정보
-
-        Returns:
-            dict: 응답 데이터
-        """
         headers = {"Content-Type": "application/json"}
 
         body = {
