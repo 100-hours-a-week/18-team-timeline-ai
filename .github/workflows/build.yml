@@ -70,4 +70,9 @@ jobs:
           docker push $REG:${{ steps.meta.outputs.tag }}
 
   deploy-docker-container:
+    permissions:
+      contents: read
+      checks: write
+      pull-requests: write
+
     uses: ./.github/workflows/deploy-ai-api.yml
