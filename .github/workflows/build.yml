@@ -68,3 +68,6 @@ jobs:
           REG=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_NAME }}
           docker push $REG:latest
           docker push $REG:${{ steps.meta.outputs.tag }}
+
+    deploy-docker-container:
+      uses: ./.github/workflows/deploy-ai-api.yml
