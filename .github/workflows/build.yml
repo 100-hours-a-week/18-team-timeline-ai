@@ -70,9 +70,24 @@ jobs:
           docker push $REG:${{ steps.meta.outputs.tag }}
 
   deploy-docker-container:
+    needs: build-and-push 
+
     permissions:
       contents: read
       checks: write
       pull-requests: write
 
     uses: ./.github/workflows/deploy-ai-api.yml
+    secrets:
+      GCP_SSH_USER: ${{ secrets.GCP_SSH_USER }}
+      GCP_VM_HOST: ${{ secrets.GCP_VM_HOST }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      REST_API_KEY: ${{ secrets.REST_API_KEY }}
+      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      SERP_API_KEYS: ${{ secrets.SERP_API_KEYS }}
+      SERPER_API_KEYS: ${{ secrets.SERPER_API_KEYS }}
+      SERVER_URL: ${{ secrets.SERVER_URL }}
+      GCP_SSH_KEY: ${{ secrets.GCP_SSH_KEY }}

@@ -2,16 +2,54 @@ name: Deploy to GCP VM
 
 on:
   workflow_call:
+    secrets:
+      GCP_SSH_USER:
+        required: true
+      GCP_VM_HOST:
+        required: true
+      AWS_ACCESS_KEY_ID:
+        required: true
+      AWS_SECRET_ACCESS_KEY:
+        required: true
+      LANGSMITH_API_KEY:
+        required: true
+      HF_TOKEN:
+        required: true
+      REST_API_KEY:
+        required: true
+      YOUTUBE_API_KEY:
+        required: true
+      SERP_API_KEYS:
+        required: true
+      SERPER_API_KEYS:
+        required: true
+      SERVER_URL:
+        required: true
+      GCP_SSH_KEY:
+        required: true
 
 jobs:
   deploy:
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-latest
 
     permissions:
       contents: read
       checks: write
       pull-requests: write
+
+    env:
+      SSH_USER: ${{ secrets.GCP_SSH_USER }}
+      SSH_HOST: ${{ secrets.GCP_VM_HOST }}
+      AWS_KEY: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      REST_API_KEY: ${{ secrets.REST_API_KEY }}
+      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      SERP_API_KEYS: ${{ secrets.SERP_API_KEYS }}
+      SERPER_API_KEYS: ${{ secrets.SERPER_API_KEYS }}
+      SERVER_URL: ${{ secrets.SERVER_URL }}
+      GCP_SSH_KEY: ${{ secrets.GCP_SSH_KEY }}
 
     steps:
       - name: Checkout (필요 시)
@@ -33,10 +71,11 @@ jobs:
           echo 'SERVER=${{ secrets.SERVER_URL }}' >> ./.env
 
 
-      - name: Setup SSH key
+      - name: Setup SSH key (with verification)
         run: |
           echo "${{ secrets.GCP_SSH_KEY }}" > key.pem
           chmod 600 key.pem
+
 
       - name: Upload deploy.sh + .env to GCP VM
         run: |
