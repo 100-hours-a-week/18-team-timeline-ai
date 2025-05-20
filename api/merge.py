@@ -4,8 +4,8 @@ import dotenv
 from fastapi import APIRouter
 
 from utils.error_utils import error_response
-from utils.timeline_utils import next_timeline_type, short_sentence
-from utils.timeline_utils import shrink_if_needed
+from utils.timeline_utils import next_timeline_type
+from utils.timeline_utils import compress_sentence, shrink_if_needed
 
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import MergeRequest
@@ -49,9 +49,9 @@ def merge_timeline(request: MergeRequest):
 
     for card in cards:
         imgs.extend(card.source)
-        contents.append(short_sentence(card.content))
+        contents.append(card.content)
     contents = shrink_if_needed(contents)
-    concat_content = {"input_text": "\n\n".join(contents)}
+    concat_content = {"input_text": "\n".join(contents)}
     final_res = final_runner.run(texts=[concat_content])[0]
     if not final_res:
         return error_response(500, "인공지능이 병합 요약에 실패했습니다.")
