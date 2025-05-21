@@ -4,7 +4,7 @@ from utils.handling import handle_http_error
 from enum import Enum
 import logging
 
-logger = Logger.get_logger("ai_models.graph.host", log_level=logging.ERROR)
+logger = Logger.get_logger("ai_models.host", log_level=logging.ERROR)
 
 
 class SystemRole(Enum):

@@ -11,9 +11,9 @@ from config.settings import (
     BATCH_SIZE,
 )
 import numpy as np
+import logging
 
-
-logger = Logger.get_logger("article_extractor")
+logger = Logger.get_logger("article_extractor", log_level=logging.ERROR)
 
 
 class ArticleExtractor(BaseSearcher):
@@ -68,7 +68,6 @@ class ArticleExtractor(BaseSearcher):
             )
 
             return {
-                "id": url["id"],
                 "url": url["url"],
                 "title": title,
                 "input_text": text,
@@ -133,7 +132,6 @@ class ArticleParser:
         logger.info(f"[ArticleParser] : 기사 본문 분리 시작 - 길이: {len(text)}")
         try:
             return {
-                "id": text["id"],
                 "title": text["title"],
                 "url": text["url"],
                 "sentences": [

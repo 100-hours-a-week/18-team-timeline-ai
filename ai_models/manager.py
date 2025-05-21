@@ -1,10 +1,11 @@
 import asyncio
 from typing import List, Dict
-from collections import defaultdict
-from ai_models.graph.host import Host, SystemRole
+from collections import defaultdict, OrderedDict
+from ai_models.host import Host, SystemRole
 from utils.logger import Logger
 import logging
 import time
+import uuid
 
 logger = Logger.get_logger("ai_models.manager", log_level=logging.ERROR)
 
@@ -19,18 +20,19 @@ class BatchManager:
         self.host = host
         self.batch_size = batch_size
         self.max_wait_time = max_wait_time
-        self.queue = asyncio.Queue()
+        self.input_queue = asyncio.Queue()
+        self.output_queue = asyncio.Queue()
+        self.pending_tasks = {}
         self.running = False
 
-    async def submit(self, task: SystemRole, payload: dict):
-        """
-        요청 추가
-        Args:
-            task (SystemRole): 요청 타입
-            payload (dict): 요청 데이터
-        """
-
-        await self.queue.put((task, payload))
+    async def submit(self, role: SystemRole, payload: dict):
+        task_id = uuid.uuid4().hex
+        queue = asyncio.Queue(maxsize=1)
+        logger.info(f"[BatchManager] 요청 제출: {task_id}")
+        self.pending_tasks[task_id] = queue
+        logger.info(f"[BatchManager] 요청 제출 완료: {task_id}")
+        await self.input_queue.put((task_id, role, payload))
+        return await queue.get()
 
     async def _gather_batch(self) -> List[dict]:
         """
@@ -41,91 +43,160 @@ class BatchManager:
         """
         batch = []
         start = asyncio.get_event_loop().time()
+        logger.info(f"[BatchManager] 배치 모음 시작: {batch}")
         while len(batch) < self.batch_size:
             timeout = self.max_wait_time - (asyncio.get_event_loop().time() - start)
             if timeout <= 0:
+                logger.info(f"[BatchManager] 배치 모음 완료: {batch}")
                 break
             try:
-                item = await asyncio.wait_for(self.queue.get(), timeout)
+                logger.info(f"[BatchManager] 배치 모음 대기: {batch}")
+                item = await asyncio.wait_for(self.input_queue.get(), timeout)
+                logger.info(f"[BatchManager] 배치 모음 대기 완료: {batch}")
                 batch.append(item)
             except asyncio.TimeoutError:
+                logger.info(f"[BatchManager] 배치 모음 완료: {batch}")
                 break
+        logger.info(f"[BatchManager] 배치 모음 완료: {batch}")
         return batch
 
     async def run(self):
         """
         실행
         """
-        self.running = True
-        while self.running:
+        while True:
+            logger.info("[BatchManager] 배치 모음 시작")
             batch = await self._gather_batch()
-            if not batch:
-                continue
+            logger.info(f"[BatchManager] 배치 모음 완료: {batch}")
             await self.process_batch(batch)
 
-    async def process_batch(self, batch: List[dict]):
+    async def process_batch(self, batch: List[tuple]):
         """
         요청 처리
 
         Args:
             batch (List[dict]): 요청 모음
         """
-        task_map: Dict[SystemRole, List[dict]] = defaultdict(list)
-        for task_type, payload in batch:
-            task_map[task_type].append(payload)
+        results = await asyncio.gather(
+            *[self.host.query(role, payload) for task_id, role, payload in batch]
+        )
 
-        for task_type, payloads in task_map.items():
-            for payload in payloads:
-                try:
-                    result = await self.host.query(task_type, payload)
-                    logger.info(
-                        f"[{task_type.name} ✅] {result['choices'][0]['message']['content']}"
-                    )
-                except Exception as e:
-                    logger.error(f"[{task_type.name} ❌] 요청 실패: {e}")
+        # 결과 전달
+        for (task_id, _, _), result in zip(batch, results):
+            queue = self.pending_tasks.get(task_id)
+            if queue:
+                await queue.put(result)
+                del self.pending_tasks[task_id]
+
+
+async def wrapper(url, role, content, manager):
+    try:
+        result = await manager.submit(role, {"text": content})
+        return url, role, result
+    except Exception as e:
+        return url, role, e
 
 
 async def main():
-    async with Host(
-        "http://b5c5-34-118-242-65.ngrok-free.app",
-        "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B",
-    ) as host:
-        manager = BatchManager(host, batch_size=6, max_wait_time=0.5)
+    from scrapers.article_extractor import (
+        ArticleExtractor,
+        ArticleParser,
+        ArticleFilter,
+    )
+
+    async with (
+        Host(
+            "http://fcab-34-118-242-65.ngrok-free.app",
+            "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct",
+        ) as host,
+    ):
+        extractor = ArticleExtractor()
+        parser = ArticleParser()
+        filter = ArticleFilter(top_k=4)
+        manager = BatchManager(host, batch_size=5, max_wait_time=0.5)
         runner = asyncio.create_task(manager.run())
-        TEXT = """
-            글로벌 배터리 시장의 38%를 점유하는 ‘대어’ CATL이 홍콩 주식시장에 신규 상장했다. 상장 첫날 CATL 주가는 공모가보다 최대 18% 높은 가격에 거래됐다.
-            국내 개인투자자들은 이번 기업공개(IPO)로 인해 CATL을 직접투자할 수 있는 길이 열렸다.
-            20일(현지시간) 홍콩증권거래소에서 CATL은 장 초반 공모가인 263홍콩달러(약 4만6800원)보다 약 12.5% 높은 296홍콩달러(약 5만2700원)에 거래됐다.
-            CATL은 이날 정오께 311.4달러(약 5만5400원)에 거래되며 최고가를 기록했다. 시초가 대비로는 5.2%, 공모가 대비로는 18.4% 높은 가격이다.
-            오후 3시께 CATL은 307.6홍콩달러(약 5만4700원)에 거래됐다.
-            CATL은 이번 IPO를 통해 46억달러(약 6조4000억원) 이상을 조달한 것으로 전해진다. 초과 배정 옵션을 행사할 경우 총 조달액은 53억달러(약 7조3000억원)까지 불어날 수 있다.
-            이는 올해 전 세계 IPO 시장에서 최대 규모 금액이다. 지난해 홍콩증시에 상장했던 중국의 가전업체 메이디(46억달러)의 사례도 뛰어넘는다.
-            2021년에 62억달러를 조달했던 중국의 온라인 플랫폼 기업 콰이쇼우테크놀로지와도 비견된다.
-            CATL은 조달 금액의 90% 이상을 헝가리 공장 건설에 사용할 계획이다. 2027년까지 완공 예정인 이번 프로젝트를 통해 CATL은 유럽시장을 더욱 확장할 전망이다.
-            이번 IPO 과정에선 중국석유화공(시노펙)과 쿠웨이트투자청, 카타르투자청, 힐하우스인베스트먼트, 오크트리캐피털 등이 주요 투자자로 참여했다.
-            공모청약의 1억2540만주는 기관 투자자에게, 1016만주는 홍콩 개인 투자자에게 매각됐다. 이 과정에서 미국 개인투자자의 공모 참여를 제한하는 ‘레귤레이션 S’ 방식이 활용되기도 했다.
-            IPO 주관사는 중국국제금융공사(CICC)와 더불어 뱅크오브아메리카, 골드만삭스, 모건스탠리, JP모건등이 맡았다.
-            CATL이 홍콩증시에 입성하면서 국내 개인투자자들에게도 CATL 직접투자의 길이 열렸다.
-            CATL은 지난 2018년 중국 본토 선전증권거래소에 상장했지만, 이는 선전증시와 홍콩증시를 잇는 ‘선강퉁 제도’에 포함돼지 않아 외국인 개인투자자들의 매수가 사실상 불가능했다.
-            이에 국내 개인투자자는 CATL이 포함된 상장지수펀드(ETF)를 매수하는 것이 최선이었다. 그러나 이번 상장을 통해 직접 매매가 가능해졌다.
-            존슨 완 제프리스 중국 연구원은 이날 “CATL은 견조한 실적과 매력적 밸류에이션이 있어 앞으로 50% 이상 상승할 수 있다”며 CATL의 주가 성장 가능성을 높게 점쳤다.
-            중국의 ‘배터리 굴기’를 대표하는 CATL은 이미 글로벌 배터리 산업을 주도하고 있다.
-            SNE리서치에 따르면 CATL은 올해 1분기 기준으로 글로벌 배터리시장의 38.3%에 해당하는 84.9기가와트시(GWh)를 공급했다.
-            2위 BYD와의 점유율 차이는 21.6%포인트, 3위 LG에너지솔루션과의 차이는 27.6%포인트에 이른다.
-            한편, 국내 2차전지주는 이날 일제히 주가 하락을 맛봤다. LG에너지솔루션(-4.12%), 삼성SDI(-4.66%), SK이노베이션(-3.65%)과 에코프로(-6.58%) 등이 전날보다 하락 마감했다.
-        """
-        start = time.perf_counter()
-        for i in range(10):
-            for j in range(3):
-                await manager.submit(SystemRole.SUMMARIZE, {"text": TEXT})
-                await manager.submit(SystemRole.TITLE, {"text": TEXT})
-                await manager.submit(SystemRole.TAG, {"text": TEXT})
-        end = time.perf_counter()
-        print(f"총 실행 시간: {end - start:.2f}s")
-        await asyncio.sleep(3)
-        manager.running = False
-        await runner
+        results_dict = OrderedDict()
+
+        URLS = [
+            {
+                "url": "https://www.hani.co.kr/arti/society/society_general/1192251.html",
+                "title": "말 바꾼 윤석열 “계엄 길어야 하루”…헌재선 “며칠 예상”",
+            },
+            {
+                "url": "https://www.hani.co.kr/arti/society/society_general/1192255.html",
+                "title": "윤석열 40분간 “계엄은 평화적 메시지”…판사도 발언 ‘시간조절’ 당부",
+            },
+            {
+                "url": "https://www.hankyung.com/article/2025041493977",
+                "title": "'[속보] 韓대행 '국무위원들과 제게 부여된 마지막 소명 다할 것'",
+            },
+        ]
+        for item in URLS:
+            url = item["url"]
+            if url not in results_dict:
+                results_dict[url] = defaultdict(list)
+
+        async with filter:
+            async for result in extractor.search(URLS):
+
+                parsed_result = await parser.parse(result)
+                key_sentences = await filter.extract_key_sentences(parsed_result)
+                sentence = ". ".join(key_sentences)
+
+                tasks = []
+                for _ in range(10):
+                    for role in [
+                        SystemRole.SUMMARIZE,
+                        SystemRole.TITLE,
+                        SystemRole.TAG,
+                    ]:
+
+                        task = asyncio.create_task(
+                            wrapper(result["url"], role, sentence, manager)
+                        )  # 👈 wrapper는 반드시 Task로 만들어야 함
+                        tasks.append(task)
+
+                # 결과가 오는 순서대로 스트리밍 출력
+                for task in asyncio.as_completed(tasks):
+                    try:
+                        url, role, result = await task
+                        content = (
+                            result["choices"][0]["message"]["content"]
+                            if result
+                            else "실패"
+                        )
+                        print(f"[{url}][{str(role)}] → {content}")
+                        results_dict[url][role].append(content)
+                        print("-" * 100)
+                    except Exception as e:
+                        import traceback
+
+                        traceback.print_exc()
+                        print(f"❌ 요청 실패: {repr(e)}")
+
+                        await asyncio.sleep(1)
+                        manager.running = False
+                        runner.cancel()
+                        try:
+                            await runner
+                        except asyncio.CancelledError:
+                            pass
+
+        for url in results_dict:
+            print(f"\n📌 URL: {url}")
+            for role in [
+                SystemRole.SUMMARIZE,
+                SystemRole.TITLE,
+                SystemRole.TAG,
+            ]:
+                entries = results_dict[url].get(role, [])
+                print(f"  {role.name}:")
+                for i, entry in enumerate(entries):
+                    print(f"    {i+1}. {entry}")
 
 
 if __name__ == "__main__":
+    start = time.perf_counter()
     asyncio.run(main())
+    end = time.perf_counter()
+    print(f"총 실행 시간: {end - start:.2f}s")
