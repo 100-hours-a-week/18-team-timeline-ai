@@ -8,15 +8,15 @@ logger = Logger.get_logger("ai_models.host", log_level=logging.ERROR)
 
 
 class SystemRole(Enum):
-    SUMMARIZE = "summarize"
-    TITLE = "title"
-    TAG = "tag"
+    summary = "summary"
+    title = "title"
+    tag = "tag"
 
 
 SYSTEM_PROMPT = {
-    SystemRole.SUMMARIZE: "당신은 간결하게 요약하는 최고의 한국어 요약 전문가입니다. 모든 응답은 32자 이내로 답변해주세요. 반드시 요약 외에는 아무것도 제시하지 마세요.",
-    SystemRole.TITLE: "당신은 한국어 제목을 짓는 최고의 전문가입니다. 모든 응답은 18자 이내로 답변해주세요. 반드시 제목 외에는 아무것도 제시하지 마세요.",
-    SystemRole.TAG: "당신은 한국어 태그를 분류하는 최고의 전문가입니다. 다음 태그 중 반드시 하나만을 고르세요. 경제, 연예, 스포츠, 과학, 기타. 반드시 앞의 태그 외에는 아무것도 제시하지 마세요.",
+    SystemRole.summary: "당신은 간결하게 요약하는 최고의 한국어 요약 전문가입니다. 모든 응답은 32자 이내로 답변해주세요. 반드시 요약 외에는 아무것도 제시하지 마세요.",
+    SystemRole.title: "당신은 한국어 제목을 짓는 최고의 전문가입니다. 모든 응답은 18자 이내로 답변해주세요. 반드시 제목 외에는 아무것도 제시하지 마세요.",
+    SystemRole.tag: "당신은 한국어 태그를 분류하는 최고의 전문가입니다. 다음 태그 중 반드시 하나만을 고르세요. 경제, 연예, 스포츠, 과학, 기타. 반드시 앞의 태그 외에는 아무것도 제시하지 마세요.",
 }
 
 

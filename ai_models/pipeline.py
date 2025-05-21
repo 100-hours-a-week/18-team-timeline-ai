@@ -10,7 +10,7 @@ async def Pipeline(
     server,
     model,
     repeat: int = 5,
-    roles: list[SystemRole] = [SystemRole.SUMMARIZE],
+    roles: list[SystemRole] = [SystemRole.summary],
     batch_size: int = 5,
     max_wait_time: float = 0.5,
 ) -> ResultStore:
@@ -77,7 +77,7 @@ async def TotalPipeline(
     server,
     model,
     repeat: int = 5,
-    roles: list[SystemRole] = [SystemRole.SUMMARIZE, SystemRole.TITLE, SystemRole.TAG],
+    roles: list[SystemRole] = [SystemRole.summary, SystemRole.title, SystemRole.tag],
     batch_size: int = 5,
     max_wait_time: float = 0.5,
 ):
@@ -145,12 +145,12 @@ if __name__ == "__main__":
         },
     ]
     start = time.perf_counter()
-    roles = [SystemRole.SUMMARIZE, SystemRole.TAG, SystemRole.TITLE]
+    roles = [SystemRole.summary, SystemRole.tag, SystemRole.title]
 
     result1 = asyncio.run(Pipeline(URLS, SERVER, MODEL, repeat=1))
 
     print(result1)
-    texts = [s for r in result1.values() for s in r.get("SUMMARIZE", [])]
+    texts = [s for r in result1.values() for s in r.get("summary", [])]
     print(texts)
     result2 = asyncio.run(TotalPipeline(texts, SERVER, MODEL, repeat=1))
     print(result2)
