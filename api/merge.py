@@ -5,6 +5,7 @@ from fastapi import APIRouter
 
 from utils.error_utils import error_response
 from utils.timeline_utils import next_timeline_type
+from utils.timeline_utils import shrink_if_needed
 
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import MergeRequest
@@ -49,7 +50,8 @@ def merge_timeline(request: MergeRequest):
     for card in cards:
         imgs.extend(card.source)
         contents.append(card.content)
-    concat_content = {"input_text": "\n\n".join(contents)}
+    contents = shrink_if_needed(contents)
+    concat_content = {"input_text": "\n".join(contents)}
     final_res = final_runner.run(texts=[concat_content])[0]
     if not final_res:
         return error_response(500, "인공지능이 병합 요약에 실패했습니다.")
@@ -60,7 +62,7 @@ def merge_timeline(request: MergeRequest):
         content=final_res["summary"],
         duration=next_timeline_type(cards[0].duration),
         startAt=cards[0].startAt,
-        endAt=cards[len(cards) - 1].endAt,
+        endAt=cards[-1].endAt,
         source=imgs,
     )
     merged_card.startAt = merged_card.startAt.date().isoformat()
