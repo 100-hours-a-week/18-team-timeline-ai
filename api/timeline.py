@@ -4,7 +4,8 @@ import logging
 from limiter import limiter
 
 from utils.env_utils import get_serper_key
-from utils.timeline_utils import convert_tag, short_sentence, compress_sentence
+from utils.timeline_utils import convert_tag, short_sentence
+from utils.timeline_utils import compress_sentence, shrink_if_needed
 
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import JSONResponse
@@ -155,7 +156,8 @@ def get_timeline(request: Request, payload: TimelineRequest):
         card_list.append(card)
 
     # 2nd Summarization
-    summarized_texts = [r["text"] for r in first_res]
+    summarized_texts = [card["content"] for card in card_list]
+    summarized_texts = shrink_if_needed(summarized_texts)
     summarized_texts = {"input_text": "\n\n".join(summarized_texts)}
     final_res = final_runner.run(texts=[summarized_texts])
     if not final_res:
