@@ -1,7 +1,6 @@
 import os
 import dotenv
 import logging
-import asyncio
 
 from fastapi import APIRouter
 from utils.error_utils import error_response
@@ -47,9 +46,14 @@ async def main(query: str):
     )
 
     total = sum(ret.values())
-    ret["긍정"] = int(ret["긍정"] * 100 / total)
-    ret["부정"] = int(ret["부정"] * 100 / total)
-    ret["중립"] = 100 - ret["긍정"] - ret["부정"]
+    if total == 0:
+        ret["긍정"] = 0
+        ret["부정"] = 0
+        ret["중립"] = 0
+    else:
+        ret["긍정"] = int(ret["긍정"] * 100 / total)
+        ret["부정"] = int(ret["부정"] * 100 / total)
+        ret["중립"] = 100 - ret["긍정"] - ret["부정"]
 
     return ret
 
@@ -72,7 +76,7 @@ async def classify_comments(request: CommentRequest):
     query_str = " ".join(request.query)
 
     # 통계
-    res = asyncio.run(main(query=query_str))
+    res = await main(query=query_str)
     if not res:
         return error_response(500, "댓글 분류 실패!")
     summary = CommentData(
