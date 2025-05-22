@@ -5,7 +5,7 @@ import asyncio
 import aiohttp
 from utils.logger import Logger
 import logging
-from utils.error_utils import SearchRequestFailedError
+from utils.exceptions import SearchRequestFailedError
 
 logger = Logger.get_logger("youtube_searcher", log_level=logging.ERROR)
 

@@ -7,14 +7,11 @@
 - 배치 임베딩
 """
 
-from typing import List
+from typing import List, Any
 from abc import ABC, abstractmethod
 from utils.logger import Logger
 import aiohttp
 import asyncio
-from classify.storage import QdrantStorage
-from langchain.schema import Document
-from datasets import concatenate_datasets, load_dataset
 from config.settings import (
     DATASET_NAME,
     DATASET_CACHE_DIR,
@@ -170,16 +167,19 @@ class OllamaEmbeddingService(EmbeddingModel):
             raise
 
 
-def create_documents(dataset) -> List[Document]:
+def create_documents(dataset) -> List[dict[str, Any]]:
     """데이터셋을 Document 객체 리스트로 변환합니다."""
     documents = []
     logger.info(f"dataset: {type(dataset)}")
     try:
         for iter in dataset:
-            doc = Document(
-                page_content=iter["text"],
-                metadata={"labels": iter["labels"], "ID": iter["ID"]},
-            )
+            doc = {
+                "text": iter["text"],
+                "metadata": {
+                    "labels": iter["labels"],
+                    "ID": iter["ID"],
+                },
+            }
             logger.debug(f"문서 생성 완료: {iter['ID']} - {iter['text']}")
             logger.debug(f"문서 레이블: {iter['labels']}")
             documents.append(doc)
@@ -193,6 +193,8 @@ def create_documents(dataset) -> List[Document]:
 def load_kote_dataset(
     dataset_name: str = DATASET_NAME, cache_dir: str = DATASET_CACHE_DIR
 ):
+    from datasets import load_dataset
+
     """KOTE 데이터셋을 로드합니다."""
     try:
         ds = load_dataset(dataset_name, cache_dir=cache_dir, trust_remote_code=True)
@@ -207,6 +209,7 @@ def load_kote_dataset(
 
 
 async def main(dataset):
+    from classify.storage import QdrantStorage
 
     storage = QdrantStorage(
         collection_name=COLLECTION_NAME,
@@ -214,6 +217,8 @@ async def main(dataset):
         port=QDRANT_PORT,
     )
     async with OllamaEmbeddingService() as embedder:
+        from datasets import concatenate_datasets
+
         dataset = concatenate_datasets(
             [dataset["train"], dataset["test"], dataset["validation"]]
         )

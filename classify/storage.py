@@ -1,7 +1,6 @@
 from typing import List, Dict, Any
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
-from langchain.schema import Document
 from utils.logger import Logger
 import asyncio
 from typing import Callable
@@ -172,7 +171,7 @@ class QdrantStorage:
 
     async def store_batch(
         self,
-        documents: List[Document],
+        documents: List[dict[str, Any]],
         embeddings: List[List[float]],
         start_idx: int,
     ) -> None:
@@ -192,9 +191,9 @@ class QdrantStorage:
                     "id": start_idx + i,
                     "vector": embedding,
                     "payload": {
-                        "comment": doc.page_content,
-                        "labels": doc.metadata["labels"],
-                        "ID": doc.metadata["ID"],
+                        "comment": doc["text"],
+                        "labels": doc["metadata"]["labels"],
+                        "ID": doc["metadata"]["ID"],
                     },
                 }
                 for i, (doc, embedding) in enumerate(zip(documents, embeddings))

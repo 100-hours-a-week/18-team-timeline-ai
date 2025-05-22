@@ -128,7 +128,7 @@ async def TotalPipeline(
 if __name__ == "__main__":
     import time
 
-    SERVER = "http://fcab-34-118-242-65.ngrok-free.app"
+    SERVER = "http://1d5d-34-124-161-59.ngrok-free.app"
     MODEL = "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
     URLS = [
         {
@@ -143,16 +143,33 @@ if __name__ == "__main__":
             "url": "https://www.hankyung.com/article/2025041493977",
             "title": "'[속보] 韓대행 '국무위원들과 제게 부여된 마지막 소명 다할 것'",
         },
+        {
+            "url": "https://www.ytn.co.kr/_ln/0134_202505210904491383",
+            "title": "다 꺼낸 구글의 '승부수'...삼성 이어 젠틀몬스터와 손 잡는다 [지금이뉴스]",
+        },
+        {
+            "url": "https://m.news.zum.com/articles/98407004/%EC%9D%B4%EB%B2%88%EC%97%94-%EC%93%B8%EB%A7%8C%ED%95%A0%EA%B9%8C-%EA%B5%AC%EA%B8%80-%EC%82%BC%EC%84%B1-%EC%8A%A4%EB%A7%88%ED%8A%B8-%EC%95%88%EA%B2%BD-%ED%98%91%EC%97%85",
+            "title": "이번엔 쓸만할까?…구글-삼성 스마트 안경 협업",
+        },
+        {
+            "url": "https://www.news1.kr/world/usa-canada/5789241",
+            "title": "챗봇에 흔들린 구글, AI 모드로 검색 기능 강화 나섰다",
+        },
+        {
+            "url": "https://www.newstong.co.kr/view3.aspx?seq=13665995&allSeq=27&txtSearch=&cate=0&cnt=-5&subCate=2&order=default&newsNo=0",
+            "title": "구글, 음성·영상으로도 검색 이용…예약 등 에이전트 기능도",
+        },
     ]
     start = time.perf_counter()
     roles = [SystemRole.summary, SystemRole.tag, SystemRole.title]
 
-    result1 = asyncio.run(Pipeline(URLS, SERVER, MODEL, repeat=100))
+    result1 = asyncio.run(Pipeline(URLS, SERVER, MODEL, repeat=1))
+    from pprint import pprint
 
-    print(result1)
+    pprint(result1)
     texts = [s for r in result1.values() for s in r.get("summary", [])]
     print(texts)
-    result2 = asyncio.run(TotalPipeline(texts, SERVER, MODEL, repeat=100))
-    print(result2)
+    result2 = asyncio.run(TotalPipeline(texts, SERVER, MODEL, repeat=1))
+    pprint(result2)
     end = time.perf_counter()
     print(f"총 실행 시간: {end - start:.2f}s")
