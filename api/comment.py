@@ -1,6 +1,7 @@
 import os
 import dotenv
 import logging
+import asyncio
 
 from fastapi import APIRouter
 from utils.error_utils import error_response
@@ -10,16 +11,21 @@ from models.response_schema import CommentRequest, CommentData
 from scrapers.daum_vclip_searcher import DaumVclipSearcher
 from scrapers.youtube_searcher import YouTubeCommentAsyncFetcher
 
-from ai_models.runner import Runner
-from ai_models.graph.classify import ClassifyGraph
+from classify.embedding import OllamaEmbeddingService
+from classify.sentiment import SentimentAggregator
 
 # -------------------------------------------------------------------
 
 router = APIRouter()
 
 dotenv.load_dotenv(override=True)
-SERVER = os.getenv("SERVER")
-MODEL = os.getenv("MODEL")
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+REST_API_KEY = os.getenv("REST_API_KEY")
+
+daum_vclip_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
+youtube_searcher = YouTubeCommentAsyncFetcher(
+    api_key=YOUTUBE_API_KEY, max_comments=10
+)
 
 logging.basicConfig(
     level=logging.INFO,  # ← 이 부분이 핵심
@@ -29,21 +35,23 @@ logging.basicConfig(
 # -------------------------------------------------------------------
 
 
-async def main(query: str, num: int):
-    dotenv.load_dotenv(override=True)
-    YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-    REST_API_KEY = os.getenv("REST_API_KEY")
-    video_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
-    youtube_searcher = YouTubeCommentAsyncFetcher(
-        api_key=YOUTUBE_API_KEY, max_comments=num
-    )
-    df = video_searcher.search(query=query)
-    print("df")
-    print(df)
-
+async def main(query: str):
+    df = daum_vclip_searcher.search(query=query)
     ripple = await youtube_searcher.search(df=df)
-    return ripple
+    ripple = [r["comment"] for r in ripple]
 
+    aggregator = SentimentAggregator()
+    ret = await aggregator.aggregate_multiple_queries(
+        queries=ripple,
+        embedding_constructor=OllamaEmbeddingService,
+    )
+
+    total = sum(ret.values())
+    ret["긍정"] = int(ret["긍정"] * 100 / total)
+    ret["부정"] = int(ret["부정"] * 100 / total)
+    ret["중립"] = 100 - ret["긍정"] - ret["부정"]
+
+    return ret
 
 # -------------------------------------------------------------------
 
@@ -63,41 +71,15 @@ async def classify_comments(request: CommentRequest):
         num = 10
     query_str = " ".join(request.query)
 
-    # 기사 수집
-    data = await main(query_str + " youtube", num)
-    if not data:
-        return error_response(404, "관련 유튜브 뉴스를 찾을 수 없습니다.")
-
-    # 그래프 빌드 및 실행
-    graph = ClassifyGraph(server=SERVER, model=MODEL).build()
-    runner = Runner(graph=graph)
-    texts = [
-        {"input_text": d["comment"], "query": query_str} for d in data
-    ]
-    result = runner.run(texts=texts)
-    if not result:
-        return error_response(500, "댓글 분류기 내부 에러 발생!")
-
     # 통계
+    res = asyncio.run(main(query=query_str))
+    if not res:
+        return error_response(500, "댓글 분류 실패!")
     summary = CommentData(
-        positive=0,
-        neutral=0,
-        negative=0,
+        positive=res["긍정"],
+        neutral=res["중립"],
+        negative=res["부정"],
     )
-    for comment in result:
-        emo = comment["emotion"]
-        if "긍정" in emo:
-            summary.positive += 1
-        elif "부정" in emo:
-            summary.negative += 1
-        else:
-            summary.neutral += 1
-
-    # 백분율
-    total = summary.positive + summary.neutral + summary.negative
-    summary.positive = int(summary.positive * 100 / total)
-    summary.negative = int(summary.negative * 100 / total)
-    summary.neutral = 100 - summary.positive - summary.negative
 
     # ----------------------------------------------------
 
