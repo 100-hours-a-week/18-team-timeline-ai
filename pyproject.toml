@@ -8,28 +8,22 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.11,<3.13"
 dependencies = [
-    "langchain (>=0.3.23,<0.4.0)",
-    "langgraph (>=0.3.29,<0.4.0)",
-    "langchain-community (>=0.3.21,<0.4.0)",
+    "langchain (>=0.3.25,<0.4.0)",
     "langchain-ollama (>=0.3.1,<0.4.0)",
     "python-dotenv (>=1.1.0,<2.0.0)",
     "newspaper3k (>=0.2.8,<0.3.0)",
     "lxml-html-clean (>=0.4.2,<0.5.0)",
-    "huggingface (>=0.0.1,<0.0.2)",
-    "openai (>=1.76.0,<2.0.0)",
     "pykakao (>=0.0.7,<0.0.8)",
     "google-auth-oauthlib (>=1.2.1,<2.0.0)",
     "google-auth-httplib2 (>=0.2.0,<1.0.0)",
     "google-api-python-client (>=2.166.0,<3.0.0)",
-    "langchain-openai (>=0.3.14,<0.4.0)",
+    "slowapi (==0.1.9)",
+    "tqdm (>=4.67.1,<5.0.0)",
+    "aiolimiter (>=1.2.1,<2.0.0)",
     "fastapi (==0.115.8)",
     "pydantic (==2.10.6)",
     "qdrant-client[grpc] (>=1.14.2,<2.0.0)",
     "langchain-qdrant (>=0.2.0,<0.3.0)",
-    "datasets (>=3.6.0,<4.0.0)",
-    "slowapi (==0.1.9)",
-    "tqdm (>=4.67.1,<5.0.0)",
-    "aiolimiter (>=1.2.1,<2.0.0)",
 ]
 
 [[tool.poetry.source]]
@@ -53,10 +47,15 @@ test = [
     "anyio (>=4.9.0,<5.0.0)",
     "twisted (>=24.11.0,<25.0.0)",
 ]
+download = [
+    "huggingface (>=0.0.1,<0.0.2)",
+    "datasets (>=3.6.0,<4.0.0)",
+    "huggingface-hub (>=0.24.0,<0.25.0)",
+]
 [tool.poetry.extras]
 with-gpu = ["gpu"]
 with-test = ["test"]
-
+with-download = ["download"]
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

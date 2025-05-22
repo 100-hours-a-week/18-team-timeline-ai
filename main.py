@@ -17,6 +17,7 @@ async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
         content={"detail": "현재 요청이 너무 많습니다. 잠시 후 다시 시도해 주세요."},
     )
 
+
 # Router
 app.include_router(api_router, prefix="/api")
 

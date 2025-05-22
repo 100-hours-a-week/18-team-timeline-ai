@@ -57,9 +57,9 @@ class Logger:
 
         if logger.handlers:
             return logger
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        log_path = Path(self.log_dir) / current_date
 
-        # 로그 디렉토리 생성
-        log_path = Path(self.log_dir)
         log_path.mkdir(parents=True, exist_ok=True)
 
         # 로그 파일명 생성
@@ -101,7 +101,8 @@ class Logger:
             return error_logger
 
         # 로그 디렉토리 생성
-        log_path = Path(self.log_dir)
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        log_path = Path(self.log_dir) / current_date
         log_path.mkdir(parents=True, exist_ok=True)
 
         # 에러 로그 파일명 생성

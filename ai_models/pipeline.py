@@ -147,12 +147,12 @@ if __name__ == "__main__":
     start = time.perf_counter()
     roles = [SystemRole.summary, SystemRole.tag, SystemRole.title]
 
-    result1 = asyncio.run(Pipeline(URLS, SERVER, MODEL, repeat=1))
+    result1 = asyncio.run(Pipeline(URLS, SERVER, MODEL, repeat=100))
 
     print(result1)
     texts = [s for r in result1.values() for s in r.get("summary", [])]
     print(texts)
-    result2 = asyncio.run(TotalPipeline(texts, SERVER, MODEL, repeat=1))
+    result2 = asyncio.run(TotalPipeline(texts, SERVER, MODEL, repeat=100))
     print(result2)
     end = time.perf_counter()
     print(f"총 실행 시간: {end - start:.2f}s")
