@@ -22,9 +22,7 @@ YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 REST_API_KEY = os.getenv("REST_API_KEY")
 
 daum_vclip_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
-youtube_searcher = YouTubeCommentAsyncFetcher(
-    api_key=YOUTUBE_API_KEY, max_comments=10
-)
+youtube_searcher = YouTubeCommentAsyncFetcher(api_key=YOUTUBE_API_KEY, max_comments=10)
 
 logging.basicConfig(
     level=logging.INFO,  # ← 이 부분이 핵심
@@ -56,6 +54,7 @@ async def main(query: str):
         ret["중립"] = 100 - ret["긍정"] - ret["부정"]
 
     return ret
+
 
 # -------------------------------------------------------------------
 
