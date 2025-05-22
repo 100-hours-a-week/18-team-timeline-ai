@@ -1,5 +1,6 @@
 import os
 import dotenv
+import asyncio
 
 from fastapi import APIRouter
 
@@ -10,9 +11,7 @@ from utils.timeline_utils import shrink_if_needed
 from models.response_schema import CommonResponse, ErrorResponse
 from models.response_schema import MergeRequest
 from models.timeline_card import TimelineCard
-
-from ai_models.runner import Runner
-from ai_models.graph.total_summary import TotalSummarizationGraph
+from ai_models.pipeline import TotalPipeline
 
 # -------------------------------------------------------------------
 
@@ -21,9 +20,6 @@ router = APIRouter()
 dotenv.load_dotenv(override=True)
 SERVER = os.getenv("SERVER")
 MODEL = os.getenv("MODEL")
-
-graph_total = TotalSummarizationGraph(SERVER, MODEL).build()
-final_runner = Runner(graph=graph_total)
 
 # -------------------------------------------------------------------
 
@@ -51,15 +47,15 @@ def merge_timeline(request: MergeRequest):
         imgs.extend(card.source)
         contents.append(card.content)
     contents = shrink_if_needed(contents)
-    concat_content = {"input_text": "\n".join(contents)}
-    final_res = final_runner.run(texts=[concat_content])[0]
-    if not final_res:
+    final_res = asyncio.run(TotalPipeline(contents, SERVER, MODEL, repeat=1))
+    if not final_res or not final_res["total_summary"]:
         return error_response(500, "인공지능이 병합 요약에 실패했습니다.")
 
     # Merged card
+    final_res = final_res["total_summary"]
     merged_card = TimelineCard(
-        title=final_res["title"],
-        content=final_res["summary"],
+        title=final_res["title"][0],
+        content=final_res["summary"][0],
         duration=next_timeline_type(cards[0].duration),
         startAt=cards[0].startAt,
         endAt=cards[-1].endAt,
