@@ -178,7 +178,7 @@ class QdrantStorage:
         """배치 단위로 문서를 처리하고 Qdrant에 저장합니다.
 
         Args:
-            documents (List[Document]): 처리할 Document 객체 리스트
+            documents (List[dict[str, Any]]): 처리할 문서 리스트
             embeddings (List[List[float]]): 각 문서의 임베딩 벡터 리스트
             start_idx (int): 현재 배치의 시작 인덱스
 

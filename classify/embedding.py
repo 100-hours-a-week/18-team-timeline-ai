@@ -12,6 +12,8 @@ from abc import ABC, abstractmethod
 from utils.logger import Logger
 import aiohttp
 import asyncio
+import logging
+import orjson
 from config.settings import (
     DATASET_NAME,
     DATASET_CACHE_DIR,
@@ -23,7 +25,7 @@ from config.settings import (
     OLLAMA_MODEL,
 )
 
-logger = Logger.get_logger("embedding")
+logger = Logger.get_logger("embedding", log_level=logging.ERROR)
 
 
 class EmbeddingModel(ABC):
@@ -106,17 +108,27 @@ class OllamaEmbeddingService(EmbeddingModel):
             Exception: 임베딩 생성 실패 시
         """
         logger.info(f"[OllamaEmbeddingService] 임베딩 생성 시작: {text}")
+        payload = orjson.dumps(
+            {"model": self.model, "prompt": text},
+        )
+        headers = {"Content-Type": "application/json"}
+        logger.info(f"[OllamaEmbeddingService] 임베딩 생성 요청: {payload}")
         try:
             async with self.session.post(
                 f"{self.base_url}/api/embeddings",
-                json={"model": self.model, "prompt": text},
+                data=payload,
+                headers=headers,
             ) as response:
                 logger.info(
                     f"[OllamaEmbeddingService] 임베딩 생성 응답: {response.status}"
                 )
+                response_text = await response.text()
+                logger.info(
+                    f"[OllamaEmbeddingService] 임베딩 생성 응답: {response_text}"
+                )
                 if response.status == 200:
                     logger.info(f"[OllamaEmbeddingService] 임베딩 생성 성공")
-                    data = await response.json()
+                    data = orjson.loads(response_text)
                     return data["embedding"]
                 error_text = await response.text()
                 raise Exception(f"{error_text}")

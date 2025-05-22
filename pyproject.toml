@@ -21,6 +21,7 @@ dependencies = [
     "fastapi (==0.115.8)",
     "pydantic (==2.10.6)",
     "qdrant-client[grpc] (>=1.14.2,<2.0.0)",
+    "orjson (>=3.10.18,<4.0.0)",
 ]
 
 [[tool.poetry.source]]

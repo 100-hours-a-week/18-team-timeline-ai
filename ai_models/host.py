@@ -3,6 +3,7 @@ from utils.logger import Logger
 from utils.handling import handle_http_error
 from enum import Enum
 import logging
+import orjson
 
 logger = Logger.get_logger("ai_models.host", log_level=logging.ERROR)
 
@@ -141,12 +142,14 @@ class Host:
         try:
             async with self.session.post(
                 url,
-                json=body,
+                data=orjson.dumps(body),
                 timeout=self.timeout,
                 headers=headers,
             ) as response:
                 response.raise_for_status()
-                result = await response.json()
+                response_text = await response.text()
+                logger.info(f"[Host] {response_text}")
+                result = orjson.loads(response_text)
                 success = await handle_http_error(result, body, logger)
                 if success:
                     logger.info(f"[Host] {result}")
