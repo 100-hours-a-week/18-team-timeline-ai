@@ -10,7 +10,7 @@ class Logger:
     _instances: dict = {}
 
     def __new__(
-        cls, name: str, log_level: int = logging.INFO, log_dir: str = "logs"
+        cls, name: str, log_level: int = logging.ERROR, log_dir: str = "logs"
     ) -> "Logger":
         """싱글톤 패턴으로 로거 인스턴스 관리
 
@@ -28,7 +28,7 @@ class Logger:
         return cls._instances[name]
 
     def __init__(
-        self, name: str, log_level: int = logging.INFO, log_dir: str = "logs"
+        self, name: str, log_level: int = logging.ERROR, log_dir: str = "logs"
     ) -> None:
         """Logger 초기화
 
