@@ -1,6 +1,7 @@
 import os
 import dotenv
 import logging
+import asyncio
 from limiter import limiter
 
 from utils.env_utils import get_serper_key
@@ -17,16 +18,11 @@ from models.response_schema import TimelineRequest, TimelineData
 from scrapers.url_to_img import get_img_link
 from scrapers.serper import distribute_news_serper
 from scrapers.filter import DaumKeywordMeaningChecker
-from scrapers.article_extractor import ArticleExtractor
-
-from ai_models.runner import Runner
-from ai_models.graph.total_summary import TotalSummarizationGraph
-from ai_models.graph.Summary import SummarizationGraph
+from ai_models.pipeline import Pipeline, TotalPipeline
 
 # -------------------------------------------------------------------
 
 router = APIRouter()
-extractor = ArticleExtractor()
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
@@ -38,13 +34,7 @@ SERVER = os.getenv("SERVER")
 MODEL = os.getenv("MODEL")
 REST_API_KEY = os.getenv("REST_API_KEY")
 
-graph = SummarizationGraph(SERVER, MODEL).build()
-graph_total = TotalSummarizationGraph(SERVER, MODEL).build()
-
-runner = Runner(graph=graph)
-final_runner = Runner(graph=graph_total)
 checker = DaumKeywordMeaningChecker(REST_API_KEY)
-
 tag_names = ["", "ECONOMY", "ENTERTAINMENT", "SPORTS", "SCIENCE"]
 base_img_url = "https://github.com/user-attachments/assets/"
 img_links = [
@@ -87,6 +77,7 @@ def get_timeline(request: Request, payload: TimelineRequest):
         api_key=SERPER_API_KEY,
     )
 
+    # Scraping result parsing
     if scraping_res:
         urls, titles, dates = zip(*scraping_res)
         urls = list(urls)
@@ -96,36 +87,28 @@ def get_timeline(request: Request, payload: TimelineRequest):
     else:
         return error_response(404, "스크래핑에 실패했습니다.")
 
-    # Extract Article
-    try:
-        articles = extractor.search(urls=scraping_list)
-    except Exception as e:
-        logging.exception("기사 추출 실패")
-        return e
-    logging.info(f"{len(articles)}개 기사 추출 완료")
-
-    # Naver Clova - Maximum 4096 Tokens
-    for i, article in enumerate(articles):
-        articles[i]["input_text"] = articles[i]["input_text"][:3000]
-
     # 1st Summarization
-    first_res = runner.run(texts=articles)
+    summary = []
+    first_res = asyncio.run(Pipeline(scraping_list, SERVER, MODEL, repeat=1))
     if not first_res:
         return error_response(500, "인공지능 1차 요약 실패!")
-    for i, res in enumerate(first_res):
-        if not res["text"]:
+    for i, url in enumerate(urls):
+        data = first_res[url]
+        if not data or not data["summary"]:
             print(f"기사 내용이 없습니다! \"{titles[i][:15]}...\"")
             return error_response(500, "인공지능 1차 요약 도중 빈 요약 반환")
+        else:
+            summary.append(data["summary"][0])
 
     # Timeline cards
     card_list = []
-    for i, res in enumerate(first_res):
-        news_title = short_sentence(titles[i])
+    for i, title in enumerate(titles):
+        news_title = short_sentence(title)
         logging.info(f"[제목 {i+1}] {news_title}")
 
         card = TimelineCard(
             title=news_title,
-            content=compress_sentence(res["text"]),
+            content=compress_sentence(summary[i]),
             duration="DAY",
             startAt=dates[i],
             endAt=dates[i],
@@ -134,16 +117,16 @@ def get_timeline(request: Request, payload: TimelineRequest):
         card_list.append(card)
 
     # 2nd Summarization
-    summarized_texts = [card.content for card in card_list]
-    summarized_texts = shrink_if_needed(summarized_texts)
-    summarized_texts = {"input_text": "\n".join(summarized_texts)}
-    final_res = final_runner.run(texts=[summarized_texts])
-    if not final_res:
+    total_texts = [card.content for card in card_list]
+    total_texts = shrink_if_needed(total_texts)
+    total_texts = {"input_text": "\n".join(total_texts)}
+    final_res = asyncio.run(TotalPipeline(total_texts, SERVER, MODEL, repeat=1))
+    if not final_res or not final_res["total_summary"]:
         error_response(500, "인공지능 2차 요약 실패!")
 
     # Tag extraction
-    final_res = final_res[0]
-    tag_id = convert_tag(final_res["tag"])
+    final_res = final_res["total_summary"]
+    tag_id = convert_tag(final_res["tag"][0])
 
     # Image Extraction
     img_link = get_img_link(urls[0])
@@ -157,8 +140,8 @@ def get_timeline(request: Request, payload: TimelineRequest):
 
     # Timeline
     timeline = TimelineData(
-        title=short_sentence(final_res["title"]),
-        summary=short_sentence(final_res["summary"]),
+        title=short_sentence(final_res["title"][0]),
+        summary=short_sentence(final_res["summary"][0]),
         image=img_link,
         category=tag_names[tag_id],
         timeline=card_list,
