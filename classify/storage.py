@@ -7,6 +7,7 @@ from typing import Callable
 import socket
 import subprocess
 import time
+import logging
 from config.settings import (
     QDRANT_HOST,
     QDRANT_PORT,
@@ -16,7 +17,7 @@ from config.settings import (
     COLLECTION_NAME,
 )
 
-logger = Logger.get_logger("storage")
+logger = Logger.get_logger("storage", log_level=logging.ERROR)
 
 
 def is_qdrant_running(host: str, port: int, timeout: float = 1.0) -> bool:

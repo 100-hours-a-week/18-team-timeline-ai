@@ -11,8 +11,9 @@ from scrapers.youtube_searcher import YouTubeCommentAsyncFetcher
 from utils.handling import handle_http_error
 import time
 from line_profiler import profile
+import logging
 
-logger = Logger.get_logger("sentiment_aggregator")
+logger = Logger.get_logger("sentiment_aggregator", log_level=logging.ERROR)
 
 
 class SentimentAggregator:
@@ -56,7 +57,7 @@ class SentimentAggregator:
         try:
             logger.info(f"[SentimentAggregator] 검색 시작: {query}")
             ret = await storage.search(
-                query=query, embedding_constructor=embedding_constructor, limit=10
+                query=query, embedding_constructor=embedding_constructor, limit=100
             )
             logger.info(f"[SentimentAggregator] 검색 완료: {len(ret)}개")
             dict_labels = DICT_LABELS
@@ -140,7 +141,7 @@ async def main():
     REST_API_KEY = os.getenv("REST_API_KEY")
     daum_vclip_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
     youtube_searcher = YouTubeCommentAsyncFetcher(
-        api_key=YOUTUBE_API_KEY, max_comments=10
+        api_key=YOUTUBE_API_KEY, max_comments=100
     )
     df = daum_vclip_searcher.search(query="이경규 유튜브")
     ripple = await youtube_searcher.search(df=df)

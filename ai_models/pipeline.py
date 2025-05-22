@@ -166,10 +166,10 @@ if __name__ == "__main__":
     result1 = asyncio.run(Pipeline(URLS, SERVER, MODEL, repeat=1))
     from pprint import pprint
 
-    pprint(result1)
+    print(result1)
     texts = [s for r in result1.values() for s in r.get("summary", [])]
     print(texts)
     result2 = asyncio.run(TotalPipeline(texts, SERVER, MODEL, repeat=1))
-    pprint(result2)
+    print(result2)
     end = time.perf_counter()
     print(f"총 실행 시간: {end - start:.2f}s")
