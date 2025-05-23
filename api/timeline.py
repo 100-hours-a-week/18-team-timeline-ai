@@ -20,6 +20,7 @@ from scrapers.serper import distribute_news_serper
 from scrapers.filter import DaumKeywordMeaningChecker
 from ai_models.pipeline import Pipeline, TotalPipeline
 
+
 # -------------------------------------------------------------------
 
 router = APIRouter()
@@ -58,7 +59,7 @@ img_links = [
     },
 )
 @limiter.limit("30/minute;1000/day")
-def get_timeline(request: Request, payload: TimelineRequest):
+async def get_timeline(request: Request, payload: TimelineRequest):
     # Request parsing
     query_str = " ".join(payload.query)
 
@@ -89,13 +90,13 @@ def get_timeline(request: Request, payload: TimelineRequest):
 
     # 1st Summarization
     summary = []
-    first_res = asyncio.run(Pipeline(scraping_list, SERVER, MODEL, repeat=1))
+    first_res = await Pipeline(scraping_list, SERVER, MODEL, repeat=1)
     if not first_res:
         return error_response(500, "인공지능 1차 요약 실패!")
     for i, url in enumerate(urls):
         data = first_res[url]
         if not data or not data["summary"]:
-            print(f"기사 내용이 없습니다! \"{titles[i][:15]}...\"")
+            print(f'기사 내용이 없습니다! "{titles[i][:15]}..."')
             return error_response(500, "인공지능 1차 요약 도중 빈 요약 반환")
         else:
             summary.append(data["summary"][0])
@@ -119,7 +120,7 @@ def get_timeline(request: Request, payload: TimelineRequest):
     # 2nd Summarization
     total_texts = [card.content for card in card_list]
     total_texts = shrink_if_needed(total_texts)
-    final_res = asyncio.run(TotalPipeline(total_texts, SERVER, MODEL, repeat=1))
+    final_res = await TotalPipeline(total_texts, SERVER, MODEL, repeat=1)
     if not final_res or not final_res["total_summary"]:
         error_response(500, "인공지능 2차 요약 실패!")
 

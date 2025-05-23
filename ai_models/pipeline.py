@@ -3,6 +3,7 @@ from ai_models.host import Host, SystemRole
 from scrapers.article_extractor import ArticleExtractor, ArticleParser, ArticleFilter
 from ai_models.manager import BatchManager, wrapper
 from ai_models.store import ResultStore
+import logging
 
 
 async def Pipeline(
@@ -11,8 +12,8 @@ async def Pipeline(
     model,
     repeat: int = 5,
     roles: list[SystemRole] = [SystemRole.summary],
-    batch_size: int = 5,
-    max_wait_time: float = 0.5,
+    batch_size: int = 64,
+    max_wait_time: float = 2,
 ) -> ResultStore:
 
     async with (
@@ -23,8 +24,6 @@ async def Pipeline(
     ):
 
         extractor = ArticleExtractor()
-        parser = ArticleParser()
-        filter = ArticleFilter(top_k=4)
         results_dict = ResultStore()
         manager = BatchManager(host, batch_size=batch_size, max_wait_time=max_wait_time)
         runner = asyncio.create_task(manager.run())
@@ -32,38 +31,56 @@ async def Pipeline(
             url = item["url"]
             if url:
                 results_dict.register({"url": url})
+        url_sentences = {}
+        """
         async with filter:
             async for result in extractor.search(urls):
                 parsed = await parser.parse(result)
                 key_sentences = await filter.extract_key_sentences(parsed)
+                
                 sentence = ". ".join(key_sentences)
+                url_sentences[result["url"]] = sentence
+        """
 
-                tasks = []
-                for _ in range(repeat):
-                    for role in roles:
-                        tasks.append(
-                            asyncio.create_task(
-                                wrapper(result["url"], role, sentence, manager)
-                            )
-                        )
+        async for result in extractor.search(urls):
+            url_sentences[result["url"]] = result["input_text"]
 
-                for task in asyncio.as_completed(tasks):
-                    try:
-                        url, role, response = await task
-                        content = (
-                            response["choices"][0]["message"]["content"]
-                            if response
-                            else "실패"
-                        )
-                        results_dict.add_result(url=url, role=role, content=content)
-                    except Exception as e:
-                        import traceback
+        tasks = []
+        for url, input_text in url_sentences.items():
+            # logging.info("URL %s | Sentence %s", url, input_text[:10])
+            for _ in range(repeat):
+                for role in roles:
+                    logging.info(
+                        f"[PIPELINE] URL :{url}, ROLE : {role}, text : {input_text[:10]}"
+                    )
+                    tasks.append(
+                        asyncio.create_task(wrapper(url, role, input_text, manager))
+                    )
+        try:
 
-                        traceback.print_exc()
-                        await asyncio.sleep(1)
-                        raise e
+            tasks = await asyncio.gather(*tasks, return_exceptions=True)
             manager.running = False
-            runner.cancel()
+            await asyncio.sleep(1.0)
+            for task in tasks:
+                url, role, response = task
+                logging.info(f"[PIPELINE] URL : {url}")
+                if isinstance(response, dict) and "error" in response:
+                    logging.error(repr(task))
+                    continue
+
+                content = (
+                    response["choices"][0]["message"]["content"] if response else "실패"
+                )
+                results_dict.add_result(url=url, role=role, content=content)
+            logging.info(results_dict.display())
+
+        except Exception as e:
+            import traceback
+
+            traceback.print_exc()
+            await asyncio.sleep(1)
+            raise e
+        finally:
             try:
                 await runner
             except asyncio.CancelledError:
@@ -116,7 +133,7 @@ async def TotalPipeline(
                 await asyncio.sleep(1)
                 raise e
         manager.running = False
-        runner.cancel()
+        await asyncio.sleep(1.0)
         try:
             await runner
         except asyncio.CancelledError:

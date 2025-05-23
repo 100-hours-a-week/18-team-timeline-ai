@@ -61,14 +61,11 @@ class BatchManager:
         return batch
 
     async def run(self):
-        """
-        실행
-        """
-        while True:
-            logger.info("[BatchManager] 배치 모음 시작")
+        self.running = True
+        while self.running or not self.input_queue.empty():
             batch = await self._gather_batch()
-            logger.info(f"[BatchManager] 배치 모음 완료: {batch}")
-            await self.process_batch(batch)
+            if batch:
+                await self.process_batch(batch)
 
     async def process_batch(self, batch: List[tuple]):
         """
@@ -94,7 +91,10 @@ async def wrapper(url, role, content, manager):
         result = await manager.submit(role, {"text": content})
         return url, role, result
     except Exception as e:
-        return url, role, e
+        import traceback
+
+        traceback.print_exc()
+        return url, role, {"error": str(e)}
 
 
 async def main():
