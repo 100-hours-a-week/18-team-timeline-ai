@@ -10,7 +10,7 @@ def get_news_serper(
     query: str,
     date: datetime,
     api_key: str
-) -> tuple[str, str]:
+) -> list[tuple[str, str]]:
     # 변수 선언
     date_str = date.strftime("%Y-%m-%d")
     query_with_date = f"{query} {date_str}"
@@ -33,17 +33,15 @@ def get_news_serper(
             return []
 
         # Getting news URL
+        valid_news = []
         for news in result:
             link = news.get("link")
             title = news.get("title")
             if available_url(link):
-                break
-            else:
-                link = ""
+                valid_news.append((link, title))
 
-        if not link or not title:
-            return None
-        return (link, title)
+        # Result
+        return valid_news
 
     except Exception as e:
         print(f"Serper API 호출 실패: {e}")
@@ -58,17 +56,20 @@ def distribute_news_serper(
 ) -> list[tuple[str, str, datetime]]:
     results = []
     current = startAt
+    seen_links = set()
 
     # 3개월 이상 차단, 안전장치
     if current < endAt - timedelta(days=90):
-        current = endAt-timedelta(days=90)
+        current = endAt - timedelta(days=90)
 
     # 기사 수집
     while current <= endAt:
-        url_title = get_news_serper(query, current, api_key)
-        if url_title:
-            date_str = current.strftime("%Y-%m-%d")
-            results.append((url_title[0], url_title[1], date_str))
+        news_list = get_news_serper(query, current, api_key)
+        for link, title in news_list:
+            if link not in seen_links:
+                seen_links.add(link)
+                results.append((link, title, current.strftime("%Y-%m-%d")))
+                break  # 날짜당 하나만 고르도록 유지
         current += timedelta(days=1)
 
     return results
