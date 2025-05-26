@@ -16,7 +16,7 @@ async def Pipeline(
     model: str,
     repeat: int = 3,
     roles: List[SystemRole] = None,
-    batch_size: int = 64,
+    batch_size: int = 256,
     max_wait_time: float = 2.0,
 ) -> Dict[str, Dict[str, List[str]]]:
     """
