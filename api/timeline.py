@@ -1,7 +1,6 @@
 import os
 import dotenv
 import logging
-import asyncio
 from limiter import limiter
 
 from utils.env_utils import get_serper_key
