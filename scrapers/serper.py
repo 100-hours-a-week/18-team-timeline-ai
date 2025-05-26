@@ -4,6 +4,17 @@ from utils.timeline_utils import available_url
 
 # ---------------------------------------------------
 
+lang_to_country = {
+    "en": "us",
+    "ko": "kr",
+    "ja": "jp",
+    "es": "es",
+    "fr": "fr",
+    "ru": "ru",
+}
+
+# ---------------------------------------------------
+
 
 # 검색어, 시작 날짜, 종료 날짜, API_KEY -> (링크, 제목) 리스트
 def get_news_serper(
