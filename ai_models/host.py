@@ -136,7 +136,7 @@ class Host:
         max_tokens: int = 64,
         max_input_tokens: int = 2048,  # 입력 텍스트 최대 토큰 수 추가
         verbose: bool = False,
-        concurrency: int = 72,
+        concurrency: int = 256,
         retry_attempts: int = 3,
         retry_delay: float = 1.0,
     ):
@@ -229,7 +229,7 @@ class Host:
             logger.error("[Host] No active session")
             return False
 
-        url = f"{self.host}/v1/models"
+        url = f"{self.host}/health"
         logger.info(f"[Host] Checking connection to the host: {url}")
 
         try:
@@ -237,13 +237,7 @@ class Host:
                 if self.verbose:
                     logger.info(f"[Host] Connection status: {response.status}")
 
-                response.raise_for_status()
-                json_response = await response.json()
-
-                if self.verbose:
-                    logger.debug(f"[Host] Connection response: {json_response}")
-
-                return True
+                return response.status == 200
         except (
             aiohttp.ClientError,
             aiohttp.ClientConnectorError,
