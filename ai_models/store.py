@@ -1,8 +1,9 @@
-from collections import OrderedDict, defaultdict
-from ai_models.host import SystemRole
-from uuid import uuid4
+import re
 import logging
+
 from utils.logger import Logger
+from ai_models.host import SystemRole
+from collections import OrderedDict, defaultdict
 
 logger = Logger.get_logger("ai_models.store", log_level=logging.ERROR)
 
@@ -29,6 +30,36 @@ class ResultStore:
         else:
             logger.debug(f"이미 등록된 URL: {url}")
 
+    def parse_all_in_one_content(self, content: str) -> dict:
+        """
+        all-in-one 응답 문자열을 파싱하여
+        {SystemRole.summary: ..., SystemRole.title: ..., SystemRole.tag: ...} 딕셔너리로 반환
+
+        유연한 포맷 대응을 위해 정규식을 사용
+        """
+        role_map = {
+            "요약": SystemRole.summary,
+            "제목": SystemRole.title,
+            "태그": SystemRole.tag,
+        }
+        results = {}
+
+        try:
+            # 각 줄에서 역할별 값을 추출
+            for line in content.strip().splitlines():
+                match = re.match(r"^\s*[\d\-\.]*\s*(요약|제목|태그)\s*[:：]\s*(.+)$", line)
+                if match:
+                    key_kor = match.group(1).strip()
+                    value = match.group(2).strip()
+                    role = role_map.get(key_kor)
+                    if role:
+                        results[role] = value
+        except Exception as e:
+            logger.error(f"[파싱 오류] all-in-one content 파싱 실패: {repr(e)}")
+            raise
+
+        return results
+
     def add_result(self, url: str, role: SystemRole, content: str):
         if not url:
             logger.error("add_result 실패: URL이 비어 있음")
@@ -38,8 +69,14 @@ class ResultStore:
             logger.warning(f"URL이 등록되지 않아 자동 등록됨: {url}")
             self.register({"url": url})
 
-        self._store[url][role].append(content)
-        logger.info(f"결과 추가됨: [{url}][{role.name}] → {content[:30]}...")
+        if role == SystemRole.all_in_one:
+            parsed_results = self.parse_all_in_one_content(content)
+            for parsed_role, parsed_value in parsed_results.items():
+                self._store[url][parsed_role].append(parsed_value)
+                logger.info(f"[Parsed 저장] [{url}][{parsed_role.name}] → {parsed_value[:30]}...")
+        else:
+            self._store[url][role].append(content)
+            logger.info(f"결과 추가됨: [{url}][{role.name}] → {content[:30]}...")
 
     def get_results(self, url: str, role: SystemRole) -> list:
         results = self._store.get(url, {}).get(role, [])
