@@ -48,6 +48,8 @@ twisted = ">=24.11.0,<25.0.0"
 [tool.poetry.group.download.dependencies]
 huggingface-hub = ">=0.30.0,<1.0.0"
 datasets  = ">=3.6.0,<4.0.0"
+torch = "==2.6.0"
+transformers =">=4.52.3,<5.0.0"
 
 
 [build-system]
