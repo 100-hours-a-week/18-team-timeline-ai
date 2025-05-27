@@ -5,7 +5,7 @@ description = ""
 authors = [
     {name = "phur99",email = "skerrigen12@gmail.com"}
 ]
-readme = "README.md"
+
 requires-python = ">=3.11,<3.13"
 dependencies = [
     "python-dotenv (>=1.1.0,<2.0.0)",
@@ -53,34 +53,3 @@ datasets  = ">=3.6.0,<4.0.0"
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
-
-
-# 아래 섹션은 black의 설정
-[tool.black]
-line-length = 88
-target-version = ['py311']
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-)/
-'''
-
-# 아래 섹션은 flake8의 설정
-[tool.flake8]
-ignore = "E203, E501, W503"
-max-line-length = 88
-exclude = ".git,__pycache__,docs/,old/,build/,dist/"
-
-
-
-[tool.poetry.group.dev.dependencies]
-black = "^25.1.0"
-flake8 = "^7.2.0"
