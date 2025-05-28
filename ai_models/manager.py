@@ -182,18 +182,6 @@ async def main():
                         except asyncio.CancelledError:
                             pass
 
-        for url in results_dict:
-            print(f"\n📌 URL: {url}")
-            for role in [
-                SystemRole.SUMMARIZE,
-                SystemRole.TITLE,
-                SystemRole.TAG,
-            ]:
-                entries = results_dict[url].get(role, [])
-                print(f"  {role.name}:")
-                for i, entry in enumerate(entries):
-                    print(f"    {i+1}. {entry}")
-
 
 if __name__ == "__main__":
     start = time.perf_counter()
