@@ -1,9 +1,13 @@
 import asyncio
+import logging
+from utils.logger import Logger
+
 from ai_models.host import Host, SystemRole
-from scrapers.article_extractor import ArticleExtractor, ArticleParser, ArticleFilter
+from scrapers.article_extractor import ArticleExtractor
 from ai_models.manager import BatchManager, wrapper
 from ai_models.store import ResultStore
-import logging
+
+logger = Logger.get_logger("ai_models.pipeline", log_level=logging.ERROR)
 
 
 async def Pipeline(
@@ -50,29 +54,25 @@ async def Pipeline(
             # logging.info("URL %s | Sentence %s", url, input_text[:10])
             for _ in range(repeat):
                 for role in roles:
-                    logging.info(
-                        f"[PIPELINE] URL :{url}, ROLE : {role}, text : {input_text[:10]}"
-                    )
-                    tasks.append(
-                        asyncio.create_task(wrapper(url, role, input_text, manager))
-                    )
+                    logger.info(f"[PIPELINE] URL :{url}, ROLE : {role}, text : {input_text[:10]}")
+                    tasks.append(asyncio.create_task(wrapper(url, role, input_text, manager)))
+        
         try:
-
             tasks = await asyncio.gather(*tasks, return_exceptions=True)
             manager.running = False
             await asyncio.sleep(1.0)
             for task in tasks:
                 url, role, response = task
-                logging.info(f"[PIPELINE] URL : {url}")
+                logger.info(f"[PIPELINE] URL : {url}")
                 if isinstance(response, dict) and "error" in response:
-                    logging.error(repr(task))
+                    logger.error(repr(task))
                     continue
 
                 content = (
                     response["choices"][0]["message"]["content"] if response else "실패"
                 )
                 results_dict.add_result(url=url, role=role, content=content)
-            logging.info(results_dict.display())
+            # logger.info(results_dict.display())
 
         except Exception as e:
             import traceback

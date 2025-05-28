@@ -1,7 +1,6 @@
 import os
 import dotenv
 import logging
-import asyncio
 from limiter import limiter
 
 from utils.env_utils import get_serper_key
@@ -96,7 +95,7 @@ async def get_timeline(request: Request, payload: TimelineRequest):
     for i, url in enumerate(urls):
         data = first_res[url]
         if not data or not data["summary"]:
-            print(f'기사 내용이 없습니다! "{titles[i][:15]}..."')
+            logging.error(f'기사 내용이 없습니다! "{titles[i][:15]}..."')
             return error_response(500, "인공지능 1차 요약 도중 빈 요약 반환")
         else:
             summary.append(data["summary"][0])
@@ -132,11 +131,6 @@ async def get_timeline(request: Request, payload: TimelineRequest):
     img_link = get_img_link(urls[0])
     if not img_link:
         img_link = base_img_url + img_links[tag_id]
-
-    # Datetime to Date (ISO format)
-    for card in card_list:
-        card.startAt = card.startAt.date().isoformat()
-        card.endAt = card.endAt.date().isoformat()
 
     # Timeline
     timeline = TimelineData(

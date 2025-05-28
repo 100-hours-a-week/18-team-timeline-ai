@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import date
 from typing import List, Generic, TypeVar
 from models.timeline_card import TimelineCard
 
@@ -22,8 +22,8 @@ class ErrorResponse(BaseModel):
 # -------- timeline --------
 class TimelineRequest(BaseModel):
     query: List[str]
-    startAt: datetime
-    endAt: datetime
+    startAt: date
+    endAt: date
 
 
 # Response - CommonResponse[TimelineData]
