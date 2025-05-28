@@ -1,10 +1,12 @@
-from newspaper import Article
-from typing import List, Dict, Optional, AsyncGenerator
-from scrapers.base_searcher import BaseSearcher
 import re
-from utils.logger import Logger
 import aiohttp
 import asyncio
+import trafilatura
+from utils.logger import Logger
+
+from typing import List, Dict, Optional, AsyncGenerator
+from scrapers.base_searcher import BaseSearcher
+
 from config.settings import (
     OLLAMA_HOST,
     OLLAMA_MODEL,
@@ -50,23 +52,25 @@ class ArticleExtractor(BaseSearcher):
                 실패 시 None
         """
         try:
-            article = Article(url=url["url"], language=self.lang)
-            article.download()
-            article.parse()
-            text = article.text.strip()
-            title = url["title"]
-            title = re.sub(r"^[\[\(【]{0,1}속보[\]\)】]{0,1}\s*", "", title)
-            if not text:
-                logger.warning(
+            # 기사 다운로드 시도
+            downloaded = trafilatura.fetch_url(url["url"])
+            if not downloaded:
+                logger.error(
+                    f"[ArticleExtractor] 기사 다운로드 실패 - URL: {url['url']}"
+                )
+                return None
+
+            # 기사 추출 시도
+            text = trafilatura.extract(downloaded, include_comments=False, include_tables=False)
+            if not text or not text.strip():
+                logger.error(
                     f"[ArticleExtractor] 본문이 비어있음 - URL: {url['url']}"
                 )
                 return None
 
-            logger.info(
-                f"[ArticleExtractor] 기사 추출 성공 - URL: {url['url']}, "
-                f"제목: {title}, 본문 길이: {len(text)}"
-            )
-
+            # 리턴
+            text = text.strip()
+            title = url["title"]
             return {
                 "url": url["url"],
                 "title": title,
