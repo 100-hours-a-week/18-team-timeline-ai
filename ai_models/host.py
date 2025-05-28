@@ -444,12 +444,12 @@ if __name__ == "__main__":
             start = time.perf_counter()
             result = await host.query(task, payload)
             end = time.perf_counter()
-            print(
+            logger.info(
                 f"[{index:03}] ✅ 응답 시간: {end - start:.2f}s / 결과 요약: {str(result['choices'][0]['message']['content'])[:40]}..."
             )
             ret.append(result["choices"][0]["message"]["content"])
         except Exception as e:
-            print(f"[{index:03}] ❌ 요청 실패: {e}")
+            logger.error(f"[{index:03}] ❌ 요청 실패: {e}")
 
     async def main():
         import dotenv, os
