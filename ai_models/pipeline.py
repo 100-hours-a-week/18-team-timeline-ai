@@ -6,15 +6,17 @@ from ai_models.manager import BatchManager, wrapper
 from ai_models.store import ResultStore
 import logging
 from utils.logger import Logger
+from line_profiler import profile
 
 logger = Logger.get_logger("ai_models.pipeline", log_level=logging.ERROR)
 
 
+@profile
 async def Pipeline(
     urls: List[Dict[str, str]],
     server: str,
     model: str,
-    repeat: int = 3,
+    repeat: int = 1,
     roles: List[SystemRole] = None,
     batch_size: int = 256,
     max_wait_time: float = 2.0,
@@ -253,9 +255,10 @@ async def TotalPipeline(
 if __name__ == "__main__":
     import time
     from pprint import pprint
-
+    import dotenv
     import os
 
+    dotenv.load_dotenv(override=True)
     # 테스트 설정
     SERVER = os.getenv("SERVER")  # 실제 서버 URL로 변경 필요
     MODEL = os.getenv("MODEL")  # 실제 모델 이름으로 변경 필요
@@ -263,12 +266,76 @@ if __name__ == "__main__":
     # 테스트 URL
     URLS = [
         {
-            "url": "https://www.example.com/article1",
-            "title": "테스트 기사 1",
+            "url": "https://www.christiandaily.co.kr/news/147620",
+            "title": "내년 최저임금 논의 본격화… 노동계 “인상”, 경영계 “동결” 팽팽한 대립",
         },
         {
-            "url": "https://www.example.com/article2",
-            "title": "테스트 기사 2",
+            "url": "https://www.sisajournal.com/news/articleView.html?idxno=334605",
+            "title": "대구기업 절반 이상 “현 최저임금 높다”···내년 '동결 또는 1%미만 인상' 선호",
+        },
+        {
+            "url": "https://www.newscj.com/news/articleView.html?idxno=3273593",
+            "title": "내년 최저임금 논의 본격화… 생계비냐 수용성이냐",
+        },
+        {
+            "url": "https://worknworld.kctu.org/news/articleView.html?idxno=507086",
+            "title": '차기 정부 최저임금 인상 목표 묻자 ··· 민주당 "노사 협한 ...',
+        },
+        {
+            "url": "https://www.pn.or.kr/news/articleView.html?idxno=31985",
+            "title": '단속에 다치고, 최저임금도 못 받아...미등록 이주노동자들 "폭력단속 ...',
+        },
+        {
+            "url": "https://www.business-humanrights.org/ko/latest-news/s-korea-government-plans-controversial-pilot-scheme-for-foreign-domestic-workers-without-minimum-wage-protection/",
+            "title": "한국: 정부, 최저임금 보호 없는 외국인 가사 노동자 시행 시범기획",
+        },
+        {
+            "url": "https://www.ablenews.co.kr/news/articleView.html?idxno=213776",
+            "title": "2025년 최저임금 시급 '1만 30원', 월급 '209만 6270원'",
+        },
+        {
+            "url": "https://www.sisain.co.kr/news/articleView.html?idxno=55089",
+            "title": "최저선 무너진 인권위, 어쩌다 이 지경에",
+        },
+        {
+            "url": "https://www.yna.co.kr/view/AKR20250527119900530",
+            "title": "본격화한 내년 최저임금 '기싸움'…“대폭 인상” vs “위기 상황”",
+        },
+        {
+            "url": "https://www.khan.co.kr/article/202505271636001",
+            "title": "“최저임금 적용 확대” VS “업종별 차등 적용”···최임위 기싸움 본격화",
+        },
+        {
+            "url": "https://www.newsis.com/view/NISX20250527_0003191864",
+            "title": "최저임금위 2차 회의…노동계 '확대적용' vs 경영계 '차등적용'",
+        },
+        {
+            "url": "https://www.sukbakmagazine.com/news/articleView.html?idxno=64660",
+            "title": "소공연, “역대급 위기, 내년 최저임금 동결해야”",
+        },
+        {
+            "url": "https://news.kbs.co.kr/news/view.do?ncd=8264706",
+            "title": "최저임금위원회 2차 전원회의…“대폭 인상” vs “위기 상황”",
+        },
+        {
+            "url": "https://news.nate.com/view/20250527n01337",
+            "title": "오늘 최저임금위 2차 회의…“아직 부족” vs “그동안 너무 올라”",
+        },
+        {
+            "url": "https://news.nate.com/view/20250526n08037",
+            "title": "최저임금 토론회 개최…한국노총 '새 정부 노동정책 첫 지표는 최저임금'",
+        },
+        {
+            "url": "https://v.daum.net/v/20250527161200184",
+            "title": "본격화한 내년 최저임금 '기싸움'…“대폭 인상” vs “위기 상황”",
+        },
+        {
+            "url": "https://www.christiandaily.co.kr/news/147620",
+            "title": "내년 최저임금 논의 본격화… 노동계 “인상”, 경영계 “동결” 팽팽한 대립",
+        },
+        {
+            "url": "https://www.sisajournal.com/news/articleView.html?idxno=334605",
+            "title": "대구기업 절반 이상 “현 최저임금 높다”···내년 '동결 또는 1%미만 인상' 선호",
         },
     ]
 
