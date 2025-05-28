@@ -24,4 +24,4 @@ COPY . .
 RUN poetry run python scripts/download_dataset.py || echo "데이터셋 다운로드 생략"
 
 # 실행
-CMD ["poetry", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["poetry", "run", "opentelemetry-instrument", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
