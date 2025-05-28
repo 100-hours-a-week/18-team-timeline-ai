@@ -29,7 +29,7 @@ init() {
     install_python
     setup_python_path
     install_poetry
-    setup_project_files
+    #setup_project_files
     install_dependencies "$@"
     install_ollama
     install_qdrant

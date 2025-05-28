@@ -26,22 +26,28 @@ class SystemRole(Enum):
 # 시스템 프롬프트를 별도 파일이나 설정으로 분리하는 것이 좋지만, 현재는 코드 내에 유지
 SYSTEM_PROMPT = {
     SystemRole.SUMMARY: """
-            You are a world-class summarization AI specialized in news content.
-            You take long-form news articles and return only a concise, 1–2 sentence summary of the most important information.
-            IMPORTANT RULES:
-            Do not include any commentary, category label, preface, explanation, or formatting.
-            Only output the summary. Nothing else.
-            Never say things like "Here is the summary" or "This article is about..."
-            If the input text is not a valid article, just return: "Invalid input".
-            Now, summarize the following article strictly following the above rules:
+            You are a world-class Korean summarization AI specialized in news content.
+            Your task is to read long-form Korean news articles and return a concise 1–2 sentence summary that captures only the most essential information.
+
+            Rules:
+            - Do not include any commentary, category labels, introductions, or formatting.
+            - Never use phrases like "Here is the summary" or "This article is about".
+            - Output only the summary text, nothing else.
+            - If the input is not a valid news article, output: "Invalid input".
+
+            Summarize the following article strictly following these rules:
         """,
     SystemRole.TITLE: """
-            You are a high-performance summarization and headline-generation AI specialized in news content.
-            You will read a full news article and return only two things:
-            A short, attention-grabbing headline (under 12 words)
-            A 1–2 sentence summary that clearly conveys the core of the article
+            You are a high-performance Korean AI specialized in headline generation for news articles.
+
+            Your task:
+            - Read the full article.
+            - Output exactly two things in plain text:
+            1. A short, attention-grabbing headline (under 12 words)
+
             STRICT RULES:
-            Do not write anything else. No labels, no explanation, no markdown.
+            - Do not include any labels, explanations, markdown, or formatting.
+            - Output only the headline, in that order, with nothing else.
         """,
     SystemRole.TAG: """
                 You are a Korean news classification AI.  
@@ -59,7 +65,7 @@ SYSTEM_PROMPT = {
                 다음 기사를 분류하세요:
         """,
 }
-
+'''
 # 모델별 인코딩 매핑
 MODEL_ENCODINGS = {
     "gpt-3.5-turbo": "cl100k_base",
@@ -122,6 +128,7 @@ def truncate_text_by_tokens(
     except Exception as e:
         logger.warning(f"토큰 제한 중 오류 발생: {e}. 원본 텍스트를 반환합니다.")
         return text
+'''
 
 
 class Host:
@@ -132,7 +139,7 @@ class Host:
         host: str,
         model: str,
         timeout: int = 60,
-        temperature: float = 0.5,
+        temperature: float = 0.2,
         max_tokens: int = 64,
         max_input_tokens: int = 2048,  # 입력 텍스트 최대 토큰 수 추가
         verbose: bool = False,
@@ -293,6 +300,7 @@ class Host:
             raise ValueError("Invalid payload: must contain 'text' field")
 
         # 입력 텍스트를 토큰 수로 제한
+        """
         original_text = payload["text"]
         truncated_text = truncate_text_by_tokens(
             original_text, self.max_input_tokens, self.model
@@ -305,7 +313,7 @@ class Host:
             logger.info(
                 f"[Host] 입력 텍스트가 {original_tokens}개 토큰에서 {truncated_tokens}개 토큰으로 제한되었습니다."
             )
-
+        """
         headers = {"Content-Type": "application/json"}
 
         body = {
@@ -315,7 +323,7 @@ class Host:
                     "role": "system",
                     "content": SYSTEM_PROMPT[task],
                 },
-                {"role": "user", "content": truncated_text},  # 제한된 텍스트 사용
+                {"role": "user", "content": payload["text"]},  # 제한된 텍스트 사용
             ],
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,

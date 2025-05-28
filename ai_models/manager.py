@@ -54,7 +54,7 @@ class BatchManager:
             Dict: 응답 데이터
         """
         if not self.running:
-            logger.warning("BatchManager가 실행 중이 아닙니다. 자동으로 시작합니다.")
+            logger.warning("[BatchManager] 실행 중이 아닙니다. 자동으로 시작합니다.")
             self.running = True
             self._cleanup_task = asyncio.create_task(self._cleanup_pending_tasks())
 
@@ -74,7 +74,7 @@ class BatchManager:
         except asyncio.TimeoutError:
             logger.error(f"[BatchManager] 요청 {task_id}에 대한 응답 대기 시간 초과")
             del self.pending_tasks[task_id]
-            return {"error": "응답 대기 시간 초과"}
+            return {"error": "[BatchManager]응답 대기 시간 초과"}
 
     async def _cleanup_pending_tasks(self) -> None:
         """
@@ -275,9 +275,7 @@ async def create_batch_manager(
         try:
             await asyncio.wait_for(runner, timeout=1.0)
         except (asyncio.TimeoutError, asyncio.CancelledError):
-            logger.warning(
-                "[create_batch_manager] Runner 태스크 정리 중 타임아웃 또는 취소됨"
-            )
+            logger.warning("[BatchManager] Runner 태스크 정리 중 타임아웃 또는 취소됨")
 
 
 if __name__ == "__main__":
