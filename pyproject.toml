@@ -24,7 +24,11 @@ dependencies = [
     "fastapi (==0.115.8)",
     "pydantic (==2.10.6)",
     "slowapi (==0.1.9)",
-    "uvicorn (==0.34.2)"
+    "uvicorn (==0.34.2)",
+    "opentelemetry-sdk (== 1.25.0)",
+    "opentelemetry-exporter-otlp(== 1.25.0)",
+    "opentelemetry-instrumentation-fastapi(==0.45b0)",
+    "opentelemetry-instrumentation-requests(==0.45b0)"
 ]
 
 [[tool.poetry.source]]
