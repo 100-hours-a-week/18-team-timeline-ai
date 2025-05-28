@@ -99,13 +99,30 @@ async def Pipeline(
             # 태스크 실행 및 결과 수집
             results = await asyncio.gather(*tasks, return_exceptions=True)
 
-            # 결과 처리
-            for result in results:
-                if isinstance(result, Exception):
-                    logger.error(f"태스크 실행 중 예외 발생: {result}")
+        tasks = []
+        for url, input_text in url_sentences.items():
+            # logging.info("URL %s | Sentence %s", url, input_text[:10])
+            for _ in range(repeat):
+                for role in roles:
+                    logger.info(f"[PIPELINE] URL :{url}, ROLE : {role}, text : {input_text[:10]}")
+                    tasks.append(asyncio.create_task(wrapper(url, role, input_text, manager)))
+        
+        try:
+            tasks = await asyncio.gather(*tasks, return_exceptions=True)
+            manager.running = False
+            await asyncio.sleep(1.0)
+            for task in tasks:
+                url, role, response = task
+                logger.info(f"[PIPELINE] URL : {url}")
+                if isinstance(response, dict) and "error" in response:
+                    logger.error(repr(task))
                     continue
 
-                url, role, response = result
+                content = (
+                    response["choices"][0]["message"]["content"] if response else "실패"
+                )
+                results_dict.add_result(url=url, role=role, content=content)
+            # logger.info(results_dict.display())
 
                 if isinstance(response, dict) and "error" in response:
                     logger.error(
