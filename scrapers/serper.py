@@ -1,5 +1,5 @@
 import requests
-from datetime import datetime, timedelta
+from datetime import date, timedelta
 from utils.timeline_utils import available_url
 
 # ---------------------------------------------------
@@ -19,7 +19,7 @@ lang_to_country = {
 # 검색어, 시작 날짜, 종료 날짜, API_KEY -> (링크, 제목) 리스트
 def get_news_serper(
     query: str,
-    date: datetime,
+    date: date,
     api_key: str
 ) -> list[tuple[str, str]]:
     # 변수 선언
@@ -61,10 +61,10 @@ def get_news_serper(
 
 def distribute_news_serper(
     query: str,
-    startAt: datetime,
-    endAt: datetime,
+    startAt: date,
+    endAt: date,
     api_key: str,
-) -> list[tuple[str, str, datetime]]:
+) -> list[tuple[str, str, date]]:
     results = []
     current = startAt
     seen_links = set()
@@ -79,7 +79,7 @@ def distribute_news_serper(
         for link, title in news_list:
             if link not in seen_links:
                 seen_links.add(link)
-                results.append((link, title, current.strftime("%Y-%m-%d")))
+                results.append((link, title, current))
                 break  # 날짜당 하나만 고르도록 유지
         current += timedelta(days=1)
 
