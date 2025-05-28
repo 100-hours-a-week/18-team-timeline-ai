@@ -314,51 +314,6 @@ class Host:
                 f"[Host] 입력 텍스트가 {original_tokens}개 토큰에서 {truncated_tokens}개 토큰으로 제한되었습니다."
             )
         """
-        encoding_name = MODEL_ENCODINGS.get(self.model, MODEL_ENCODINGS["default"])
-        try:
-            encoding = tiktoken.get_encoding(encoding_name)
-            return len(encoding.encode(text))
-        except Exception as e:
-            logger.warning(f"토큰 계산 중 오류 발생: {e}")
-            # 대략적인 추정: 영어 기준 평균 단어당 1.3 토큰
-            return int(len(text.split()) * 1.3)
-
-    async def query(self, task: SystemRole, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        AI 모델에 쿼리 요청
-
-        Args:
-            task: 요청 타입
-            payload: 요청 데이터
-
-        Raises:
-            RuntimeError: 세션이 초기화되지 않은 경우
-            ValueError: 잘못된 요청 데이터
-            Exception: 요청 실패
-
-        Returns:
-            Dict[str, Any]: 응답 데이터
-        """
-        if not self.session or not self._is_connected:
-            raise RuntimeError("Host session is not initialized or connected")
-
-        if not payload or "text" not in payload:
-            raise ValueError("Invalid payload: must contain 'text' field")
-
-        # 입력 텍스트를 토큰 수로 제한
-        original_text = payload["text"]
-        truncated_text = truncate_text_by_tokens(
-            original_text, self.max_input_tokens, self.model
-        )
-
-        # 토큰 수 로깅
-        if self.verbose and original_text != truncated_text:
-            original_tokens = self.count_tokens(original_text)
-            truncated_tokens = self.count_tokens(truncated_text)
-            logger.info(
-                f"[Host] 입력 텍스트가 {original_tokens}개 토큰에서 {truncated_tokens}개 토큰으로 제한되었습니다."
-            )
-
         headers = {"Content-Type": "application/json"}
 
         body = {
