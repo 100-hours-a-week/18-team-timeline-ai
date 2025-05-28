@@ -132,11 +132,6 @@ async def get_timeline(request: Request, payload: TimelineRequest):
     if not img_link:
         img_link = base_img_url + img_links[tag_id]
 
-    # Datetime to Date (ISO format)
-    for card in card_list:
-        card.startAt = card.startAt.date().isoformat()
-        card.endAt = card.endAt.date().isoformat()
-
     # Timeline
     timeline = TimelineData(
         title=short_sentence(final_res["title"][0]),
