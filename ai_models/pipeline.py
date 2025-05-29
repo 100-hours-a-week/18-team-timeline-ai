@@ -41,7 +41,7 @@ async def Pipeline(
             async for result in extractor.search(urls):
                 parsed = await parser.parse(result)
                 key_sentences = await filter.extract_key_sentences(parsed)
-                
+
                 sentence = ". ".join(key_sentences)
                 url_sentences[result["url"]] = sentence
         """
@@ -56,7 +56,7 @@ async def Pipeline(
                 for role in roles:
                     logger.info(f"[PIPELINE] URL :{url}, ROLE : {role}, text : {input_text[:10]}")
                     tasks.append(asyncio.create_task(wrapper(url, role, input_text, manager)))
-        
+
         try:
             tasks = await asyncio.gather(*tasks, return_exceptions=True)
             manager.running = False
@@ -94,7 +94,7 @@ async def TotalPipeline(
     server,
     model,
     repeat: int = 5,
-    roles: list[SystemRole] = [SystemRole.summary, SystemRole.title, SystemRole.tag],
+    roles: list[SystemRole] = [SystemRole.summary, SystemRole.title],
     batch_size: int = 5,
     max_wait_time: float = 0.5,
 ):
