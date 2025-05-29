@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from api.router import router as api_router
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 from limiter import limiter
 from slowapi.errors import RateLimitExceeded
@@ -11,6 +12,7 @@ import time
 app = FastAPI(title="AI News Timeline API", version="1.0.0")
 app.state.limiter = limiter
 start_time = time.time()
+FastAPIInstrumentor.instrument_app(app)
 
 
 @app.exception_handler(RateLimitExceeded)
