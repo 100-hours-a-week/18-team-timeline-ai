@@ -125,7 +125,8 @@ async def get_timeline(request: Request, payload: TimelineRequest):
 
     # Tag extraction
     final_res = final_res["total_summary"]
-    tag_id = convert_tag(final_res["tag"][0])
+    total_title = short_sentence(final_res["title"][0])
+    tag_id = convert_tag(request.app.state.classifier.classify(total_title))
 
     # Image Extraction
     img_link = get_img_link(urls[0])
@@ -134,7 +135,7 @@ async def get_timeline(request: Request, payload: TimelineRequest):
 
     # Timeline
     timeline = TimelineData(
-        title=short_sentence(final_res["title"][0]),
+        title=total_title,
         summary=short_sentence(final_res["summary"][0]),
         image=img_link,
         category=tag_names[tag_id],
