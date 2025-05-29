@@ -6,7 +6,23 @@ from limiter import limiter
 from slowapi.errors import RateLimitExceeded
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 
-app = FastAPI(title="AI News Timeline API", version="1.0.0")
+import gc
+from contextlib import asynccontextmanager
+from classify.cluster import NewsClassifier
+
+# ---------------------------------------------------------
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    print("[Startup] Loading NewsClassifier...")
+    app.state.classifier = NewsClassifier(threshold=0.2)
+    yield
+    print("[Shutdown] Releasing NewsClassifier...")
+    del app.state.classifier
+    gc.collect()
+
+app = FastAPI(title="AI News Timeline API", version="1.0.0", lifespan=lifespan)
 app.state.limiter = limiter
 
 
