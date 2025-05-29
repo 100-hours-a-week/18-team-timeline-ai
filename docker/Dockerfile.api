@@ -15,7 +15,7 @@ RUN curl -sSL https://install.python-poetry.org | python3 - && \
 # Poetry 메타파일 먼저 복사 → 의존성 설치
 COPY pyproject.toml ./
 RUN poetry config virtualenvs.create false && \
-    poetry install --no-interaction --no-ansi --no-root --allow-prereleases
+    poetry install --no-interaction --no-ansi --no-root 
 
 # 프로젝트 전체 복사 (main.py, api/, config/, utils/ 등 전부 포함)
 COPY . .
