@@ -2,6 +2,7 @@
 name = "dev"
 version = "0.1.0"
 description = ""
+allow-prereleases = true
 authors = [
     {name = "phur99",email = "skerrigen12@gmail.com"}
 ]
@@ -25,10 +26,15 @@ dependencies = [
     "pydantic (==2.10.6)",
     "slowapi (==0.1.9)",
     "uvicorn (==0.34.2)",
-    "opentelemetry-sdk (== 1.26.0)",
-    "opentelemetry-exporter-otlp(== 1.26.0)",
-    "opentelemetry-instrumentation-fastapi(==0.46b0)",
-    "opentelemetry-instrumentation-requests(==0.46b0)"
+    "opentelemetry-api (==1.26.0)",
+    "opentelemetry-sdk (==1.26.0)",
+    "opentelemetry-exporter-otlp (==1.26.0)",
+    "opentelemetry-instrumentation-fastapi (==0.54b1)",
+    "opentelemetry-instrumentation-requests (==0.54b1)",
+    "opentelemetry-instrumentation-asyncpg (==0.54b1)",
+    "opentelemetry-instrumentation-urllib (==0.54b1)",
+    "opentelemetry-instrumentation-logging (==0.54b1)",
+    "opentelemetry-instrumentation-sqlalchemy (==0.54b1)"
 ]
 
 [[tool.poetry.source]]
@@ -36,11 +42,6 @@ name = "flashinfer"
 url = "https://flashinfer.ai/whl/cu124/torch2.6/"
 priority = "explicit"
 
-[project.optional-dependencies]
-gpu = [
-    "vllm (==0.8.5)",
-    "triton (==3.2.0)",
-]
 
 [tool.poetry.extras]
 with-gpu = ["gpu"]
