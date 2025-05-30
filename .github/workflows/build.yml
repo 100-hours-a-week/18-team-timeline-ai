@@ -91,3 +91,4 @@ jobs:
       SERPER_API_KEYS: ${{ secrets.SERPER_API_KEYS }}
       SERVER_URL: ${{ secrets.SERVER_URL }}
       GCP_SSH_KEY: ${{ secrets.GCP_SSH_KEY }}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTEL_EXPORTER_OTLP_ENDPOINT }}

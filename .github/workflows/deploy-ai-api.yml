@@ -50,6 +50,7 @@ jobs:
       SERPER_API_KEYS: ${{ secrets.SERPER_API_KEYS }}
       SERVER_URL: ${{ secrets.SERVER_URL }}
       GCP_SSH_KEY: ${{ secrets.GCP_SSH_KEY }}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${{ secrets.OTEL_EXPORTER_OTLP_ENDPOINT }}
 
     steps:
       - name: Checkout (필요 시)
@@ -69,6 +70,14 @@ jobs:
           echo 'SERP_API_KEYS=${{ secrets.SERP_API_KEYS }}' >> ./.env
           echo 'SERPER_API_KEYS=${{ secrets.SERPER_API_KEYS }}' >> ./.env
           echo 'SERVER=${{ secrets.SERVER_URL }}' >> ./.env
+          echo 'OTEL_EXPORTER_OTLP_ENDPOINT=${{ secrets.OTEL_EXPORTER_OTLP_ENDPOINT }}' >> ./.env
+          echo 'OTEL_SERVICE_NAME=tamnara-ai-api' >> ./.env
+          echo 'OTEL_TRACES_EXPORTER=otlp' >> ./.env
+          echo 'OTEL_METRICS_EXPORTER=none' >> ./.env
+          echo 'OTEL_LOG_LEVEL=debug' >> ./.env
+          echo 'OTEL_PYTHON_LOG_LEVEL=debug' >> ./.env
+          echo 'OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf' >> ./.env
+          echo 'OTEL_TRACES_SAMPLER=parentbased_always_on' >> ./.env
 
 
       - name: Setup SSH key (with verification)

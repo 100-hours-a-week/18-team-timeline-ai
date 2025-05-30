@@ -1,6 +1,11 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from api.router import router as api_router
+
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 from limiter import limiter
@@ -8,6 +13,14 @@ from slowapi.errors import RateLimitExceeded
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 import os
 import time
+
+if not isinstance(trace.get_tracer_provider(), TracerProvider):
+    trace.set_tracer_provider(TracerProvider())
+
+otlp_exporter = OTLPSpanExporter()
+span_processor = BatchSpanProcessor(otlp_exporter)
+trace.get_tracer_provider().add_span_processor(span_processor)
+print("Trace insert checking")
 
 app = FastAPI(title="AI News Timeline API", version="1.0.0")
 app.state.limiter = limiter
