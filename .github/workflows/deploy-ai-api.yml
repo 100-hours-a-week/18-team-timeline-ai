@@ -27,6 +27,8 @@ on:
         required: true
       GCP_SSH_KEY:
         required: true
+      OTEL_EXPORTER_OTLP_ENDPOINT:
+        required: true
 
 jobs:
   deploy:
