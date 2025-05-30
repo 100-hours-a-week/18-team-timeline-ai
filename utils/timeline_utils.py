@@ -22,7 +22,7 @@ def convert_tag(tag: str) -> int:
 
 
 def available_url(url: str) -> bool:
-    publishers = ["chosun", "sbs"]
+    publishers = ["chosun", "sbs", "msn.com"]
     for publisher in publishers:
         if publisher in url:
             return False
