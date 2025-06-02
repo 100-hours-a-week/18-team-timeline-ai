@@ -22,7 +22,7 @@ def convert_tag(tag: str) -> int:
 
 
 def available_url(url: str) -> bool:
-    publishers = ["chosun", "sbs"]
+    publishers = ["chosun", "sbs", "msn.com"]
     for publisher in publishers:
         if publisher in url:
             return False
@@ -35,17 +35,18 @@ def short_sentence(text: str) -> str:
     for pattern in patterns:
         text = re.sub(pattern, "", text)
 
-    # 마침표 뒤 제거
-    if "." in text:
-        text = text.split(".")[0].strip()
+    # 마침표 뒤 제거 (소수점은 보호)
+    text = re.split(r'(?<=[^0-9])\.\s+', text)[0].strip()
+
+    # 생략부호 뒤 제거
     if "…" in text:
-        text = text.split(".")[0].strip()
+        text = text.split("…")[0].strip()
 
     # 전각 뒤 제거
     if "|" in text:
         text = text.split("|")[0].strip()
     if "｜" in text:
-        text = text.split("|")[0].strip()
+        text = text.split("｜")[0].strip()
 
     # 쉼표 파싱
     parts = [part.strip() for part in text.split(",") if part.strip()]
