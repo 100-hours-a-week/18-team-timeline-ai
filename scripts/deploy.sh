@@ -32,6 +32,7 @@ if docker ps -a --format '{{.Names}}' | grep -q "^$container_name$"; then
 fi
 
 docker run -d \
+  --restart=always \
   --name "$container_name" \
   --env-file ./.env \
   --add-host host.docker.internal:host-gateway \
