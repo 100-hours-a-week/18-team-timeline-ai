@@ -42,7 +42,7 @@ class Host:
         temperature: float = 0.5,
         max_tokens: int = 48,
         verbose: bool = False,
-        concurrency: int = 32,
+        concurrency: int = 128,
         retry_attempts: int = 3,
         retry_delay: float = 1.0,
     ):
@@ -54,6 +54,7 @@ class Host:
         self.session: Optional[aiohttp.ClientSession] = None
         self.verbose = verbose
         self.concurrency = concurrency
+        self._is_connected = False
 
     async def __aenter__(self):
         """
@@ -165,9 +166,10 @@ class Host:
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
         }
-        logger.info(f"[Host] {body}")
+
+        logger.debug(f"[Host] Request body: {body}")
         url = f"{self.host}/v1/chat/completions"
-        logger.info(f"[Host] {url}")
+
         try:
             async with self.session.post(
                 url,
@@ -177,20 +179,27 @@ class Host:
             ) as response:
                 response.raise_for_status()
                 response_text = await response.text()
-                logger.info(f"[Host] {response_text}")
-                result = orjson.loads(response_text)
-                success = await handle_http_error(result, body, logger)
-                if success:
-                    logger.info(f"[Host] {result}")
-                    return result
-                else:
-                    logger.error(f"[Host] {result}")
-                    raise Exception(result)
-        except (
-            aiohttp.ClientError,
-            aiohttp.ClientConnectorError,
-            aiohttp.ClientResponseError,
-            aiohttp.ServerDisconnectedError,
-        ) as e:
-            logger.error(f"[Host] {e}")
-            raise e
+                logger.debug(f"[Host] Response text: {response_text}")
+
+                try:
+                    result = orjson.loads(response_text)
+                except orjson.JSONDecodeError as e:
+                    logger.error(
+                        f"[Host] Failed to parse response as JSON: {response_text}"
+                    )
+                    raise ValueError(f"Invalid JSON response: {str(e)}")
+
+                if response.status == 400:
+                    logger.error(f"[Host] Bad Request: {result}")
+                    raise ValueError(
+                        f"Bad Request: {result.get('error', 'Unknown error')}"
+                    )
+
+                return result
+
+        except aiohttp.ClientResponseError as e:
+            logger.error(f"[Host] HTTP {e.status} error: {e.message}")
+            raise
+        except Exception as e:
+            logger.error(f"[Host] Unexpected error: {str(e)}")
+            raise

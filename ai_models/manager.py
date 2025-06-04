@@ -14,7 +14,7 @@ class BatchManager:
     def __init__(
         self,
         host: Host,
-        batch_size: int = 4,
+        batch_size: int = 32,
         max_wait_time: float = 1.0,
         max_retries: int = 3,
     ):

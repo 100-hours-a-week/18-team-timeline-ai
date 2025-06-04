@@ -3,6 +3,7 @@ import aiohttp
 import asyncio
 import trafilatura
 from utils.logger import Logger
+import requests
 
 from typing import List, Dict, Optional, AsyncGenerator
 from scrapers.base_searcher import BaseSearcher
@@ -29,6 +30,16 @@ class ArticleExtractor(BaseSearcher):
         """
         self.max_workers = max_workers
         self.lang = lang
+        # requests 세션 생성
+        self.session = requests.Session()
+        # 연결 풀 설정
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=100,  # 연결 풀 크기
+            pool_maxsize=100,  # 최대 연결 수
+            max_retries=3,  # 재시도 횟수
+        )
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
 
     async def extract_single(self, url: dict) -> Optional[Dict[str, str]]:
         """기사 URL로부터 본문을 추출하는 메서드
@@ -52,17 +63,14 @@ class ArticleExtractor(BaseSearcher):
                 실패 시 None
         """
         try:
-            # 기사 다운로드 시도
-            downloaded = trafilatura.fetch_url(url["url"])
-            if not downloaded:
-                logger.error(
-                    f"[ArticleExtractor] 기사 다운로드 실패 - URL: {url['url']}"
-                )
-                return None
+            # requests를 사용하여 페이지 다운로드
+            response = self.session.get(url["url"], timeout=10)
+            response.raise_for_status()
+            html_content = response.text
 
-            # 기사 추출 시도
+            # trafilatura로 본문 추출
             text = trafilatura.extract(
-                downloaded, include_comments=False, include_tables=False
+                html_content, include_comments=False, include_tables=False
             )
             if not text or not text.strip():
                 logger.error(f"[ArticleExtractor] 본문이 비어있음 - URL: {url['url']}")
@@ -98,11 +106,16 @@ class ArticleExtractor(BaseSearcher):
         Yields:
             Iterator[AsyncGenerator[dict, None]]: 추출된 기사 정보 리스트
         """
+        # 세마포어를 사용하여 동시 요청 수 제한
+        semaphore = asyncio.Semaphore(self.max_workers)
+
+        async def bounded_extract(url):
+            async with semaphore:
+                return await self.extract_single(url)
 
         task_list = []
-
-        for idx, url in enumerate(urls):
-            task = asyncio.create_task(self.extract_single(url))
+        for url in urls:
+            task = asyncio.create_task(bounded_extract(url))
             task_list.append(task)
 
         for task in asyncio.as_completed(task_list):
@@ -112,6 +125,11 @@ class ArticleExtractor(BaseSearcher):
                     yield result
             except Exception as e:
                 logger.error(f"[ArticleExtractor] 작업 처리 실패 : {e}")
+
+    def __del__(self):
+        # 세션 정리
+        if hasattr(self, "session"):
+            self.session.close()
 
 
 class ArticleFilter:
