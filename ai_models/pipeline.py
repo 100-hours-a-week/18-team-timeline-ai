@@ -1,4 +1,9 @@
 import asyncio
+from typing import List, Dict
+from ai_models.host import Host, SystemRole
+from scrapers.article_extractor import ArticleExtractor
+from ai_models.manager import BatchManager, wrapper
+from ai_models.store import ResultStore
 import logging
 from utils.logger import Logger
 
@@ -11,80 +16,121 @@ logger = Logger.get_logger("ai_models.pipeline", log_level=logging.ERROR)
 
 
 async def Pipeline(
-    urls: list[dict[str, str]],
-    server,
-    model,
-    repeat: int = 5,
-    roles: list[SystemRole] = [SystemRole.summary],
-    batch_size: int = 64,
-    max_wait_time: float = 2,
-) -> ResultStore:
+    urls: List[Dict[str, str]],
+    server: str,
+    model: str,
+    repeat: int = 1,
+    roles: List[SystemRole] = [SystemRole.SUMMARY],
+    batch_size: int = 256,
+    max_wait_time: float = 2.0,
+) -> Dict[str, Dict[str, List[str]]]:
+    """
+    URL 목록에 대한 AI 처리 파이프라인
 
-    async with (
-        Host(
-            server,
-            model,
-        ) as host,
-    ):
+    Args:
+        urls: 처리할 URL 목록
+        server: AI 서버 URL
+        model: 사용할 모델 이름
+        repeat: 각 URL당 반복 처리 횟수
+        roles: 처리할 시스템 역할 목록
+        batch_size: 배치 크기
+        max_wait_time: 최대 대기 시간(초)
 
-        extractor = ArticleExtractor()
-        results_dict = ResultStore()
-        manager = BatchManager(host, batch_size=batch_size, max_wait_time=max_wait_time)
-        runner = asyncio.create_task(manager.run())
-        for item in urls:
-            url = item["url"]
-            if url:
-                results_dict.register({"url": url})
-        url_sentences = {}
-        """
-        async with filter:
+    Returns:
+        Dict: 처리 결과
+    """
+    if not urls:
+        logger.warning("[PIPELINE]: 입력 URL이 없습니다.")
+        return {}
+
+    logger.info(f"[PIPELINE]: {len(urls)}개 URL, {len(roles)}개 역할, 반복 {repeat}")
+
+    results_dict = ResultStore()
+    manager = None
+    runner = None
+
+    try:
+        async with Host(server, model) as host:
+            extractor = ArticleExtractor()
+
+            manager = BatchManager(
+                host, batch_size=batch_size, max_wait_time=max_wait_time
+            )
+            runner = asyncio.create_task(manager.run())
+            # URL 등록
+            for item in urls:
+                url = item.get("url")
+                if url:
+                    results_dict.register({"url": url})
+                else:
+                    logger.warning(f"[PIPELINE] URL이 없는 항목 무시: {item}")
+
+            # 텍스트 추출
+            url_sentences = {}
             async for result in extractor.search(urls):
-                parsed = await parser.parse(result)
-                key_sentences = await filter.extract_key_sentences(parsed)
+                if not result or not result.get("input_text"):
+                    print(f"❌ 문장 분리 실패: URL={result['url']}")
+                    continue
+                url_sentences[result["url"]] = result["input_text"]
+            # 태스크 생성
+            tasks = []
+            for url, input_text in url_sentences.items():
+                for _ in range(repeat):
+                    for role in roles:
+                        logger.info(
+                            f"[PIPELINE] URL: {url}, ROLE: {role}, TEXT: {input_text[:10]}..."
+                        )
+                        tasks.append(
+                            asyncio.create_task(wrapper(url, role, input_text, manager))
+                        )
 
-                sentence = ". ".join(key_sentences)
-                url_sentences[result["url"]] = sentence
-        """
-
-        async for result in extractor.search(urls):
-            url_sentences[result["url"]] = result["input_text"]
-
-        tasks = []
-        for url, input_text in url_sentences.items():
-            # logging.info("URL %s | Sentence %s", url, input_text[:10])
-            for _ in range(repeat):
-                for role in roles:
-                    logger.info(f"[PIPELINE] URL :{url}, ROLE : {role}, text : {input_text[:10]}")
-                    tasks.append(asyncio.create_task(wrapper(url, role, input_text, manager)))
-
-        try:
-            tasks = await asyncio.gather(*tasks, return_exceptions=True)
+            results = await asyncio.gather(*tasks, return_exceptions=True)
             manager.running = False
             await asyncio.sleep(1.0)
-            for task in tasks:
+
+            for task in results:
+                if isinstance(task, Exception):
+                    logger.error(f"[PIPELINE] 태스크 예외 발생: {repr(task)}")
+                    continue
                 url, role, response = task
                 logger.info(f"[PIPELINE] URL : {url}")
                 if isinstance(response, dict) and "error" in response:
-                    logger.error(repr(task))
+                    logger.error(
+                        f"응답 오류: URL={url}, ROLE={role}, ERROR={response['error']}"
+                    )
                     continue
 
-                content = (
-                    response["choices"][0]["message"]["content"] if response else "실패"
-                )
-                results_dict.add_result(url=url, role=role, content=content)
-            # logger.info(results_dict.display())
+                try:
+                    content = (
+                        response["choices"][0]["message"]["content"]
+                        if response
+                        else "실패"
+                    )
+                    results_dict.add_result(url=url, role=role, content=content)
+                except (KeyError, TypeError, IndexError) as e:
+                    logger.error(f"응답 파싱 오류: {e}, 응답: {response}")
 
-        except Exception as e:
-            import traceback
+            logger.info("[PIPELINE] 모든 태스크 처리 완료")
 
-            traceback.print_exc()
-            await asyncio.sleep(1)
-            raise e
-        finally:
+    except Exception as e:
+        import traceback
+
+        logger.error(f"[PIPELINE] 실행 중 예외 발생: {e}")
+        logger.error(traceback.format_exc())
+        raise
+    finally:
+        # 리소스 정리
+        if manager:
+            manager.running = False
+            await asyncio.sleep(0.5)
+
+        if runner:
             try:
-                await runner
-            except asyncio.CancelledError:
-                pass
+                await asyncio.wait_for(runner, timeout=1.0)
+            except asyncio.TimeoutError as e:
+                logger.warning((f"[PIPELINE] {e}"))
+            except asyncio.CancelledError as e:
+                logger.warning(f"[PIPELINE] {e}")
 
     return results_dict.as_dict()
 
@@ -94,28 +140,57 @@ async def TotalPipeline(
     server,
     model,
     repeat: int = 5,
-    roles: list[SystemRole] = [SystemRole.summary, SystemRole.title],
+    roles: list[SystemRole] = [SystemRole.SUMMARY, SystemRole.TITLE],
     batch_size: int = 5,
     max_wait_time: float = 0.5,
-):
-    async with (
-        Host(
-            server,
-            model,
-        ) as host,
-    ):
-        results_dict = ResultStore()
-        manager = BatchManager(
-            host=host, batch_size=batch_size, max_wait_time=max_wait_time
-        )
-        runner = asyncio.create_task(manager.run())
-        tasks = []
-        sentence = ". ".join(text)
-        for _ in range(repeat):
-            for role in roles:
-                tasks.append(
-                    asyncio.create_task(
-                        wrapper("total_summary", role, sentence, manager)
+) -> Dict[str, Dict[str, List[str]]]:
+    """
+    텍스트 목록에 대한 통합 AI 처리 파이프라인
+
+    Args:
+        text: 처리할 텍스트 목록
+        server: AI 서버 URL
+        model: 사용할 모델 이름
+        repeat: 각 텍스트당 반복 처리 횟수
+        roles: 처리할 시스템 역할 목록
+        batch_size: 배치 크기
+        max_wait_time: 최대 대기 시간(초)
+
+    Returns:
+        Dict: 처리 결과
+    """
+    if not text:
+        logger.warning("TotalPipeline: 입력 텍스트가 없습니다.")
+        return {}
+
+    logger.info(
+        f"TotalPipeline 시작: {len(text)}개 텍스트, {len(roles)}개 역할, 반복 {repeat}회"
+    )
+
+    results_dict = ResultStore()
+    manager = None
+    runner = None
+
+    try:
+        async with Host(server, model) as host:
+            results_dict.register({"url": "total_summary"})
+            manager = BatchManager(
+                host=host, batch_size=batch_size, max_wait_time=max_wait_time
+            )
+            runner = asyncio.create_task(manager.run())
+
+            # 텍스트 결합
+            sentence = ". ".join(text)
+            logger.debug(f"결합된 텍스트 길이: {len(sentence)}")
+
+            # 태스크 생성 및 실행
+            tasks = []
+            for _ in range(repeat):
+                for role in roles:
+                    tasks.append(
+                        asyncio.create_task(
+                            wrapper("total_summary", role, sentence, manager)
+                        )
                     )
                 )
 

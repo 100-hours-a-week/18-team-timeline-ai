@@ -4,6 +4,8 @@ from utils.handling import handle_http_error
 from enum import Enum
 import logging
 import orjson
+from typing import Dict, Any, Optional
+import asyncio
 
 logger = Logger.get_logger("ai_models.host", log_level=logging.ERROR)
 
@@ -31,14 +33,16 @@ class Host:
         temperature: float = 0.5,
         max_tokens: int = 64,
         verbose: bool = False,
-        concurrency: int = 10,
+        concurrency: int = 32,
+        retry_attempts: int = 3,
+        retry_delay: float = 1.0,
     ):
         self.host = host
         self.model = model
         self.timeout = timeout
         self.temperature = temperature
         self.max_tokens = max_tokens
-        self.session: aiohttp.ClientSession = None
+        self.session: Optional[aiohttp.ClientSession] = None
         self.verbose = verbose
         self.concurrency = concurrency
 
@@ -52,15 +56,25 @@ class Host:
         Returns:
             Host: 호스트 객체
         """
-        self.session = aiohttp.ClientSession(
-            connector=aiohttp.TCPConnector(limit=self.concurrency)
-        )
-        if not await self.check_connection():
-            logger.error(f"[Host] Failed to connect to the host: {self.host}")
-            await self.close()
-            raise RuntimeError("Failed to connect to the host")
-        logger.info(f"[Host] Connected to the host: {self.host}")
-        return self
+        try:
+            self.session = aiohttp.ClientSession(
+                connector=aiohttp.TCPConnector(
+                    limit=self.concurrency * 2, limit_per_host=20
+                )
+            )
+            if not await self.check_connection():
+                logger.error(f"[Host] Failed to connect to the host: {self.host}")
+                raise RuntimeError(f"Failed to connect to the host: {self.host}")
+
+            self._is_connected = True
+            logger.info(f"[Host] Connected to the host: {self.host}")
+            return self
+        except Exception as e:
+            # 세션 생성 후 연결 실패 시 세션 정리
+            if self.session is not None:
+                await self.session.close()
+                self.session = None
+            raise RuntimeError(f"[Host] Connection initialization failed: {str(e)}")
 
     async def __aexit__(self, exc_type, exc_value, traceback):
         """
@@ -107,21 +121,27 @@ class Host:
             logger.error(f"[Host] {e}")
             return False
 
-    async def query(self, task: SystemRole, payload: dict):
+    async def query(self, task: SystemRole, payload: Dict[str, Any]) -> Dict[str, Any]:
         """
-        요청
+        AI 모델에 쿼리 요청
 
         Args:
-            task (SystemRole): 요청 타입
-            payload (dict): 요청 데이터
+            task: 요청 타입
+            payload: 요청 데이터
 
         Raises:
             Exception: 요청 실패
             e: 예외 정보
 
         Returns:
-            dict: 응답 데이터
+            Dict[str, Any]: 응답 데이터
         """
+        if not self.session or not self._is_connected:
+            raise RuntimeError("Host session is not initialized or connected")
+
+        if not payload or "text" not in payload:
+            raise ValueError("Invalid payload: must contain 'text' field")
+
         headers = {"Content-Type": "application/json"}
 
         body = {
@@ -211,6 +231,13 @@ if __name__ == "__main__":
             logger.error(f"[{index:03}] ❌ 요청 실패: {e}")
 
     async def main():
+        import dotenv, os
+
+        dotenv.load_dotenv(override=True)
+        # 토큰 제한 테스트 실행
+
+        # 실제 API 호출 테스트
+        print("\n=== API 호출 테스트 ===")
         async with Host(
             "http://b5c5-34-118-242-65.ngrok-free.app",
             "naver-hyperclovax/HyperCLOVAX-SEED-Text-Instruct-1.5B",

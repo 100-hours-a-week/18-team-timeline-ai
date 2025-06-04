@@ -61,11 +61,11 @@ class ArticleExtractor(BaseSearcher):
                 return None
 
             # 기사 추출 시도
-            text = trafilatura.extract(downloaded, include_comments=False, include_tables=False)
+            text = trafilatura.extract(
+                downloaded, include_comments=False, include_tables=False
+            )
             if not text or not text.strip():
-                logger.error(
-                    f"[ArticleExtractor] 본문이 비어있음 - URL: {url['url']}"
-                )
+                logger.error(f"[ArticleExtractor] 본문이 비어있음 - URL: {url['url']}")
                 return None
 
             # 리턴
@@ -112,41 +112,6 @@ class ArticleExtractor(BaseSearcher):
                     yield result
             except Exception as e:
                 logger.error(f"[ArticleExtractor] 작업 처리 실패 : {e}")
-
-
-class ArticleParser:
-    def __init__(
-        self,
-        session_size: int = 10,
-        max_workers: int = 6,
-    ):
-        self.session_size = session_size
-        self.max_workers = max_workers
-
-    async def parse(self, text: dict) -> dict:
-        """기사 본문을 문장으로 분리하는 메서드
-
-        Args:
-            text (dict): 기사 본문
-                {"id": int, "title": str, "url": str, "input_text": str}
-        Returns:
-            dict: 기사 본문
-                {"id": int, "title": str, "url": str, "sentences": List[str]}
-        """
-        logger.info(f"[ArticleParser] : 기사 본문 분리 시작 - 길이: {len(text)}")
-        try:
-            return {
-                "title": text["title"],
-                "url": text["url"],
-                "sentences": [
-                    line.strip()
-                    for line in re.split(r"[.]", text["input_text"].strip())
-                    if is_meaningful_sentence(line)
-                ],
-            }
-        except Exception as e:
-            logger.error(f"[ArticleParser] 기사 본문 분리 실패 : {e}")
-            return None
 
 
 class ArticleFilter:
