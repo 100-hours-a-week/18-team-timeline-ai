@@ -16,20 +16,48 @@ class BatchManager:
         host: Host,
         batch_size: int = 4,
         max_wait_time: float = 1.0,
+        max_retries: int = 3,
     ):
         self.host = host
         self.batch_size = batch_size
         self.max_wait_time = max_wait_time
+        self.max_retries = max_retries
         self.input_queue = asyncio.Queue()
         self.output_queue = asyncio.Queue()
         self.pending_tasks = {}
         self.running = False
         self._cleanup_task = None
-        self._lock = asyncio.Lock()  # 동시성 제어를 위한 락 추가
+        self._lock = asyncio.Lock()
+        self._cleanup_interval = 30  # 30초마다 정리
+
+    async def start(self) -> None:
+        """배치 매니저 시작"""
+        if self.running:
+            logger.warning("[BatchManager] 이미 실행 중입니다.")
+            return
+
+        self.running = True
+        if self._cleanup_task is None or self._cleanup_task.done():
+            self._cleanup_task = asyncio.create_task(self._cleanup_pending_tasks())
+        logger.info("[BatchManager] 배치 매니저가 시작되었습니다.")
+
+    async def stop(self) -> None:
+        """배치 매니저 정지"""
+        if not self.running:
+            logger.warning("[BatchManager] 이미 정지되었습니다.")
+            return
+
+        self.running = False
+        if self._cleanup_task and not self._cleanup_task.done():
+            self._cleanup_task.cancel()
+            try:
+                await self._cleanup_task
+            except asyncio.CancelledError:
+                pass
+        logger.info("[BatchManager] 배치 매니저가 정지되었습니다.")
 
     async def submit(self, role: SystemRole, payload: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        요청 제출
+        """요청 제출
 
         Args:
             role: 시스템 역할
@@ -39,14 +67,8 @@ class BatchManager:
             Dict: 응답 데이터
         """
         if not self.running:
-            logger.warning("[BatchManager] 실행 중이 아닙니다. 자동으로 시작합니다.")
-            self.running = True
-            # 이미 실행 중인 cleanup 태스크가 없을 때만 새로 생성
-            if self._cleanup_task is None or self._cleanup_task.done():
-                self._cleanup_task = asyncio.create_task(self._cleanup_pending_tasks())
+            await self.start()
 
-    async def submit_request(self, role: SystemRole, payload: dict):
-        """요청 제출 메서드"""
         task_id = uuid.uuid4().hex
         queue = asyncio.Queue(maxsize=1)
 
@@ -74,31 +96,23 @@ class BatchManager:
             return {"error": f"[BatchManager] 예외 발생: {str(e)}"}
 
     async def _cleanup_pending_tasks(self) -> None:
-        """
-        오래된 대기 태스크 정리 (백그라운드 작업)
-        30초마다 실행되어 5분 이상 대기 중인 태스크를 정리합니다.
-        """
+        """오래된 대기 태스크 정리 (백그라운드 작업)"""
         while self.running:
             try:
                 current_time = time.time()
                 expired_tasks = []
 
-                # 락을 사용하여 pending_tasks 딕셔너리 접근 동기화
                 async with self._lock:
                     for task_id, (queue, submit_time) in list(
                         self.pending_tasks.items()
                     ):
-                        # 5분 이상 대기 중인 태스크는 만료로 처리
-                        if current_time - submit_time > 300:
+                        if current_time - submit_time > 300:  # 5분 이상 대기
                             expired_tasks.append((task_id, queue))
 
-                # 락 밖에서 만료된 태스크 처리
                 for task_id, queue in expired_tasks:
                     try:
                         await queue.put({"error": "태스크 만료"})
                         logger.warning(f"[BatchManager] 만료된 태스크 정리: {task_id}")
-
-                        # 락을 사용하여 pending_tasks 딕셔너리 접근 동기화
                         async with self._lock:
                             if task_id in self.pending_tasks:
                                 del self.pending_tasks[task_id]
@@ -107,10 +121,13 @@ class BatchManager:
                             f"[BatchManager] 만료된 태스크 {task_id} 정리 중 오류: {e}"
                         )
 
-                await asyncio.sleep(30)  # 30초마다 확인
+                await asyncio.sleep(self._cleanup_interval)
+            except asyncio.CancelledError:
+                logger.info("[BatchManager] 정리 작업이 취소되었습니다.")
+                break
             except Exception as e:
-                logger.error(f"[BatchManager] 태스크 정리 중 오류: {e}")
-                await asyncio.sleep(30)  # 오류 발생해도 계속 실행
+                logger.error(f"[BatchManager] 정리 작업 중 오류: {e}")
+                await asyncio.sleep(self._cleanup_interval)
 
     async def _gather_batch(self) -> List[Tuple[str, SystemRole, Dict[str, Any]]]:
         """

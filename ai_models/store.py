@@ -11,46 +11,22 @@ class ResultStore:
         self._store = OrderedDict()
         logger.info("ResultStore 인스턴스가 생성되었습니다.")
 
-    def register(self, obj: dict) -> None:
-        """URL을 등록하는 메서드
-
-        Args:
-            obj (dict): URL 정보를 담은 딕셔너리
-                {"url": str}
-
-        Raises:
-            ValueError: URL이 유효하지 않은 경우
-            TypeError: 입력이 딕셔너리가 아닌 경우
-        """
-        try:
-            if not isinstance(obj, dict):
-                logger.error(f"[ResultStore] 잘못된 입력 타입: {type(obj)}")
-                raise TypeError("입력은 딕셔너리여야 합니다")
-
+    def register(self, obj: dict):
+        if isinstance(obj, dict):
+            logger.debug("register()에 dict가 전달됨")
             url = obj.get("url")
             if not url:
-                logger.error("[ResultStore] URL이 제공되지 않음")
-                raise ValueError("URL이 필요합니다")
+                logger.error("register 실패: url 키가 없습니다.")
+                raise ValueError("url 키가 없습니다.")
+        else:
+            logger.error("register 실패: dict가 아님")
+            raise TypeError("dict가 아닙니다.")
 
-            if not isinstance(url, str):
-                logger.error(f"[ResultStore] 잘못된 URL 타입: {type(url)}")
-                raise ValueError("URL은 문자열이어야 합니다")
-
-            if not url.strip():
-                logger.error("[ResultStore] 빈 URL")
-                raise ValueError("URL은 비어있을 수 없습니다")
-
-            # URL 형식 검사
-            if not url.startswith(("http://", "https://")):
-                logger.error(f"[ResultStore] 잘못된 URL 형식: {url}")
-                raise ValueError("URL은 http:// 또는 https://로 시작해야 합니다")
-
-            logger.info(f"[ResultStore] URL 등록 성공: {url}")
+        if url not in self._store:
             self._store[url] = defaultdict(list)
-
-        except Exception as e:
-            logger.error(f"[ResultStore] URL 등록 실패: {str(e)}")
-            raise
+            logger.info(f"등록 완료: {url}")
+        else:
+            logger.debug(f"이미 등록된 URL: {url}")
 
     def add_result(self, url: str, role: SystemRole, content: str):
         if not url:

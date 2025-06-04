@@ -15,7 +15,7 @@ async def Pipeline(
     server: str,
     model: str,
     repeat: int = 1,
-    roles: List[SystemRole] = [SystemRole.SUMMARY],
+    roles: List[SystemRole] = [SystemRole.summary],
     batch_size: int = 256,
     max_wait_time: float = 2.0,
 ) -> Dict[str, Dict[str, List[str]]]:
@@ -135,7 +135,7 @@ async def TotalPipeline(
     server,
     model,
     repeat: int = 5,
-    roles: list[SystemRole] = [SystemRole.SUMMARY, SystemRole.TITLE],
+    roles: list[SystemRole] = [SystemRole.summary, SystemRole.title],
     batch_size: int = 5,
     max_wait_time: float = 0.5,
 ) -> Dict[str, Dict[str, List[str]]]:
@@ -229,9 +229,14 @@ async def TotalPipeline(
 
 if __name__ == "__main__":
     import time
+    import os
+    from dotenv import load_dotenv
 
-    SERVER = "http://1d5d-34-124-161-59.ngrok-free.app"
-    MODEL = "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
+    load_dotenv(override=True)
+    SERVER = os.getenv("SERVER")
+    MODEL = os.getenv("MODEL")
+    # SERVER = "http://1d5d-34-124-161-59.ngrok-free.app"
+    # MODEL = "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct"
     URLS = [
         {
             "url": "https://www.hani.co.kr/arti/society/society_general/1192251.html",
