@@ -27,6 +27,7 @@ dependencies = [
     "sentence-transformers (==4.1.0)",
     "bs4 (>=0.0.2,<0.0.3)",
     "numpy (==1.26.4)",
+    "openai (>=1.84.0,<2.0.0)",
 
 ]
 
@@ -93,6 +94,7 @@ exclude = '''
 ignore = "E203, E501, W503"
 max-line-length = 88
 exclude = ".git,__pycache__,docs/,old/,build/,dist/"
+
 
 [tool.poetry.group.dev.dependencies]
 black = "^25.1.0"

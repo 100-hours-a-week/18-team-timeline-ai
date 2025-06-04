@@ -33,6 +33,7 @@ dotenv.load_dotenv(override=True)
 SERVER = os.getenv("SERVER")
 MODEL = os.getenv("MODEL")
 REST_API_KEY = os.getenv("REST_API_KEY")
+API_KEY = os.getenv("OPENAI_API_KEY")
 
 checker = DaumKeywordMeaningChecker(REST_API_KEY)
 tag_names = ["", "ECONOMY", "ENTERTAINMENT", "SPORTS", "SCIENCE"]
@@ -119,7 +120,8 @@ async def get_timeline(request: Request, payload: TimelineRequest):
     # 2nd Summarization
     total_texts = [card.content for card in card_list]
     total_texts = shrink_if_needed(total_texts)
-    final_res = await TotalPipeline(total_texts, SERVER, MODEL, repeat=1)
+
+    final_res = await TotalPipeline(total_texts, API_KEY, repeat=1)
     if not final_res or not final_res["total_summary"]:
         error_response(500, "인공지능 2차 요약 실패!")
 
