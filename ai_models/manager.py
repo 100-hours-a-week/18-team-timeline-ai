@@ -1,6 +1,6 @@
 import asyncio
-from typing import List, Dict
-from collections import defaultdict, OrderedDict
+from typing import List, Dict, Any, Tuple
+from contextlib import asynccontextmanager
 from ai_models.host import Host, SystemRole
 from utils.logger import Logger
 import logging
@@ -45,32 +45,29 @@ class BatchManager:
             if self._cleanup_task is None or self._cleanup_task.done():
                 self._cleanup_task = asyncio.create_task(self._cleanup_pending_tasks())
 
-    async def submit(self, role: SystemRole, payload: dict):
+    async def submit_request(self, role: SystemRole, payload: dict):
+        """요청 제출 메서드"""
         task_id = uuid.uuid4().hex
         queue = asyncio.Queue(maxsize=1)
 
         if logger.log_level <= logging.DEBUG:
             logger.debug(f"[BatchManager] 요청 제출: {task_id}")
 
-        # 락을 사용하여 pending_tasks 딕셔너리 접근 동기화
         async with self._lock:
             self.pending_tasks[task_id] = (queue, time.time())
 
         try:
             await self.input_queue.put((task_id, role, payload))
-            # 타임아웃 설정으로 무한정 대기하지 않도록 함
             result = await asyncio.wait_for(queue.get(), timeout=60.0)
             return result
         except asyncio.TimeoutError:
             logger.error(f"[BatchManager] 요청 {task_id}에 대한 응답 대기 시간 초과")
-            # 락을 사용하여 pending_tasks 딕셔너리 접근 동기화
             async with self._lock:
                 if task_id in self.pending_tasks:
                     del self.pending_tasks[task_id]
             return {"error": "[BatchManager] 응답 대기 시간 초과"}
         except Exception as e:
             logger.error(f"[BatchManager] 요청 {task_id} 처리 중 예외 발생: {e}")
-            # 락을 사용하여 pending_tasks 딕셔너리 접근 동기화
             async with self._lock:
                 if task_id in self.pending_tasks:
                     del self.pending_tasks[task_id]
@@ -328,142 +325,3 @@ async def create_batch_manager(
                     await runner
                 except asyncio.CancelledError:
                     pass
-
-
-if __name__ == "__main__":
-    # 테스트 코드
-    from scrapers.article_extractor import (
-        ArticleExtractor,
-        ArticleParser,
-        ArticleFilter,
-    )
-
-    async with (
-        Host(
-            "http://fcab-34-118-242-65.ngrok-free.app",
-            "LGAI-EXAONE/EXAONE-3.5-7.8B-Instruct",
-        ) as host,
-    ):
-        extractor = ArticleExtractor()
-        parser = ArticleParser()
-        filter = ArticleFilter(top_k=4)
-        manager = BatchManager(host, batch_size=5, max_wait_time=0.5)
-        runner = asyncio.create_task(manager.run())
-        results_dict = OrderedDict()
-
-        URLS = [
-            {
-                "url": "https://www.hani.co.kr/arti/society/society_general/1192251.html",
-                "title": "말 바꾼 윤석열 “계엄 길어야 하루”…헌재선 “며칠 예상”",
-            },
-            {
-                "url": "https://www.hani.co.kr/arti/society/society_general/1192255.html",
-                "title": "윤석열 40분간 “계엄은 평화적 메시지”…판사도 발언 ‘시간조절’ 당부",
-            },
-            {
-                "url": "https://www.hankyung.com/article/2025041493977",
-                "title": "'[속보] 韓대행 '국무위원들과 제게 부여된 마지막 소명 다할 것'",
-            },
-        ]
-        for item in URLS:
-            url = item["url"]
-            if url not in results_dict:
-                results_dict[url] = defaultdict(list)
-
-        async with filter:
-            async for result in extractor.search(URLS):
-
-                parsed_result = await parser.parse(result)
-                key_sentences = await filter.extract_key_sentences(parsed_result)
-                sentence = ". ".join(key_sentences)
-
-                tasks = []
-                for _ in range(10):
-                    for role in [
-                        SystemRole.SUMMARIZE,
-                        SystemRole.TITLE,
-                        SystemRole.TAG,
-                    ]:
-
-                    # 텍스트 추출 및 처리
-                    async with filter:
-                        async for result in extractor.search(URLS):
-                            try:
-                                parsed_result = await parser.parse(result)
-                                key_sentences = await filter.extract_key_sentences(
-                                    parsed_result
-                                )
-
-                                # 빈 결과 처리
-                                if not key_sentences:
-                                    print(f"⚠️ 키 문장 추출 실패: URL={result['url']}")
-                                    continue
-
-                                sentence = ". ".join(key_sentences)
-
-                                # 태스크 생성
-                                tasks = []
-                                for _ in range(2):  # 테스트를 위해 반복 횟수 감소
-                                    for role in [
-                                        SystemRole.SUMMARY,
-                                        SystemRole.TITLE,
-                                        SystemRole.TAG,
-                                    ]:
-                                        task = asyncio.create_task(
-                                            wrapper(
-                                                result["url"], role, sentence, manager
-                                            )
-                                        )
-                                        tasks.append(task)
-
-                                # 결과 수집 (완료되는 순서대로)
-                                for task in asyncio.as_completed(tasks):
-                                    try:
-                                        url, role, result = await task
-
-                                        if (
-                                            isinstance(result, dict)
-                                            and "error" in result
-                                        ):
-                                            print(
-                                                f"❌ 요청 실패: URL={url}, ROLE={role}, ERROR={result['error']}"
-                                            )
-                                            continue
-
-                                        content = (
-                                            result["choices"][0]["message"]["content"]
-                                            if result
-                                            and "choices" in result
-                                            and result["choices"]
-                                            else "실패"
-                                        )
-                                        print(f"[{url}][{role}] → {content}")
-                                        results_dict[url][role].append(content)
-                                        print("-" * 50)
-                                    except Exception as e:
-                                        print(f"❌ 태스크 처리 중 오류: {e}")
-                            except Exception as e:
-                                print(f"❌ 결과 처리 중 오류: {e}")
-
-                    # 결과 출력
-                    for url in results_dict:
-                        print(f"\n📌 URL: {url}")
-                        for role in [
-                            SystemRole.SUMMARY,
-                            SystemRole.TITLE,
-                            SystemRole.TAG,
-                        ]:
-                            entries = results_dict[url].get(role, [])
-                            print(f"  {role}:")
-                            for i, entry in enumerate(entries):
-                                print(f"    {i+1}. {entry}")
-
-            print("✅ 테스트 완료")
-        except Exception as e:
-            print(f"❌ 테스트 실행 중 오류 발생: {e}")
-
-    # 테스트 실행
-    start = time.perf_counter()
-    asyncio.run(main())
-    end = time.perf_counter()
-    print(f"총 실행 시간: {end - start:.2f}s")

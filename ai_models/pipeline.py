@@ -7,11 +7,6 @@ from ai_models.store import ResultStore
 import logging
 from utils.logger import Logger
 
-from ai_models.host import Host, SystemRole
-from scrapers.article_extractor import ArticleExtractor
-from ai_models.manager import BatchManager, wrapper
-from ai_models.store import ResultStore
-
 logger = Logger.get_logger("ai_models.pipeline", log_level=logging.ERROR)
 
 
@@ -192,27 +187,42 @@ async def TotalPipeline(
                             wrapper("total_summary", role, sentence, manager)
                         )
                     )
-                )
 
-        for task in asyncio.as_completed(tasks):
+            # 태스크 결과 처리
+            for task in asyncio.as_completed(tasks):
+                try:
+                    url, role, response = await task
+                    content = (
+                        response["choices"][0]["message"]["content"]
+                        if response
+                        else "실패"
+                    )
+                    results_dict.add_result(url=url, role=role, content=content)
+                except Exception as e:
+                    logger.error(f"[TotalPipeline] 태스크 처리 중 오류: {e}")
+                    continue
+
+            # 리소스 정리
+            manager.running = False
+            await asyncio.sleep(1.0)
+
+    except Exception as e:
+        logger.error(f"[TotalPipeline] 실행 중 예외 발생: {e}")
+        import traceback
+
+        logger.error(traceback.format_exc())
+        raise
+    finally:
+        # 리소스 정리
+        if manager:
+            manager.running = False
+            await asyncio.sleep(0.5)
+
+        if runner and not runner.done():
             try:
-                url, role, response = await task
-                content = (
-                    response["choices"][0]["message"]["content"] if response else "실패"
-                )
-                results_dict.add_result(url=url, role=role, content=content)
-            except Exception as e:
-                import traceback
-
-                traceback.print_exc()
-                await asyncio.sleep(1)
-                raise e
-        manager.running = False
-        await asyncio.sleep(1.0)
-        try:
-            await runner
-        except asyncio.CancelledError:
-            pass
+                await asyncio.wait_for(runner, timeout=1.0)
+            except (asyncio.TimeoutError, asyncio.CancelledError) as e:
+                logger.warning(f"[TotalPipeline] Runner 정리 중 오류: {e}")
 
     return results_dict.as_dict()
 
@@ -225,11 +235,11 @@ if __name__ == "__main__":
     URLS = [
         {
             "url": "https://www.hani.co.kr/arti/society/society_general/1192251.html",
-            "title": "말 바꾼 윤석열 “계엄 길어야 하루”…헌재선 “며칠 예상”",
+            "title": '말 바꾼 윤석열 "계엄 길어야 하루"…헌재선 "며칠 예상"',
         },
         {
             "url": "https://www.hani.co.kr/arti/society/society_general/1192255.html",
-            "title": "윤석열 40분간 “계엄은 평화적 메시지”…판사도 발언 ‘시간조절’ 당부",
+            "title": "윤석열 40분간 \"계엄은 평화적 메시지\"…판사도 발언 '시간조절' 당부",
         },
         {
             "url": "https://www.hankyung.com/article/2025041493977",

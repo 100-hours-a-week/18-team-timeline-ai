@@ -1,7 +1,7 @@
 from collections import OrderedDict, defaultdict
-from typing import Dict, List, Any
 import logging
 from utils.logger import Logger
+from ai_models.host import SystemRole
 
 logger = Logger.get_logger("ai_models.store", log_level=logging.ERROR)
 
@@ -11,22 +11,46 @@ class ResultStore:
         self._store = OrderedDict()
         logger.info("ResultStore 인스턴스가 생성되었습니다.")
 
-    def register(self, obj: dict):
-        if isinstance(obj, dict):
-            logger.debug("register()에 dict가 전달됨")
+    def register(self, obj: dict) -> None:
+        """URL을 등록하는 메서드
+
+        Args:
+            obj (dict): URL 정보를 담은 딕셔너리
+                {"url": str}
+
+        Raises:
+            ValueError: URL이 유효하지 않은 경우
+            TypeError: 입력이 딕셔너리가 아닌 경우
+        """
+        try:
+            if not isinstance(obj, dict):
+                logger.error(f"[ResultStore] 잘못된 입력 타입: {type(obj)}")
+                raise TypeError("입력은 딕셔너리여야 합니다")
+
             url = obj.get("url")
             if not url:
-                logger.error("register 실패: url 키가 없습니다.")
-                raise ValueError("url 키가 없습니다.")
-        else:
-            logger.error("register 실패: dict가 아님")
-            raise TypeError("dict가 아닙니다.")
+                logger.error("[ResultStore] URL이 제공되지 않음")
+                raise ValueError("URL이 필요합니다")
 
-        if url not in self._store:
+            if not isinstance(url, str):
+                logger.error(f"[ResultStore] 잘못된 URL 타입: {type(url)}")
+                raise ValueError("URL은 문자열이어야 합니다")
+
+            if not url.strip():
+                logger.error("[ResultStore] 빈 URL")
+                raise ValueError("URL은 비어있을 수 없습니다")
+
+            # URL 형식 검사
+            if not url.startswith(("http://", "https://")):
+                logger.error(f"[ResultStore] 잘못된 URL 형식: {url}")
+                raise ValueError("URL은 http:// 또는 https://로 시작해야 합니다")
+
+            logger.info(f"[ResultStore] URL 등록 성공: {url}")
             self._store[url] = defaultdict(list)
-            logger.info(f"등록 완료: {url}")
-        else:
-            logger.debug(f"이미 등록된 URL: {url}")
+
+        except Exception as e:
+            logger.error(f"[ResultStore] URL 등록 실패: {str(e)}")
+            raise
 
     def add_result(self, url: str, role: SystemRole, content: str):
         if not url:
@@ -75,16 +99,3 @@ class ResultStore:
         urls = list(self._store.keys())
         logger.debug(f"등록된 URL 목록 조회됨: {len(urls)}개")
         return urls
-
-
-if __name__ == "__main__":
-    store = ResultStore()
-
-    store.register({"url": "https://example.com/b"})
-    store.add_result("qsdqsdqdq", role=SystemRole.TITLE, content="제목 결과")
-    store.add_result("https://example.com/a", SystemRole.SUMMARIZE, "요약 결과")
-    store.add_result("https://example.com/b", SystemRole.TITLE, "제목 결과")
-    store.add_result("https://example.com/b", SystemRole.TITLE, "제목 결과")
-    store.add_result("https://example.com/b", SystemRole.TAG, "제목 결과")
-
-    store.display()
