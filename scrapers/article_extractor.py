@@ -2,6 +2,7 @@ import re
 import aiohttp
 import asyncio
 import trafilatura
+from trafilatura.settings import use_config
 from utils.logger import Logger
 import requests
 
@@ -17,6 +18,15 @@ import numpy as np
 import logging
 
 logger = Logger.get_logger("article_extractor", log_level=logging.ERROR)
+config = use_config()
+config.set(
+    "DEFAULT",
+    "user-agent",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36",
+)
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36"
+}
 
 
 class ArticleExtractor(BaseSearcher):
@@ -64,13 +74,16 @@ class ArticleExtractor(BaseSearcher):
         """
         try:
             # requests를 사용하여 페이지 다운로드
-            response = self.session.get(url["url"], timeout=10)
+            response = self.session.get(url["url"], timeout=10, headers=headers)
             response.raise_for_status()
             html_content = response.text
 
             # trafilatura로 본문 추출
             text = trafilatura.extract(
-                html_content, include_comments=False, include_tables=False
+                html_content,
+                include_comments=False,
+                include_tables=False,
+                config=config,
             )
             if not text or not text.strip():
                 logger.error(f"[ArticleExtractor] 본문이 비어있음 - URL: {url['url']}")
