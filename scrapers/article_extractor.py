@@ -2,7 +2,9 @@ import re
 import aiohttp
 import asyncio
 import trafilatura
+from trafilatura.settings import use_config
 from utils.logger import Logger
+import requests
 
 from typing import List, Dict, Optional, AsyncGenerator
 from scrapers.base_searcher import BaseSearcher
@@ -17,6 +19,15 @@ import numpy as np
 import logging
 
 logger = Logger.get_logger("article_extractor", log_level=logging.ERROR)
+config = use_config()
+config.set(
+    "DEFAULT",
+    "user-agent",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36",
+)
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36"
+}
 
 
 class ArticleExtractor(BaseSearcher):
@@ -30,6 +41,16 @@ class ArticleExtractor(BaseSearcher):
         """
         self.max_workers = max_workers
         self.lang = lang
+        # requests 세션 생성
+        self.session = requests.Session()
+        # 연결 풀 설정
+        adapter = requests.adapters.HTTPAdapter(
+            pool_connections=100,  # 연결 풀 크기
+            pool_maxsize=100,  # 최대 연결 수
+            max_retries=3,  # 재시도 횟수
+        )
+        self.session.mount("http://", adapter)
+        self.session.mount("https://", adapter)
 
     async def extract_single(self, url: dict) -> Optional[Dict[str, str]]:
         """기사 URL로부터 본문을 추출하는 메서드
@@ -53,21 +74,21 @@ class ArticleExtractor(BaseSearcher):
                 실패 시 None
         """
         try:
-            # 기사 다운로드 시도
+            # requests를 사용하여 페이지 다운로드
             url["url"] = auto_clean_url(url["url"])
-            downloaded = trafilatura.fetch_url(url["url"])
-            if not downloaded:
-                logger.error(
-                    f"[ArticleExtractor] 기사 다운로드 실패 - URL: {url['url']}"
-                )
-                return None
+            response = self.session.get(url["url"], timeout=10, headers=headers)
+            response.raise_for_status()
+            html_content = response.text
 
-            # 기사 추출 시도
-            text = trafilatura.extract(downloaded, include_comments=False, include_tables=False)
+            # trafilatura로 본문 추출
+            text = trafilatura.extract(
+                html_content,
+                include_comments=False,
+                include_tables=False,
+                config=config,
+            )
             if not text or not text.strip():
-                logger.error(
-                    f"[ArticleExtractor] 본문이 비어있음 - URL: {url['url']}"
-                )
+                logger.error(f"[ArticleExtractor] 본문이 비어있음 - URL: {url['url']}")
                 return None
 
             # 리턴
@@ -100,11 +121,16 @@ class ArticleExtractor(BaseSearcher):
         Yields:
             Iterator[AsyncGenerator[dict, None]]: 추출된 기사 정보 리스트
         """
+        # 세마포어를 사용하여 동시 요청 수 제한
+        semaphore = asyncio.Semaphore(self.max_workers)
+
+        async def bounded_extract(url):
+            async with semaphore:
+                return await self.extract_single(url)
 
         task_list = []
-
-        for idx, url in enumerate(urls):
-            task = asyncio.create_task(self.extract_single(url))
+        for url in urls:
+            task = asyncio.create_task(bounded_extract(url))
             task_list.append(task)
 
         for task in asyncio.as_completed(task_list):
@@ -115,40 +141,10 @@ class ArticleExtractor(BaseSearcher):
             except Exception as e:
                 logger.error(f"[ArticleExtractor] 작업 처리 실패 : {e}")
 
-
-class ArticleParser:
-    def __init__(
-        self,
-        session_size: int = 10,
-        max_workers: int = 6,
-    ):
-        self.session_size = session_size
-        self.max_workers = max_workers
-
-    async def parse(self, text: dict) -> dict:
-        """기사 본문을 문장으로 분리하는 메서드
-
-        Args:
-            text (dict): 기사 본문
-                {"id": int, "title": str, "url": str, "input_text": str}
-        Returns:
-            dict: 기사 본문
-                {"id": int, "title": str, "url": str, "sentences": List[str]}
-        """
-        logger.info(f"[ArticleParser] : 기사 본문 분리 시작 - 길이: {len(text)}")
-        try:
-            return {
-                "title": text["title"],
-                "url": text["url"],
-                "sentences": [
-                    line.strip()
-                    for line in re.split(r"[.]", text["input_text"].strip())
-                    if is_meaningful_sentence(line)
-                ],
-            }
-        except Exception as e:
-            logger.error(f"[ArticleParser] 기사 본문 분리 실패 : {e}")
-            return None
+    def __del__(self):
+        # 세션 정리
+        if hasattr(self, "session"):
+            self.session.close()
 
 
 class ArticleFilter:
@@ -309,55 +305,3 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
     except Exception as e:
         logger.error(f"[cosine_similarity] 코사인 유사도 계산 중 오류 발생: {e}")
         return 0.0
-
-
-if __name__ == "__main__":
-
-    async def main():
-        URLS = [
-            {
-                "url": "https://www.hani.co.kr/arti/society/society_general/1192251.html",
-                "title": "말 바꾼 윤석열 “계엄 길어야 하루”…헌재선 “며칠 예상”",
-            },
-            {
-                "url": "https://www.hani.co.kr/arti/society/society_general/1192255.html",
-                "title": "윤석열 40분간 “계엄은 평화적 메시지”…판사도 발언 ‘시간조절’ 당부",
-            },
-            {
-                "url": "https://www.hankyung.com/article/2025041493977",
-                "title": "'[속보] 韓대행 '국무위원들과 제게 부여된 마지막 소명 다할 것'",
-            },
-        ]
-        URLS = assign_id_from_URLS(URLS)
-        logger.info(f"[main] URLS 길이: {len(URLS)}")
-        runner = ArticleExtractor()
-        logger.info(f"[main] ArticleExtractor 초기화 완료")
-        parser = ArticleParser()
-        logger.info(f"[main] ArticleParser 초기화 완료")
-        filter = ArticleFilter()
-        logger.info(f"[main] ArticleFilter 초기화 완료")
-        async with filter:
-            async for result in runner.search(urls=URLS):
-                logger.info(f"[main] 기사 추출 시작 - {result['title']}")
-                print(f"ID: {result['id']}")
-                print(f"제목: {result['title']}")
-                print(f"URL: {result['url']}")
-                print(f"본문 길이: {len(result['input_text'])}")
-                print("-" * 100)
-                parsed_result = await parser.parse(result)
-                logger.info(f"[main] 기사 본문 분리 완료 - {result['title']}")
-                for idx, line in enumerate(parsed_result["sentences"]):
-                    print(f"{idx} : {line}")
-                print("-" * 100)
-
-                print(f"제목: {parsed_result['title']}")
-                key_sentences = await filter.extract_key_sentences(parsed_result)
-                logger.info(f"[main] 키 문장 추출 시작 - {parsed_result['title']}")
-                for idx, line in enumerate(key_sentences):
-                    print(f"{idx} : {line}")
-                print("-" * 100)
-                logger.info(f"[main] 키 문장 추출 완료 - {parsed_result['title']}")
-
-    logger.info("[main] 프로그램 시작")
-    asyncio.run(main())
-    logger.info("[main] 프로그램 종료")

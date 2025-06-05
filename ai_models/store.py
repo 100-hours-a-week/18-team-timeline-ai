@@ -1,8 +1,7 @@
 from collections import OrderedDict, defaultdict
-from ai_models.host import SystemRole
-from uuid import uuid4
 import logging
 from utils.logger import Logger
+from ai_models.host import SystemRole
 
 logger = Logger.get_logger("ai_models.store", log_level=logging.ERROR)
 
@@ -76,16 +75,3 @@ class ResultStore:
         urls = list(self._store.keys())
         logger.debug(f"등록된 URL 목록 조회됨: {len(urls)}개")
         return urls
-
-
-if __name__ == "__main__":
-    store = ResultStore()
-
-    store.register({"url": "https://example.com/b"})
-    store.add_result("qsdqsdqdq", role=SystemRole.TITLE, content="제목 결과")
-    store.add_result("https://example.com/a", SystemRole.SUMMARIZE, "요약 결과")
-    store.add_result("https://example.com/b", SystemRole.TITLE, "제목 결과")
-    store.add_result("https://example.com/b", SystemRole.TITLE, "제목 결과")
-    store.add_result("https://example.com/b", SystemRole.TAG, "제목 결과")
-
-    store.display()
