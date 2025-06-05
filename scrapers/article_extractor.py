@@ -6,6 +6,7 @@ from utils.logger import Logger
 
 from typing import List, Dict, Optional, AsyncGenerator
 from scrapers.base_searcher import BaseSearcher
+from utils.timeline_utils import auto_clean_url
 
 from config.settings import (
     OLLAMA_HOST,
@@ -53,6 +54,7 @@ class ArticleExtractor(BaseSearcher):
         """
         try:
             # 기사 다운로드 시도
+            url["url"] = auto_clean_url(url["url"])
             downloaded = trafilatura.fetch_url(url["url"])
             if not downloaded:
                 logger.error(
