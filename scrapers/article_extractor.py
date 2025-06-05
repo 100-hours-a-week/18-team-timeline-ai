@@ -8,6 +8,7 @@ import requests
 
 from typing import List, Dict, Optional, AsyncGenerator
 from scrapers.base_searcher import BaseSearcher
+from utils.timeline_utils import auto_clean_url
 
 from config.settings import (
     OLLAMA_HOST,
@@ -74,6 +75,7 @@ class ArticleExtractor(BaseSearcher):
         """
         try:
             # requests를 사용하여 페이지 다운로드
+            url["url"] = auto_clean_url(url["url"])
             response = self.session.get(url["url"], timeout=10, headers=headers)
             response.raise_for_status()
             html_content = response.text

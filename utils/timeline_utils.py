@@ -1,4 +1,7 @@
 import re
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
+noise_prefixes = ['utm_', 'ref', 'search_', 'session',
+                  'tracking_', 'gclid', 'fbclid', 'adid', 'clid']
 
 
 def next_timeline_type(current: str) -> str:
@@ -27,6 +30,23 @@ def available_url(url: str) -> bool:
         if publisher in url:
             return False
     return True
+
+
+def auto_clean_url(url):
+    parsed = urlparse(url)
+    query = parse_qs(parsed.query)
+
+    filtered_query = {
+        k: v for k, v in query.items()
+        if not any(k.lower().startswith(prefix) for prefix in noise_prefixes)
+    }
+
+    new_query = urlencode(filtered_query, doseq=True)
+    cleaned_url = urlunparse((
+        parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment
+    ))
+
+    return cleaned_url
 
 
 def short_sentence(text: str) -> str:
