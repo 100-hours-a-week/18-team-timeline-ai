@@ -33,9 +33,18 @@ logging.basicConfig(
 
 
 async def main(query: str):
+    # 댓글 데이터 수집
     df = daum_vclip_searcher.search(query=query)
+    if not df:
+        return error_response(404, "DaumVclip 검색 결과가 없습니다!")
+
     ripple = await youtube_searcher.search(df=df)
+    if not ripple:
+        return error_response(500, "Youtube 데이터를 불러오는 데 실패했습니다")
+    
     ripple = [r["comment"] for r in ripple]
+    if not ripple:
+        return error_response(404, "Youtube 댓글이 없습니다")
 
     aggregator = SentimentAggregator()
     ret = await aggregator.aggregate_multiple_queries(
@@ -43,6 +52,7 @@ async def main(query: str):
         embedding_constructor=OllamaEmbeddingService,
     )
 
+    # 댓글 데이터 분류
     total = sum(ret.values())
     if total == 0:
         ret["긍정"] = 0
