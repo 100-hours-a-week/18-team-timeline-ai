@@ -171,7 +171,7 @@ class Logger:
 
     @classmethod
     def get_logger(
-        cls, name: str, log_level: int = logging.INFO, log_dir: str = "logs"
+        cls, name: str, log_level: int = logging.ERROR, log_dir: str = "logs"
     ) -> "Logger":
         """로거 인스턴스를 가져옵니다.
 

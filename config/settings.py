@@ -5,7 +5,7 @@ QDRANT_HOST = "localhost"
 QDRANT_PORT = 6333
 QDRANT_GRPC_PORT = 6334
 VECTOR_SIZE = 1024
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 # 감정 레이블 설정
 LABELS = [
     "불평/불만",
@@ -115,3 +115,9 @@ DATASET_VOLUME = "./qdrant_storage"
 OLLAMA_HOST = "http://localhost:11434"
 OLLAMA_MODEL = "bge-m3"
 # ------------------------------------------------------------------------------
+# 밴 방지용 설정
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36"
+POOL_CONECTION = 100
+POOL_MAXSIZE = 100
+MAX_RETRIES = 3
+ARTICLE_TIMEOUT = 10

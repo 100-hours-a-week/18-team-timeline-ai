@@ -15,7 +15,6 @@ dependencies = [
     "google-auth-httplib2 (>=0.2.0,<1.0.0)",
     "google-api-python-client (>=2.166.0,<3.0.0)",
     "slowapi (==0.1.9)",
-    "tqdm (>=4.67.1,<5.0.0)",
     "aiolimiter (>=1.2.1,<2.0.0)",
     "fastapi (==0.115.8)",
     "pydantic (==2.10.6)",
@@ -28,7 +27,6 @@ dependencies = [
     "bs4 (>=0.0.2,<0.0.3)",
     "numpy (==1.26.4)",
     "openai (>=1.84.0,<2.0.0)",
-
 ]
 
 [[tool.poetry.source]]
@@ -92,8 +90,9 @@ exclude = '''
 # 아래 섹션은 flake8의 설정
 [tool.flake8]
 ignore = "E203, E501, W503"
-max-line-length = 88
+max-line-length = 100
 exclude = ".git,__pycache__,docs/,old/,build/,dist/"
+
 
 
 [tool.poetry.group.dev.dependencies]

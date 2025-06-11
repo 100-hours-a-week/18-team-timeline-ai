@@ -1,21 +1,26 @@
 import os
 import dotenv
-import logging
 
 from fastapi import APIRouter
 from utils.error_utils import error_response
-from models.response_schema import CommonResponse, ErrorResponse
-from models.response_schema import CommentRequest, CommentData
+from schemas.response_schema import (
+    CommonResponse,
+    ErrorResponse,
+    CommentRequest,
+    CommentData,
+)
 
 from scrapers.daum_vclip_searcher import DaumVclipSearcher
 from scrapers.youtube_searcher import YouTubeCommentAsyncFetcher
 
-from classify.embedding import OllamaEmbeddingService
-from classify.sentiment import SentimentAggregator
+from inference.embedding import OllamaEmbeddingService
+from services.classify import SentimentAggregator
+from utils.logger import Logger
 
 # -------------------------------------------------------------------
 
 router = APIRouter()
+logger = Logger.get_logger("api_comment")
 
 dotenv.load_dotenv(override=True)
 YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
@@ -24,11 +29,6 @@ REST_API_KEY = os.getenv("REST_API_KEY")
 daum_vclip_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
 youtube_searcher = YouTubeCommentAsyncFetcher(api_key=YOUTUBE_API_KEY, max_comments=10)
 
-logging.basicConfig(
-    level=logging.INFO,  # ← 이 부분이 핵심
-    format="%(asctime)s - %(levelname)s - %(message)s",
-)
-
 # -------------------------------------------------------------------
 
 
@@ -36,14 +36,17 @@ async def main(query: str):
     # 댓글 데이터 수집
     df = daum_vclip_searcher.search(query=query)
     if not df:
+        logger.warning("DaumVclip 검색 결과가 없습니다!")
         return error_response(404, "DaumVclip 검색 결과가 없습니다!")
 
     ripple = await youtube_searcher.search(df=df)
     if not ripple:
+        logger.error("Youtube 데이터를 불러오는 데 실패했습니다")
         return error_response(500, "Youtube 데이터를 불러오는 데 실패했습니다")
-    
+
     ripple = [r["comment"] for r in ripple]
     if not ripple:
+        logger.warning("Youtube 댓글이 없습니다")
         return error_response(404, "Youtube 댓글이 없습니다")
 
     aggregator = SentimentAggregator()
@@ -87,6 +90,7 @@ async def classify_comments(request: CommentRequest):
     # 통계
     res = await main(query=query_str)
     if not res:
+        logger.error("댓글 분류 실패!")
         return error_response(500, "댓글 분류 실패!")
     summary = CommentData(
         positive=res["긍정"],

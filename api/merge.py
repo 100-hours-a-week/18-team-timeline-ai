@@ -5,17 +5,16 @@ import asyncio
 from fastapi import APIRouter
 
 from utils.error_utils import error_response
-from utils.timeline_utils import next_timeline_type
-from utils.timeline_utils import shrink_if_needed
-
-from models.response_schema import CommonResponse, ErrorResponse
-from models.response_schema import MergeRequest
-from models.timeline_card import TimelineCard
-from ai_models.pipeline import TotalPipeline
+from utils.timeline_utils import next_timeline_type, shrink_if_needed
+from pipelines.total_pipeline import TotalPipeline
+from schemas.response_schema import CommonResponse, ErrorResponse, MergeRequest
+from domain.timeline_card import TimelineCard
+from utils.logger import Logger
 
 # -------------------------------------------------------------------
 
 router = APIRouter()
+logger = Logger.get_logger("api_merge")
 
 dotenv.load_dotenv(override=True)
 SERVER = os.getenv("SERVER")
@@ -47,7 +46,7 @@ def merge_timeline(request: MergeRequest):
         imgs.extend(card.source)
         contents.append(card.content)
     contents = shrink_if_needed(contents)
-    final_res = asyncio.run(TotalPipeline(contents, SERVER, MODEL, repeat=1))
+    final_res = asyncio.run(TotalPipeline(contents, SERVER, MODEL))
     if not final_res or not final_res["total_summary"]:
         return error_response(500, "인공지능이 병합 요약에 실패했습니다.")
 

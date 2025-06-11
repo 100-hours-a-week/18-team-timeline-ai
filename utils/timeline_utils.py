@@ -1,7 +1,17 @@
 import re
 from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
-noise_prefixes = ['utm_', 'ref', 'search_', 'session',
-                  'tracking_', 'gclid', 'fbclid', 'adid', 'clid']
+
+noise_prefixes = [
+    "utm_",
+    "ref",
+    "search_",
+    "session",
+    "tracking_",
+    "gclid",
+    "fbclid",
+    "adid",
+    "clid",
+]
 
 
 def next_timeline_type(current: str) -> str:
@@ -37,14 +47,22 @@ def auto_clean_url(url):
     query = parse_qs(parsed.query)
 
     filtered_query = {
-        k: v for k, v in query.items()
+        k: v
+        for k, v in query.items()
         if not any(k.lower().startswith(prefix) for prefix in noise_prefixes)
     }
 
     new_query = urlencode(filtered_query, doseq=True)
-    cleaned_url = urlunparse((
-        parsed.scheme, parsed.netloc, parsed.path, parsed.params, new_query, parsed.fragment
-    ))
+    cleaned_url = urlunparse(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            parsed.path,
+            parsed.params,
+            new_query,
+            parsed.fragment,
+        )
+    )
 
     return cleaned_url
 
@@ -56,7 +74,7 @@ def short_sentence(text: str) -> str:
         text = re.sub(pattern, "", text)
 
     # 마침표 뒤 제거 (소수점은 보호)
-    text = re.split(r'(?<=[^0-9])\.\s+', text)[0].strip()
+    text = re.split(r"(?<=[^0-9])\.\s+", text)[0].strip()
 
     # 생략부호 뒤 제거
     if "…" in text:
@@ -84,13 +102,13 @@ def short_sentence(text: str) -> str:
 
 def compress_sentence(text: str, target_len: int = 70) -> str:
     # 마침표 기준으로 문장 분할
-    sentences = re.split(r'[.…]', text)
+    sentences = re.split(r"[.…]", text)
     sentences = [s.strip() for s in sentences if s.strip()]
 
     # 특정 길이 이상이면 스캔 멈춤
     result = ""
     for sentence in sentences:
-        result += (sentence + '. ')
+        result += sentence + ". "
         if len(result) >= target_len:
             break
 

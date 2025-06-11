@@ -1,35 +1,11 @@
 import aiohttp
 from utils.logger import Logger
-from utils.handling import handle_http_error
-from enum import Enum
+from config.prompts import SYSTEM_PROMPT, SystemRole
 import logging
 import orjson
 from typing import Dict, Any, Optional
 
 logger = Logger.get_logger("ai_models.host", log_level=logging.ERROR)
-
-
-class SystemRole(Enum):
-    summary = "summary"
-    title = "title"
-
-
-SYSTEM_PROMPT = {
-    SystemRole.summary: (
-        "당신은 한국어 문장 요약 전문가입니다. 주어진 문장을 정확히 파악한 뒤, 그 의미를 유지하면서도 "
-        "가장 핵심적인 내용을 한 문장으로 요약합니다. 모든 응답은 반드시 **32자 이내의 반말**로 작성해야 하며, "
-        "요약 이외의 설명, 사족, 감정 표현은 절대 포함하지 마세요. 예를 들어, '다음은 요약입니다:' 또는 "
-        "'~입니다' 같은 표현도 사용하지 마세요. 이 작업은 민감한 사안에 대한 의견을 요구하는 것이 아닌, "
-        "기계적인 요약 작업임을 유의하세요."
-        "모든 제목은 평서문(~다) 형식으로 끝나야 한다."
-    ),
-    SystemRole.title: (
-        "당신은 한국어 뉴스 제목을 가장 효과적으로 짓는 전문가입니다. 주어진 문장의 핵심을 파악해 가장 간결하고 "
-        "주목을 끌 수 있는 제목을 지으세요. 모든 응답은 반드시 **18자 이내**여야 하며, 제목 이외의 말은 절대 하지 마세요. "
-        "‘다음은 제목입니다:’ 같은 서술도 금지됩니다. 제목은 반드시 간결하고 사실 기반으로 작성하세요. "
-        "비문, 감정 표현, 수식어 과잉은 지양하고, 독자의 관심을 끌 수 있도록 단호하고 분명하게 작성하세요."
-    ),
-}
 
 
 class Host:
