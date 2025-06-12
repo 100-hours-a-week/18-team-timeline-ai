@@ -64,6 +64,9 @@ opentelemetry-instrumentation-urllib = "==0.47b0"
 opentelemetry-instrumentation-logging = "==0.47b0"
 opentelemetry-instrumentation-sqlalchemy = "==0.47b0"
 
+[tool.poetry]
+exclude = ["docker/*"]
+
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"

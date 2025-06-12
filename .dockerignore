@@ -33,6 +33,7 @@ README.txt
 # 개발 도구
 scripts/
 dev/
+docker/
 
 # 캐시 및 임시 파일
 .mypy_cache/
