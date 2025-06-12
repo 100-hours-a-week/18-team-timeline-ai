@@ -1,0 +1,51 @@
+# Python 관련
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.env
+.venv
+env/
+venv/
+ENV/
+
+# 개발 환경
+.git/
+.gitignore
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 테스트 관련
+.pytest_cache/
+.coverage
+htmlcov/
+test/
+tests/
+
+# 문서
+docs/
+*.md
+README.txt
+
+# 개발 도구
+scripts/
+dev/
+
+# 캐시 및 임시 파일
+.mypy_cache/
+.cache/
+.local/
+.tmp/
+.temp/
+*.bak
+*.backup
+.DS_Store
+*.log
+
+# 빌드 및 배포 관련
+build/
+dist/
+*.egg-info/

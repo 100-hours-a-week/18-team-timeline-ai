@@ -28,7 +28,6 @@ dependencies = [
     "bs4 (>=0.0.2,<0.0.3)",
     "numpy (==1.26.4)",
     "openai (>=1.84.0,<2.0.0)",
-
 ]
 
 [[tool.poetry.source]]
