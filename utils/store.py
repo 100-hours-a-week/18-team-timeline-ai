@@ -1,7 +1,7 @@
 from collections import OrderedDict, defaultdict
 import logging
 from utils.logger import Logger
-from ai_models.host import SystemRole
+from config.prompts import SystemRole
 
 logger = Logger.get_logger("ai_models.store", log_level=logging.ERROR)
 

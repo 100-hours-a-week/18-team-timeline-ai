@@ -5,10 +5,11 @@ from utils.env_utils import get_serp_key
 from utils.error_utils import error_response
 
 from scrapers.serpapi import get_trending_keywords
-from models.response_schema import CommonResponse, ErrorResponse
-from models.response_schema import HotRequest, HotData
+from schemas.response_schema import CommonResponse, ErrorResponse, HotRequest, HotData
+from utils.logger import Logger
 
 router = APIRouter()
+logger = Logger.get_logger("api_hot")
 
 
 @router.post(

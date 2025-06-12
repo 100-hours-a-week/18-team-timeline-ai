@@ -1,33 +1,26 @@
-import re
-import aiohttp
 import asyncio
 import trafilatura
 from trafilatura.settings import use_config
 from utils.logger import Logger
 import requests
-
+from config.settings import (
+    USER_AGENT,
+    POOL_CONECTION,
+    MAX_RETRIES,
+    POOL_MAXSIZE,
+    ARTICLE_TIMEOUT,
+)
 from typing import List, Dict, Optional, AsyncGenerator
 from scrapers.base_searcher import BaseSearcher
 from utils.timeline_utils import auto_clean_url
-
-from config.settings import (
-    OLLAMA_HOST,
-    OLLAMA_MODEL,
-    BATCH_SIZE,
-)
-import numpy as np
 import logging
+import time
+from http.client import RemoteDisconnected
 
 logger = Logger.get_logger("article_extractor", log_level=logging.ERROR)
 config = use_config()
-config.set(
-    "DEFAULT",
-    "user-agent",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36",
-)
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36"
-}
+config.set("DEFAULT", "user-agent", USER_AGENT)
+headers = {"User-Agent": USER_AGENT}
 
 
 class ArticleExtractor(BaseSearcher):
@@ -45,12 +38,35 @@ class ArticleExtractor(BaseSearcher):
         self.session = requests.Session()
         # 연결 풀 설정
         adapter = requests.adapters.HTTPAdapter(
-            pool_connections=100,  # 연결 풀 크기
-            pool_maxsize=100,  # 최대 연결 수
-            max_retries=3,  # 재시도 횟수
+            pool_connections=POOL_CONECTION,  # 연결 풀 크기
+            pool_maxsize=POOL_MAXSIZE,  # 최대 연결 수
+            max_retries=MAX_RETRIES,  # 재시도 횟수
         )
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
+
+        # 도메인별 타임아웃 설정
+        self.domain_timeouts = {
+            "sportivomedia.net": 30,  # sportivomedia.net은 더 긴 타임아웃 적용
+            "default": ARTICLE_TIMEOUT,
+        }
+
+    def _get_timeout_for_domain(self, url: str) -> int:
+        """도메인별 타임아웃 설정을 가져오는 메서드
+
+        Args:
+            url (str): URL
+
+        Returns:
+            int: 타임아웃 시간(초)
+        """
+        try:
+            from urllib.parse import urlparse
+
+            domain = urlparse(url).netloc
+            return self.domain_timeouts.get(domain, self.domain_timeouts["default"])
+        except Exception:
+            return self.domain_timeouts["default"]
 
     async def extract_single(self, url: dict) -> Optional[Dict[str, str]]:
         """기사 URL로부터 본문을 추출하는 메서드
@@ -59,7 +75,14 @@ class ArticleExtractor(BaseSearcher):
             url (dict): 기사 URL과 제목이 포함된 딕셔너리
                 {"url": str, "title": str}
         """
-        return await asyncio.to_thread(self._extract_single, url)
+        try:
+            result = await asyncio.to_thread(self._extract_single, url)
+            return result
+        except Exception as e:
+            logger.error(
+                f"[ArticleExtractor] URL 처리 실패: {url['url']}, 오류: {str(e)}"
+            )
+            return None
 
     def _extract_single(self, url: dict) -> Optional[Dict[str, str]]:
         """기사 URL로부터 본문을 추출하는 메서드
@@ -73,39 +96,71 @@ class ArticleExtractor(BaseSearcher):
                 {"url": str, "title": str, "input_text": str}
                 실패 시 None
         """
-        try:
-            # requests를 사용하여 페이지 다운로드
-            url["url"] = auto_clean_url(url["url"])
-            response = self.session.get(url["url"], timeout=10, headers=headers)
-            response.raise_for_status()
-            html_content = response.text
+        retry_count = 0
+        max_retries = 3
+        base_timeout = self._get_timeout_for_domain(url["url"])
+        last_error = None
 
-            # trafilatura로 본문 추출
-            text = trafilatura.extract(
-                html_content,
-                include_comments=False,
-                include_tables=False,
-                config=config,
-            )
-            if not text or not text.strip():
-                logger.error(f"[ArticleExtractor] 본문이 비어있음 - URL: {url['url']}")
+        while retry_count < max_retries:
+            try:
+                # requests를 사용하여 페이지 다운로드
+                url["url"] = auto_clean_url(url["url"])
+                current_timeout = base_timeout * (2**retry_count)  # 지수 백오프
+
+                response = self.session.get(
+                    url["url"], timeout=current_timeout, headers=headers
+                )
+                response.raise_for_status()
+                html_content = response.text
+
+                # trafilatura로 본문 추출
+                text = trafilatura.extract(
+                    html_content,
+                    include_comments=False,
+                    include_tables=False,
+                    config=config,
+                )
+                if not text or not text.strip():
+                    logger.error(
+                        f"[ArticleExtractor] 본문이 비어있음 - URL: {url['url']}"
+                    )
+                    return None
+
+                # 리턴
+                text = text.strip()
+                title = url["title"]
+                return {
+                    "url": url["url"],
+                    "title": title,
+                    "input_text": text,
+                }
+
+            except (
+                requests.Timeout,
+                requests.ConnectionError,
+                requests.exceptions.ReadTimeout,
+                RemoteDisconnected,
+            ) as e:
+                retry_count += 1
+                last_error = e
+                if retry_count < max_retries:
+                    # 재시도 전 잠시 대기
+                    time.sleep(2**retry_count)
+                    continue
+                else:
+                    logger.error(
+                        f"[ArticleExtractor] URL 처리 실패 - {url['url']}, "
+                        f"에러: {type(last_error).__name__}: {str(last_error)}, "
+                        f"재시도: {retry_count}회"
+                    )
+                    return None
+
+            except Exception as e:
+                logger.error(
+                    f"[ArticleExtractor] 기사 추출 실패 - URL: {url['url']}, "
+                    f"에러: {type(e).__name__}: {str(e)}"
+                )
                 return None
-
-            # 리턴
-            text = text.strip()
-            title = url["title"]
-            return {
-                "url": url["url"],
-                "title": title,
-                "input_text": text,
-            }
-
-        except Exception as e:
-            logger.error(
-                f"[ArticleExtractor] 기사 추출 실패 - URL: {url['url']}, "
-                f"에러: {type(e).__name__}: {str(e)}"
-            )
-            return None
 
     async def search(self, urls: List[dict]) -> AsyncGenerator[dict, None]:
         """여러 URL에서 기사를 병렬로 추출하는 메서드
@@ -125,8 +180,14 @@ class ArticleExtractor(BaseSearcher):
         semaphore = asyncio.Semaphore(self.max_workers)
 
         async def bounded_extract(url):
-            async with semaphore:
-                return await self.extract_single(url)
+            try:
+                async with semaphore:
+                    return await self.extract_single(url)
+            except Exception as e:
+                logger.error(
+                    f"[ArticleExtractor] URL 처리 실패: {url['url']}, 오류: {e}"
+                )
+                return None
 
         task_list = []
         for url in urls:
@@ -147,6 +208,10 @@ class ArticleExtractor(BaseSearcher):
             self.session.close()
 
 
+'''
+import re
+import aiohttp
+import numpy
 class ArticleFilter:
     """
     기사 필터 클래스
@@ -305,3 +370,4 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
     except Exception as e:
         logger.error(f"[cosine_similarity] 코사인 유사도 계산 중 오류 발생: {e}")
         return 0.0
+'''

@@ -1,7 +1,8 @@
 import asyncio
-from typing import List, Dict, Any, Tuple
+from typing import List, Dict, Any, Tuple, AsyncGenerator
 from contextlib import asynccontextmanager
-from ai_models.host import Host, SystemRole
+from inference.host import Host
+from config.prompts import SystemRole
 from utils.logger import Logger
 import logging
 import time
@@ -219,38 +220,53 @@ class BatchManager:
         Args:
             batch (List[dict]): 요청 모음
         """
-        results = await asyncio.gather(
-            *[
-                self._process_request(task_id, role, payload)
-                for task_id, role, payload in batch
-            ],
-            return_exceptions=True,
-        )
+        try:
+            results = await asyncio.gather(
+                *[
+                    self._process_request(task_id, role, payload)
+                    for task_id, role, payload in batch
+                ],
+                return_exceptions=True,
+            )
 
-        # 결과 전달
-        for (task_id, _, _), result in zip(batch, results):
-            try:
-                # 락을 사용하여 pending_tasks 딕셔너리 접근 동기화
-                async with self._lock:
-                    queue_info = self.pending_tasks.pop(task_id, None)
+            # 결과 전달
+            for (task_id, _, _), result in zip(batch, results):
+                try:
+                    # 락을 사용하여 pending_tasks 딕셔너리 접근 동기화
+                    async with self._lock:
+                        queue_info = self.pending_tasks.pop(task_id, None)
 
-                if queue_info:
-                    queue, _ = queue_info
-                    if isinstance(result, Exception):
-                        logger.error(
-                            f"[BatchManager] 요청 {task_id} 처리 중 오류: {result}"
-                        )
-                        await queue.put({"error": str(result)})
+                    if queue_info:
+                        queue, _ = queue_info
+                        if isinstance(result, Exception):
+                            logger.error(
+                                f"[BatchManager] 요청 {task_id} 처리 중 오류: {result}"
+                            )
+                            await queue.put({"error": str(result)})
+                        else:
+                            await queue.put(result)
                     else:
-                        await queue.put(result)
-                else:
-                    logger.warning(
-                        f"[BatchManager] 태스크 {task_id}에 대한 큐를 찾을 수 없음"
+                        logger.warning(
+                            f"[BatchManager] 태스크 {task_id}에 대한 큐를 찾을 수 없음"
+                        )
+                except Exception as e:
+                    logger.error(
+                        f"[BatchManager] 결과 전달 중 오류 (태스크 {task_id}): {e}"
                     )
-            except Exception as e:
-                logger.error(
-                    f"[BatchManager] 결과 전달 중 오류 (태스크 {task_id}): {e}"
-                )
+        except Exception as e:
+            logger.error(f"[BatchManager] 배치 처리 중 오류: {e}")
+            # 배치 처리 실패 시 모든 태스크에 오류 전달
+            for task_id, _, _ in batch:
+                try:
+                    async with self._lock:
+                        queue_info = self.pending_tasks.pop(task_id, None)
+                    if queue_info:
+                        queue, _ = queue_info
+                        await queue.put({"error": f"배치 처리 실패: {str(e)}"})
+                except Exception as inner_e:
+                    logger.error(
+                        f"[BatchManager] 오류 전달 중 추가 오류 (태스크 {task_id}): {inner_e}"
+                    )
 
     async def _process_request(
         self, task_id: str, role: SystemRole, payload: Dict[str, Any]
@@ -277,7 +293,8 @@ class BatchManager:
                     return {"error": "빈 페이로드"}
 
                 # 비동기 함수로 변환하여 호출
-                return await self.host.query(role, payload)
+                result = await self.host.query(role, payload)
+                return result
             except Exception as e:
                 last_error = e
                 logger.warning(
@@ -287,11 +304,13 @@ class BatchManager:
                 if attempt < self.max_retries - 1:
                     # 지수 백오프 (0.5초, 1초, 2초, ...)
                     await asyncio.sleep(0.5 * (2**attempt))
-
-        # 모든 재시도 실패 시
-        error_msg = f"최대 재시도 횟수({self.max_retries}) 초과: {last_error}"
-        logger.error(f"[BatchManager] {task_id} - {error_msg}")
-        return {"error": error_msg}
+                else:
+                    # 마지막 시도에서도 실패한 경우
+                    error_msg = (
+                        f"최대 재시도 횟수({self.max_retries}) 초과: {last_error}"
+                    )
+                    logger.error(f"[BatchManager] {task_id} - {error_msg}")
+                    return {"error": error_msg}
 
 
 async def wrapper(url, role, content, manager):
@@ -308,7 +327,7 @@ async def wrapper(url, role, content, manager):
 @asynccontextmanager
 async def create_batch_manager(
     host: Host, batch_size: int = 4, max_wait_time: float = 1.0
-) -> BatchManager:
+) -> AsyncGenerator[BatchManager, None]:
     """
     BatchManager 생성 및 관리를 위한 컨텍스트 관리자
 

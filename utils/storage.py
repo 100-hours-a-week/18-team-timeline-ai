@@ -9,13 +9,17 @@ import subprocess
 import time
 import logging
 from config.settings import (
-    QDRANT_HOST,
     QDRANT_PORT,
     DATASET_VOLUME,
     BATCH_SIZE,
     VECTOR_SIZE,
     COLLECTION_NAME,
 )
+from dotenv import load_dotenv
+import os
+
+load_dotenv(override=True)
+QDRANT_HOST = os.getenv("QDRANT_HOST")
 
 logger = Logger.get_logger("storage", log_level=logging.ERROR)
 
@@ -81,7 +85,7 @@ class QdrantStorage:
     ):
         """QdrantStorage 초기화
 
-        Args:
+        Args:rr
             collection_name (str): 컬렉션 이름
             batch_size (int, optional): 배치 처리 크기. Defaults to 64.
             vector_size (int, optional): 벡터 크기. Defaults to 1024.
@@ -126,7 +130,6 @@ class QdrantStorage:
                 logger.info(f"[QdrantStorage] 컬렉션 생성 완료: {self.collection_name}")
             else:
                 logger.info(f"[QdrantStorage] 컬렉션 이미 존재: {self.collection_name}")
-
         except Exception as e:
             logger.error(f"[QdrantStorage] 컬렉션 초기화 실패: {str(e)}")
             raise
@@ -207,35 +210,3 @@ class QdrantStorage:
         except Exception as e:
             logger.error(f"[QdrantStorage] 배치 저장 실패: {str(e)}")
             raise
-
-
-async def main():
-    from classify.embedding import OllamaEmbeddingService
-    from config.settings import LABELS, SENTIMENT_MAP, COLLECTION_NAME
-
-    dict_labels = {i: label for i, label in enumerate(LABELS)}
-
-    storage = QdrantStorage(collection_name=COLLECTION_NAME)
-    ret = await storage.search(
-        query="나가 죽어", embedding_constructor=OllamaEmbeddingService, limit=10
-    )
-
-    results = {"긍정": 0, "부정": 0, "중립": 0}
-
-    print(ret[0].keys())
-    for i, r in enumerate(ret):
-        print(f"{i + 1}: {r['id']} : {r['payload']['comment']}, {r['score']}")
-        for label in r["payload"]["labels"]:
-            print(f"    {label}: {dict_labels[label]}")
-            results[SENTIMENT_MAP[dict_labels[label]]] += 1
-
-    print(results)
-    total = sum(results.values())
-    for key, value in results.items():
-        print(f"{key}: {value / total * 100:.2f}% ({value}개)")
-
-    print(f"감정 분류: {max(results, key=results.get)}")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())

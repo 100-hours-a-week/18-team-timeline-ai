@@ -15,7 +15,6 @@ dependencies = [
     "google-auth-httplib2 (>=0.2.0,<1.0.0)",
     "google-api-python-client (>=2.166.0,<3.0.0)",
     "slowapi (==0.1.9)",
-    "tqdm (>=4.67.1,<5.0.0)",
     "aiolimiter (>=1.2.1,<2.0.0)",
     "fastapi (==0.115.8)",
     "pydantic (==2.10.6)",
@@ -51,7 +50,6 @@ twisted = ">=24.11.0,<25.0.0"
 
 [tool.poetry.group.download.dependencies]
 huggingface-hub = ">=0.30.0,<1.0.0"
-torch = "==2.6.0"
 transformers =">=4.52.3,<5.0.0"
 datasets =">=3.6.0,<4.0.0"
 
@@ -69,32 +67,3 @@ opentelemetry-instrumentation-sqlalchemy = "==0.47b0"
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-
-# 아래 섹션은 black의 설정
-[tool.black]
-line-length = 88
-target-version = ['py311']
-include = '\.pyi?$'
-exclude = '''
-/(
-    \.git
-  | \.mypy_cache
-  | \.tox
-  | \.venv
-  | _build
-  | buck-out
-  | build
-  | dist
-)/
-'''
-
-# 아래 섹션은 flake8의 설정
-[tool.flake8]
-ignore = "E203, E501, W503"
-max-line-length = 88
-exclude = ".git,__pycache__,docs/,old/,build/,dist/"
-
-
-[tool.poetry.group.dev.dependencies]
-black = "^25.1.0"
-flake8 = "^7.2.0"

@@ -4,8 +4,8 @@ import asyncio
 from typing import Callable, List, Dict
 from utils.logger import Logger
 from config.settings import LABELS, SENTIMENT_MAP, COLLECTION_NAME, DICT_LABELS
-from classify.storage import QdrantStorage
-from classify.embedding import OllamaEmbeddingService
+from utils.storage import QdrantStorage
+from inference.embedding import OllamaEmbeddingService
 from scrapers.daum_vclip_searcher import DaumVclipSearcher
 from scrapers.youtube_searcher import YouTubeCommentAsyncFetcher
 from utils.handling import handle_http_error
