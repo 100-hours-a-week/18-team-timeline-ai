@@ -194,6 +194,7 @@ __pycache__/
 poetry.lock
 
 # 로그 파일
+logs/
 *.log
 *.lprof
 # Vector DB
@@ -204,3 +205,4 @@ qdrant_storage/
 
 # Model
 .model/
+.vscode/settings.json
