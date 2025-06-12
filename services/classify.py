@@ -10,7 +10,6 @@ from scrapers.daum_vclip_searcher import DaumVclipSearcher
 from scrapers.youtube_searcher import YouTubeCommentAsyncFetcher
 from utils.handling import handle_http_error
 import time
-from line_profiler import profile
 import logging
 
 logger = Logger.get_logger("sentiment_aggregator", log_level=logging.ERROR)
@@ -131,33 +130,3 @@ class SentimentAggregator:
             ret["중립"] += result["중립"]
         logger.info(f"[SentimentAggregator] 최종 감정: {ret}")
         return ret
-
-
-@profile
-async def main():
-    start_time = time.time()
-    dotenv.load_dotenv(override=True)
-    YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-    REST_API_KEY = os.getenv("REST_API_KEY")
-    daum_vclip_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
-    youtube_searcher = YouTubeCommentAsyncFetcher(
-        api_key=YOUTUBE_API_KEY, max_comments=100
-    )
-    df = daum_vclip_searcher.search(query="이경규 유튜브")
-    ripple = await youtube_searcher.search(df=df)
-    ripple = [r["comment"] for r in ripple]
-    aggregator = SentimentAggregator()
-    ret = await aggregator.aggregate_multiple_queries(
-        queries=ripple,
-        embedding_constructor=OllamaEmbeddingService,
-    )
-    total = sum(ret.values())
-    print(ret)
-    for key, value in ret.items():
-        print(f"{key}: {value / total * 100:.2f}% (점수: {value:.2f} )")
-    end_time = time.time()
-    print(f"총 소요 시간: {end_time - start_time}초")
-
-
-if __name__ == "__main__":
-    asyncio.run(main())
