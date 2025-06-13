@@ -5,12 +5,8 @@ from utils.logger import Logger
 import asyncio
 from typing import Callable
 import socket
-import subprocess
-import time
-import logging
 from config.settings import (
     QDRANT_PORT,
-    DATASET_VOLUME,
     BATCH_SIZE,
     VECTOR_SIZE,
     COLLECTION_NAME,
@@ -21,7 +17,7 @@ import os
 load_dotenv(override=True)
 QDRANT_HOST = os.getenv("QDRANT_HOST")
 
-logger = Logger.get_logger("storage", log_level=logging.ERROR)
+logger = Logger.get_logger("storage")
 
 
 def is_qdrant_running(host: str, port: int, timeout: float = 1.0) -> bool:
@@ -33,40 +29,6 @@ def is_qdrant_running(host: str, port: int, timeout: float = 1.0) -> bool:
     except OSError:
         logger.error(f"[QdrantStorage] Qdrant 서버 실행 확인 실패: {host}:{port}")
         return False
-
-
-def start_qdrant_container(
-    name: str = "qdrant_autostart",
-    host_port: int = QDRANT_PORT,
-    grpc_port: int = QDRANT_PORT + 1,
-    volume: str = DATASET_VOLUME,
-):
-    logger.info("Qdrant 서버가 꺼져 있어 컨테이너를 실행합니다.")
-    subprocess.run(
-        [
-            "docker",
-            "run",
-            "-d",
-            "--name",
-            name,
-            "-p",
-            f"{host_port}:{QDRANT_PORT}",
-            "-p",
-            f"{grpc_port}:{QDRANT_PORT + 1}",
-            "-v",
-            f"{volume}:{DATASET_VOLUME}",
-            "qdrant/qdrant",
-        ],
-        check=True,
-    )
-    logger.info(f"[QdrantStorage] Qdrant 컨테이너 실행 완료: {name}")
-    for _ in range(10):
-        if is_qdrant_running("localhost", host_port):
-            logger.info("[QdrantStorage] Qdrant 서버가 성공적으로 실행되었습니다.")
-            return
-        time.sleep(1)
-    logger.error("[QdrantStorage] Qdrant 서버가 시작되지 않았습니다.")
-    raise RuntimeError("[QdrantStorage] Qdrant 서버가 시작되지 않았습니다.")
 
 
 class QdrantStorage:
@@ -98,17 +60,23 @@ class QdrantStorage:
             self.vector_size = vector_size
 
             if not is_qdrant_running(host, port):
-                logger.info(
-                    f"[QdrantStorage] Qdrant 서버가 꺼져 있어 컨테이너를 실행합니다."
+                logger.error(
+                    f"[QdrantStorage] 컨테이너 시작 실패: {host}:{port}. "
+                    "Qdrant 서버가 실행 중이지 않습니다."
                 )
-                start_qdrant_container(host, port)
+                raise RuntimeError(
+                    f"[QdrantStorage] 컨테이너 시작 실패: {host}:{port}. "
+                    "Qdrant 서버가 실행 중이지 않습니다."
+                )
 
             self.client = QdrantClient(host=host, port=port)
             logger.info(f"[QdrantStorage] 클라이언트 생성 완료: {host}/{port}")
+            """
             self._init_collection()
             logger.info(f"[QdrantStorage] 컬렉션 초기화 완료: {self.collection_name}")
             logger.info(f"클라이언트: {host}/{port}")
             logger.info(f"컬렉션: {self.collection_name}")
+            """
         except Exception as e:
             logger.error(f"[QdrantStorage] 초기화 실패: {str(e)}")
             raise OSError(f"[QdrantStorage] 초기화 실패: {str(e)}")
