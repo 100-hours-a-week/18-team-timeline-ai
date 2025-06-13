@@ -1,0 +1,87 @@
+name: Build and Push tamnara/ai-api Docker Image to ECR
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write
+      contents: read
+      checks: write
+      pull-requests: write
+    
+    env:
+      AWS_REGION: ap-northeast-2
+      AWS_ACCOUNT_ID: 346011888304
+      ECR_REPO_NAME: tamnara/ai-api
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Get short commit SHA
+        id: meta
+        run: echo "tag=$(echo $GITHUB_SHA | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::346011888304:role/github-action-role
+          aws-region: ${{ env.AWS_REGION }}
+      
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      - name: Try to pull previous image for cache (latest)
+        continue-on-error: true
+        run: |
+          REG=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_NAME }}
+          docker pull $REG:latest || true
+
+      - name: Build Docker image (with optional cache)
+        run: |
+          REG=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_NAME }}
+          if docker image inspect $REG:latest > /dev/null 2>&1; then
+            echo "✅ Using cache from latest"
+            docker build --cache-from $REG:latest -t $REG:latest -f ./docker/Dockerfile.api .
+          else
+            echo "⚠️ No cache image available, building from scratch"
+            docker build -t $REG:latest -f ./docker/Dockerfile.api .
+          fi
+
+      - name: Tag image with commit SHA
+        run: |
+          REG=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_NAME }}
+          TAG=${{ steps.meta.outputs.tag }}
+          echo "REG=$REG TAG=$TAG"
+          docker tag $REG:latest $REG:$TAG
+
+      - name: Push both tags to ECR
+        run: |
+          REG=${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/${{ env.ECR_REPO_NAME }}
+          docker push $REG:latest
+          docker push $REG:${{ steps.meta.outputs.tag }}
+
+  deploy-docker-container:
+    needs: build-and-push 
+
+    permissions:
+      id-token: write
+      contents: read
+      checks: write
+      pull-requests: write
+
+    uses: ./.github/workflows/deploy-ai-api.yml
+    secrets:
+      GCP_SSH_USER: ${{ secrets.GCP_SSH_USER }}
+      GCP_VM_HOST: ${{ secrets.GCP_VM_HOST }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      GCP_SSH_KEY: ${{ secrets.GCP_SSH_KEY }}

@@ -17,7 +17,5 @@ RUN poetry config virtualenvs.create false && \
     poetry install --no-interaction --no-ansi --no-root --only monitor,main && \
     rm -rf /root/.cache /root/.cache/pypoetry /root/.cache/pip
 
-RUN poetry add line_profiler
-
 # 실행
 CMD ["/bin/sh", "-c", "poetry run opentelemetry-instrument uvicorn main:app --host 0.0.0.0 --port 8000"]

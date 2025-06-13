@@ -373,7 +373,7 @@ install_qdrant() {
         log_warn "기존 qdrant 컨테이너가 이미 존재합니다. 설치를 건너뜁니다."
         return 0
     fi
-    docker run -d --name qdrant \
+    docker run -d --name qdrant --restart unless-stopped \
         -p 6333:6333 \
         -p 6334:6334 \
         qdrant/qdrant || {
