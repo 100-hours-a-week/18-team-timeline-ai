@@ -36,7 +36,7 @@ docker run -d \
   --name "$container_name" \
   --env-file ./.env \
   --add-host host.docker.internal:host-gateway \
-  -p 8100:8000 \
+  -p 8000:8000 \
   $IMAGE
 
 sleep 10
