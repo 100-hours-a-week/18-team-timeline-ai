@@ -4,6 +4,7 @@ from scrapers.article_extractor import ArticleExtractor
 from inference.host import Host
 from inference.manager import BatchManager, wrapper
 from utils.store import ResultStore
+from utils.url_utils import clean_url
 import logging
 from utils.logger import Logger
 import asyncio
@@ -39,6 +40,18 @@ async def Pipeline(
 
     logger.info(f"[PIPELINE]: {len(urls)}개 URL, {len(roles)}개 역할")
 
+    # URL 정리
+    cleaned_urls = []
+    for url_dict in urls:
+        cleaned_url = clean_url(url_dict["url"])
+        cleaned_urls.append(
+            {
+                "url": cleaned_url,
+                "title": url_dict["title"],
+                "id": url_dict.get("id", 0),
+            }
+        )
+
     results_dict = ResultStore()
     manager = None
     runner = None
@@ -46,10 +59,9 @@ async def Pipeline(
     try:
         async with Host(server, model) as host:
             # 텍스트 추출
-
             url_sentences = {}
             async with ArticleExtractor() as extractor:
-                async for result in extractor.search(urls):
+                async for result in extractor.search(cleaned_urls):
                     if not result:
                         logger.warning(f"[SummaryPipeline] 결과가 없는 URL 건너뜀")
                         continue
