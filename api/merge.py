@@ -17,8 +17,7 @@ router = APIRouter()
 logger = Logger.get_logger("api_merge")
 
 dotenv.load_dotenv(override=True)
-SERVER = os.getenv("SERVER")
-MODEL = os.getenv("MODEL")
+API_KEY = os.getenv("OPENAI_API_KEY")
 
 # -------------------------------------------------------------------
 
@@ -46,7 +45,7 @@ def merge_timeline(request: MergeRequest):
         imgs.extend(card.source)
         contents.append(card.content)
     contents = shrink_if_needed(contents)
-    final_res = asyncio.run(TotalPipeline(contents, SERVER, MODEL))
+    final_res = asyncio.run(TotalPipeline(contents, API_KEY))
     if not final_res or not final_res["total_summary"]:
         return error_response(500, "인공지능이 병합 요약에 실패했습니다.")
 
