@@ -59,8 +59,8 @@ def merge_timeline(request: MergeRequest):
         endAt=cards[-1].endAt,
         source=imgs,
     )
-    merged_card.startAt = merged_card.startAt.date().isoformat()
-    merged_card.endAt = merged_card.endAt.date().isoformat()
+    merged_card.startAt = merged_card.startAt
+    merged_card.endAt = merged_card.endAt
 
     # ----------------------------------------------------
 
