@@ -39,7 +39,7 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Download .env from S3
-        run: aws s3 cp s3://tamnarra-environment/ai/.env .env
+        run: aws s3 cp s3://tamnara-environment/ai/.env .env
 
       - name: Setup SSH key (with verification)
         run: |
