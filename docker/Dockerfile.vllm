@@ -1,0 +1,41 @@
+# NVIDIA CUDA 12.4 기반 이미지 사용
+FROM nvidia/cuda:12.4.0-runtime-ubuntu22.04
+
+# 시스템 패키지 설치
+RUN apt-get update && apt-get install -y \
+    python3.11 \
+    python3.11-venv \
+    python3.11-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Poetry 설치
+RUN curl -sSL https://install.python-poetry.org | python3 -
+ENV PATH="/root/.local/bin:$PATH"
+
+# 작업 디렉토리 설정
+WORKDIR /app
+
+# Poetry 설정 파일 복사
+COPY pyproject.toml poetry.lock ./
+
+# 의존성 설치 (GPU 그룹과 download 그룹)
+RUN poetry config virtualenvs.create false \
+    && poetry install --no-interaction --no-root --only gpu,download
+
+# 모델 다운로드 스크립트 복사
+COPY scripts/download_model.py scripts/
+COPY config/settings.py config/
+
+# 모델 다운로드
+RUN poetry run python scripts/download_model.py
+
+# vLLM 서버 실행 스크립트
+COPY scripts/run_vllm.sh /app/
+RUN chmod +x /app/run_vllm.sh
+
+# 포트 노출
+EXPOSE 8001
+
+# 실행 명령
+CMD ["/app/run_vllm.sh"] 
