@@ -44,7 +44,10 @@ def available_url(url: str) -> bool:
 
 def auto_clean_url(url):
     parsed = urlparse(url)
-    query = parse_qs(parsed.query)
+    query = parse_qs(parsed.query, keep_blank_values=True)
+
+    if not query:
+        return url
 
     filtered_query = {
         k: v
@@ -53,16 +56,14 @@ def auto_clean_url(url):
     }
 
     new_query = urlencode(filtered_query, doseq=True)
-    cleaned_url = urlunparse(
-        (
+    cleaned_url = urlunparse((
             parsed.scheme,
             parsed.netloc,
             parsed.path,
             parsed.params,
             new_query,
             parsed.fragment,
-        )
-    )
+    ))
 
     return cleaned_url
 
