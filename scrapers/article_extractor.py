@@ -1,4 +1,7 @@
+import aiohttp
+import logging
 import asyncio
+import numpy as np
 import trafilatura
 from trafilatura.settings import use_config
 from utils.logger import Logger
@@ -8,14 +11,7 @@ from config.settings import (
 )
 from typing import List, Dict, Optional, AsyncGenerator
 from scrapers.base_searcher import BaseSearcher
-from utils.timeline_utils import auto_clean_url
-import logging
-
-import re
-from urllib.parse import urlparse, parse_qs, unquote
-
-import numpy as np
-import aiohttp
+from urllib.parse import urlparse
 
 logger = Logger.get_logger("article_extractor", log_level=logging.INFO)
 config = use_config()
@@ -52,48 +48,6 @@ class ArticleExtractor(BaseSearcher):
         if self.session and not self.session.closed:
             await self.session.close()
 
-    def _clean_url(self, url: str) -> str:
-        try:
-            # URL 디코딩
-            url = unquote(url)
-
-            # HTML 태그 제거 (더 강력한 패턴)
-            url = re.sub(r"<[^>]*>", "", url)
-            url = re.sub(r"&[a-zA-Z0-9#]+;", "", url)  # HTML 엔티티 제거
-
-            # URL 파싱
-            parsed = urlparse(url)
-
-            # 쿼리 파라미터 정리
-            if parsed.query:
-                params = parse_qs(parsed.query)
-                # 필요한 파라미터만 유지 (ID 또는 기본 파라미터)
-                clean_params = {}
-                for key, value in params.items():
-                    if key.lower() in ["id", "articleid", "newsid", "seq"]:
-                        # ID 값에서 HTML 태그와 특수문자 제거
-                        clean_value = re.sub(r"[^a-zA-Z0-9]", "", value[0])
-                        if clean_value:
-                            clean_params[key] = clean_value
-
-                if clean_params:
-                    # 쿼리 문자열 재구성
-                    query = "&".join(f"{k}={v}" for k, v in clean_params.items())
-                    # URL 재구성
-                    url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}?{query}"
-                else:
-                    # 유효한 파라미터가 없으면 쿼리스트링 제거
-                    url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
-
-            # 최종 URL 정리
-            url = re.sub(r"\s+", "", url)  # 공백 제거
-            url = re.sub(r"[^\w\-\.\:\/\?\=\&]", "", url)  # URL에 허용된 문자만 유지
-
-            return url
-
-        except Exception as e:
-            logger.error(f"[ArticleExtractor] URL 정리 실패: {url}, 에러: {str(e)}")
-            return url
 
     def _get_timeout_for_domain(self, url: str) -> int:
         try:
@@ -118,9 +72,6 @@ class ArticleExtractor(BaseSearcher):
 
         while retry_count < max_retries:
             try:
-                url["url"] = self._clean_url(url["url"])
-                url["url"] = auto_clean_url(url["url"])
-
                 async with self.session.get(url["url"]) as response:
                     response.raise_for_status()
                     # 응답의 인코딩 확인
