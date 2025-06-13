@@ -107,8 +107,8 @@ async def get_timeline(request: Request, payload: TimelineRequest):
     if not first_res:
         return await error_response(500, "인공지능 1차 요약 실패!")
     for i, url in enumerate(urls):
-        data = first_res[url]
-        if not data or not data["summary"]:
+        data = first_res.get(url)
+        if not data or not data.get("summary"):
             logger.error(f'기사 내용이 없습니다! "{titles[i][:15]}..."')
             return await error_response(500, "인공지능 1차 요약 도중 빈 요약 반환")
         else:
