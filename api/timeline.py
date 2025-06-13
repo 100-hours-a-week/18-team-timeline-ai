@@ -11,10 +11,10 @@ from utils.timeline_utils import (
     shrink_if_needed,
 )
 
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request
 from pipelines.total_pipeline import TotalPipeline
 from pipelines.summary_pipeline import Pipeline
-from domain.timeline_card import TimelineCard
+from schemas.timeline_card import TimelineCard
 from schemas.response_schema import (
     CommonResponse,
     ErrorResponse,

@@ -2,7 +2,7 @@ import pytest
 from fastapi.testclient import TestClient
 from main import app  # Assuming your FastAPI app instance is in main.py
 from unittest.mock import patch, AsyncMock
-from domain.timeline_card import TimelineCard
+from schemas.timeline_card import TimelineCard
 from datetime import date
 
 client = TestClient(app)
