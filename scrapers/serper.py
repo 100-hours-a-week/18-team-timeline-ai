@@ -1,6 +1,6 @@
 import requests
 from datetime import date, timedelta
-from utils.timeline_utils import available_url
+from utils.timeline_utils import available_url, auto_clean_url
 
 # ---------------------------------------------------
 
@@ -46,7 +46,7 @@ def get_news_serper(
         # Getting news URL
         valid_news = []
         for news in result:
-            link = news.get("link")
+            link = auto_clean_url(news.get("link"))
             title = news.get("title")
             if available_url(link):
                 valid_news.append((link, title))
