@@ -1,11 +1,10 @@
 import aiohttp
 from utils.logger import Logger
 from config.prompts import SYSTEM_PROMPT, SystemRole
-import logging
 import orjson
 from typing import Dict, Any, Optional
 
-logger = Logger.get_logger("ai_models.host", log_level=logging.ERROR)
+logger = Logger.get_logger("ai_models.host")
 
 
 class Host:
@@ -89,14 +88,12 @@ class Host:
         Returns:
             bool: 연결 여부
         """
-        url = f"{self.host}/v1/models"
+        url = f"{self.host}/health"
         logger.info(f"[Host] Checking connection to the host: {url}")
         try:
             async with self.session.get(url, timeout=self.timeout) as response:
-                logger.info(f"[Host] {response.status}")
+                logger.info(f"[Host] Health check status: {response.status}")
                 response.raise_for_status()
-                json_response = await response.json()
-                logger.info(f"[Host] {json_response}")
                 return True
         except (
             aiohttp.ClientError,
@@ -104,7 +101,7 @@ class Host:
             aiohttp.ClientResponseError,
             aiohttp.ServerDisconnectedError,
         ) as e:
-            logger.error(f"[Host] {e}")
+            logger.error(f"[Host] Health check failed: {e}")
             return False
 
     async def query(self, task: SystemRole, payload: Dict[str, Any]) -> Dict[str, Any]:

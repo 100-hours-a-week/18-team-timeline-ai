@@ -46,13 +46,27 @@ async def Pipeline(
     try:
         async with Host(server, model) as host:
             # 텍스트 추출
-            extractor = ArticleExtractor()
+
             url_sentences = {}
-            async for result in extractor.search(urls):
-                if not result or not result.get("input_text"):
-                    print(f"❌ 문장 분리 실패: URL={result['url']}")
-                    continue
-                url_sentences[result["url"]] = result["input_text"]
+            async with ArticleExtractor() as extractor:
+                async for result in extractor.search(urls):
+                    if not result:
+                        logger.warning(f"[SummaryPipeline] 결과가 없는 URL 건너뜀")
+                        continue
+
+                    if not result.get("input_text"):
+                        logger.warning(
+                            f"[SummaryPipeline] 본문 추출 실패: URL={result.get('url', 'unknown')}, "
+                            f"제목={result.get('title', 'unknown')}"
+                        )
+                        continue
+
+                    url_sentences[result["url"]] = result["input_text"]
+                    logger.info(
+                        f"[SummaryPipeline] 본문 추출 성공: URL={result['url']}, "
+                        f"제목={result['title']}, "
+                        f"본문 길이={len(result['input_text'])}"
+                    )
 
             # 배치 매니저 초기화
             manager = BatchManager(
