@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from datetime import date
 from typing import List, Generic, TypeVar
-from domain.timeline_card import TimelineCard
+from schemas.timeline_card import TimelineCard
 
 # -----------------------------------------------
 
