@@ -12,10 +12,19 @@ RUN apt-get update && apt-get install -y \
 RUN curl -sSL https://install.python-poetry.org | python3 - && \
     ln -s $HOME/.local/bin/poetry /usr/local/bin/poetry
 
-COPY . .
+# Poetry 설정 파일만 먼저 복사
+COPY pyproject.toml ./
+
+# 의존성 설치
 RUN poetry config virtualenvs.create false && \
     poetry install --no-interaction --no-ansi --no-root --only monitor,main && \
     rm -rf /root/.cache /root/.cache/pypoetry /root/.cache/pip
 
-# 실행
+# 나머지 소스 코드 복사
+COPY . .
+
+# 포트 노출
+EXPOSE 8000
+
+# 실행 명령
 CMD ["/bin/sh", "-c", "poetry run opentelemetry-instrument uvicorn main:app --host 0.0.0.0 --port 8000"]
