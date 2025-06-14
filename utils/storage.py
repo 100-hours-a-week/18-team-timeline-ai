@@ -10,24 +10,36 @@ from config.settings import (
     BATCH_SIZE,
     VECTOR_SIZE,
     COLLECTION_NAME,
+    QDRANT_HOST,
+    QDRANT_API_KEY,
 )
-from dotenv import load_dotenv
-import os
-
-load_dotenv(override=True)
-QDRANT_HOST = os.getenv("QDRANT_HOST")
+from contextlib import asynccontextmanager
+from qdrant_client.http.exceptions import UnexpectedResponse
 
 logger = Logger.get_logger("storage")
 
 
 def is_qdrant_running(host: str, port: int, timeout: float = 1.0) -> bool:
+    """Qdrant 서버가 실행 중인지 확인합니다.
+
+    Args:
+        host (str): Qdrant 서버 호스트
+        port (int): Qdrant 서버 포트
+        timeout (float, optional): 연결 시도 제한 시간. Defaults to 1.0.
+
+    Returns:
+        bool: 서버 실행 여부
+    """
     try:
         logger.debug(f"[QdrantStorage] Qdrant 서버 실행 확인: {host}:{port}")
         with socket.create_connection((host, port), timeout=timeout):
             logger.debug(f"[QdrantStorage] Qdrant 서버 실행 확인 완료: {host}:{port}")
             return True
-    except OSError:
-        logger.error(f"[QdrantStorage] Qdrant 서버 실행 확인 실패: {host}:{port}")
+    except (ConnectionRefusedError, TimeoutError) as e:
+        logger.error(f"[QdrantStorage] Qdrant 서버 연결 실패: {str(e)}")
+        return False
+    except OSError as e:
+        logger.error(f"[QdrantStorage] Qdrant 서버 실행 확인 실패: {str(e)}")
         return False
 
 
@@ -44,52 +56,84 @@ class QdrantStorage:
         vector_size: int = VECTOR_SIZE,
         host: str = QDRANT_HOST,
         port: int = QDRANT_PORT,
+        api_key: str = QDRANT_API_KEY,
     ):
         """QdrantStorage 초기화
 
-        Args:rr
+        Args:
             collection_name (str): 컬렉션 이름
             batch_size (int, optional): 배치 처리 크기. Defaults to 64.
             vector_size (int, optional): 벡터 크기. Defaults to 1024.
             host (str, optional): Qdrant 서버 호스트. Defaults to "localhost".
             port (int, optional): Qdrant 서버 포트. Defaults to 6333.
+            api_key (str, optional): Qdrant API 키. Defaults to None.
         """
         try:
             self.collection_name = collection_name
             self.batch_size = batch_size
             self.vector_size = vector_size
+            self._client = None
 
+            # 서버 상태 확인
             if not is_qdrant_running(host, port):
-                logger.error(
-                    f"[QdrantStorage] 컨테이너 시작 실패: {host}:{port}. "
-                    "Qdrant 서버가 실행 중이지 않습니다."
-                )
                 raise RuntimeError(
-                    f"[QdrantStorage] 컨테이너 시작 실패: {host}:{port}. "
+                    f"[QdrantStorage] 서버 연결 실패: {host}:{port}. "
                     "Qdrant 서버가 실행 중이지 않습니다."
                 )
 
-            self.client = QdrantClient(host=host, port=port)
-            logger.info(f"[QdrantStorage] 클라이언트 생성 완료: {host}/{port}")
-            """
-            self._init_collection()
-            logger.info(f"[QdrantStorage] 컬렉션 초기화 완료: {self.collection_name}")
-            logger.info(f"클라이언트: {host}/{port}")
-            logger.info(f"컬렉션: {self.collection_name}")
-            """
+            url = f"{host}:{port}"
+            self._client = QdrantClient(
+                url=url,
+                api_key=api_key,
+                check_compatibility=False,  # 버전 체크 비활성화
+            )
+            logger.info(f"[QdrantStorage] 클라이언트 생성 완료: {url}")
         except Exception as e:
             logger.error(f"[QdrantStorage] 초기화 실패: {str(e)}")
-            raise OSError(f"[QdrantStorage] 초기화 실패: {str(e)}")
+            raise
+
+    def __del__(self):
+        """소멸자: 리소스 정리"""
+        self.close()
+
+    def close(self):
+        """클라이언트 연결을 종료합니다."""
+        if self._client is not None:
+            try:
+                self._client.close()
+                logger.info("[QdrantStorage] 클라이언트 연결 종료")
+            except Exception as e:
+                logger.error(f"[QdrantStorage] 클라이언트 연결 종료 실패: {str(e)}")
+            finally:
+                self._client = None
+
+    @asynccontextmanager
+    async def get_client(self):
+        """Qdrant 클라이언트를 컨텍스트 매니저로 제공합니다.
+
+        Yields:
+            QdrantClient: Qdrant 클라이언트 인스턴스
+        """
+        if self._client is None:
+            raise RuntimeError("[QdrantStorage] 클라이언트가 초기화되지 않았습니다.")
+        try:
+            yield self._client
+        except UnexpectedResponse as e:
+            logger.error(f"[QdrantStorage] Qdrant 서버 응답 오류: {str(e)}")
+            raise
+        except Exception as e:
+            logger.error(f"[QdrantStorage] 클라이언트 작업 실패: {str(e)}")
+            raise
 
     def _init_collection(self) -> None:
         """컬렉션을 초기화합니다."""
         try:
             logger.info(f"[QdrantStorage] 컬렉션 초기화 시작: {self.collection_name}")
-            collections = self.client.get_collections().collections
+            collections = self._client.get_collections().collections
             exists = any(c.name == self.collection_name for c in collections)
             logger.info(f"[QdrantStorage] 컬렉션 존재 여부: {exists}")
             if not exists:
-                self.client.create_collection(
+                self._client.create_collection(
                     collection_name=self.collection_name,
                     vectors_config=VectorParams(
                         size=self.vector_size, distance=Distance.COSINE
@@ -112,13 +156,14 @@ class QdrantStorage:
 
         Args:
             query (str): 검색할 쿼리 텍스트
-            embedding (EmbeddingModel): 임베딩 모델
+            embedding_constructor (Callable): 임베딩 생성자
             limit (int, optional): 반환할 결과 수. Defaults to 5.
 
         Returns:
             List[Dict[str, Any]]: 검색 결과
 
         Raises:
+            RuntimeError: 클라이언트가 초기화되지 않은 경우
             Exception: 검색 실패 시
         """
         try:
@@ -126,17 +171,19 @@ class QdrantStorage:
                 logger.info(f"[QdrantStorage] 임베딩 생성 시작: {query}")
                 vector = await embedder.embed_query(query)
                 logger.info(f"[QdrantStorage] 임베딩 생성 완료: {len(vector)}")
-                results = await asyncio.to_thread(
-                    self.client.search,
-                    collection_name=self.collection_name,
-                    query_vector=vector,
-                    limit=limit,
-                )
-                logger.info(f"[QdrantStorage] 검색 결과: {len(results)}개")
-                return [
-                    {"id": hit.id, "score": hit.score, "payload": hit.payload}
-                    for hit in results
-                ]
+
+                async with self.get_client() as client:
+                    results = await asyncio.to_thread(
+                        client.search,
+                        collection_name=self.collection_name,
+                        query_vector=vector,
+                        limit=limit,
+                    )
+                    logger.info(f"[QdrantStorage] 검색 결과: {len(results)}개")
+                    return [
+                        {"id": hit.id, "score": hit.score, "payload": hit.payload}
+                        for hit in results
+                    ]
         except Exception as e:
             logger.error(f"[QdrantStorage] 벡터 검색 실패: {str(e)}")
             raise
@@ -171,10 +218,20 @@ class QdrantStorage:
                 for i, (doc, embedding) in enumerate(zip(documents, embeddings))
             ]
             logger.info(f"[QdrantStorage] 저장 준비 완료: {len(points)}개 문서")
-            await asyncio.to_thread(
-                self.client.upsert, collection_name=self.collection_name, points=points
-            )
+            async with self.get_client() as client:
+                await asyncio.to_thread(
+                    client.upsert, collection_name=self.collection_name, points=points
+                )
             logger.info(f"[QdrantStorage] 배치 저장 완료: {len(points)}개 문서")
         except Exception as e:
             logger.error(f"[QdrantStorage] 배치 저장 실패: {str(e)}")
             raise
+
+
+if __name__ == "__main__":
+
+    from config.settings import QDRANT_HOST, QDRANT_PORT, QDRANT_API_KEY
+
+    qdrant_client = QdrantStorage()
+
+    print(qdrant_client._client.get_collections())

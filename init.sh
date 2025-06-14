@@ -31,7 +31,7 @@ init() {
     install_poetry
     install_dependencies "$@"
     install_ollama
-    install_qdrant
+    #install_qdrant
     download_model
     download_dataset
     log_info "초기화가 완료되었습니다."

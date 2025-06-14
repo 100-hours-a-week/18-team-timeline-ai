@@ -1,9 +1,14 @@
 # ------------------------------------------------------------------------------
 # classify 설정
 # Qdrant 설정
-QDRANT_HOST = "localhost"
-QDRANT_PORT = 6333
-QDRANT_GRPC_PORT = 6334
+import os
+from dotenv import load_dotenv
+
+load_dotenv(override=True)
+
+QDRANT_HOST = os.getenv("QDRANT_HOST")
+QDRANT_PORT = os.getenv("QDRANT_PORT", "6333")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
 VECTOR_SIZE = 1024
 BATCH_SIZE = 32
 # 감정 레이블 설정

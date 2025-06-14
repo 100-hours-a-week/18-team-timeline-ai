@@ -2,21 +2,19 @@ import asyncio
 from typing import List, Any
 import logging
 from utils.logger import Logger
-from dotenv import load_dotenv
-import os
 from config.settings import (
     DATASET_CACHE_DIR,
     DATASET_NAME,
     BATCH_SIZE,
     COLLECTION_NAME,
     QDRANT_PORT,
+    QDRANT_HOST,
+    QDRANT_API_KEY,
 )
 from utils.storage import QdrantStorage
 from inference.embedding import OllamaEmbeddingService
 
 logger = Logger.get_logger("dattset", log_level=logging.ERROR)
-load_dotenv(override=True)
-QDRANT_HOST = os.getenv("QDRANT_HOST")
 
 
 def create_documents(dataset) -> List[dict[str, Any]]:
@@ -60,11 +58,7 @@ def load_kote_dataset(
 
 async def main(dataset):
 
-    storage = QdrantStorage(
-        collection_name=COLLECTION_NAME,
-        host=QDRANT_HOST,
-        port=QDRANT_PORT,
-    )
+    storage = QdrantStorage()
     async with OllamaEmbeddingService() as embedder:
         from datasets import concatenate_datasets
 
