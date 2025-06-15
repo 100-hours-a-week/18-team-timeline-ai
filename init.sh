@@ -33,7 +33,7 @@ init() {
     install_ollama
     #install_qdrant
     download_model
-    download_dataset
+    #download_dataset
     log_info "초기화가 완료되었습니다."
 }
 
