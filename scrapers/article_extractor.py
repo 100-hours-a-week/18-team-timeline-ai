@@ -56,7 +56,6 @@ class ArticleExtractor(BaseSearcher):
         if self.session and not self.session.closed:
             logger.info("[ArticleExtractor] 세션 종료 시작")
             await self.session.close()
-            logger.info("[ArticleExtractor] 세션 종료 완료")
 
     def _get_timeout_for_domain(self, url: str) -> int:
         try:
