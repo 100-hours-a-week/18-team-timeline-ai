@@ -13,7 +13,6 @@ from schemas.response_schema import (
 from scrapers.daum_vclip_searcher import DaumVclipSearcher
 from scrapers.youtube_searcher import YouTubeCommentAsyncFetcher
 
-from inference.embedding import OllamaEmbeddingService
 from services.classify import SentimentAggregator
 from util.logger import Logger
 
@@ -52,7 +51,6 @@ async def main(query: str):
     aggregator = SentimentAggregator()
     ret = await aggregator.aggregate_multiple_queries(
         queries=ripple,
-        embedding_constructor=OllamaEmbeddingService,
     )
 
     # 댓글 데이터 분류
