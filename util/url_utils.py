@@ -1,6 +1,6 @@
 import re
 from urllib.parse import urlparse, parse_qs, unquote
-from utils.logger import Logger
+from util.logger import Logger
 import logging
 
 logger = Logger.get_logger("url_utils", log_level=logging.INFO)

@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 from qdrant_client import QdrantClient
 from qdrant_client.http.models import Distance, VectorParams
-from utils.logger import Logger
+from util.logger import Logger
 import asyncio
 from typing import Callable
 import socket
@@ -16,7 +16,7 @@ from config.settings import (
 from contextlib import asynccontextmanager
 from qdrant_client.http.exceptions import UnexpectedResponse
 
-logger = Logger.get_logger("storage")
+logger = Logger.get_logger("utils.storage")
 
 
 def is_qdrant_running(host: str, port: int, timeout: float = 1.0) -> bool:

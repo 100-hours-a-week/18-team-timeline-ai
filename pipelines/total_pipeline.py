@@ -1,9 +1,8 @@
 from typing import List, Dict, Tuple
 from config.prompts import SystemRole
 
-from utils.store import ResultStore
-import logging
-from utils.logger import Logger
+from util.store import ResultStore
+from util.logger import Logger
 from openai import AsyncOpenAI
 import asyncio
 

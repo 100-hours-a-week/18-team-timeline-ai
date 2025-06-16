@@ -4,7 +4,7 @@ import asyncio
 import numpy as np
 import trafilatura
 from trafilatura.settings import use_config
-from utils.logger import Logger
+from util.logger import Logger
 from config.settings import (
     USER_AGENT,
     ARTICLE_TIMEOUT,
@@ -47,7 +47,6 @@ class ArticleExtractor(BaseSearcher):
     async def __aexit__(self, exc_type, exc, tb):
         if self.session and not self.session.closed:
             await self.session.close()
-
 
     def _get_timeout_for_domain(self, url: str) -> int:
         try:

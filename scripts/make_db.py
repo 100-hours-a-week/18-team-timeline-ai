@@ -1,7 +1,7 @@
 import asyncio
 from typing import List, Any
 import logging
-from utils.logger import Logger
+from util.logger import Logger
 from config.settings import (
     DATASET_CACHE_DIR,
     DATASET_NAME,
@@ -11,7 +11,7 @@ from config.settings import (
     QDRANT_HOST,
     QDRANT_API_KEY,
 )
-from utils.storage import QdrantStorage
+from util.storage import QdrantStorage
 from inference.embedding import OllamaEmbeddingService
 
 logger = Logger.get_logger("dattset", log_level=logging.ERROR)

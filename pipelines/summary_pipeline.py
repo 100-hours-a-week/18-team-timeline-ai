@@ -3,9 +3,9 @@ from config.prompts import SystemRole
 from scrapers.article_extractor import ArticleExtractor
 from inference.host import Host
 from inference.manager import BatchManager, wrapper
-from utils.store import ResultStore
+from util.store import ResultStore
+from util.logger import Logger
 import logging
-from utils.logger import Logger
 import asyncio
 
 logger = Logger.get_logger("ai_models.pipeline", log_level=logging.ERROR)

@@ -1,6 +1,6 @@
 from typing import List
 from abc import ABC, abstractmethod
-from utils.logger import Logger
+from util.logger import Logger
 import aiohttp
 import asyncio
 import logging
@@ -11,7 +11,7 @@ from config.settings import (
     OLLAMA_MODEL,
 )
 
-logger = Logger.get_logger("embedding", log_level=logging.ERROR)
+logger = Logger.get_logger("inference.embedding")
 
 
 class EmbeddingModel(ABC):
