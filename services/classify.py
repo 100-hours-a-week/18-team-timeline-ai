@@ -3,6 +3,7 @@ from typing import Callable, List, Dict
 from config.settings import LABELS, SENTIMENT_MAP, COLLECTION_NAME, DICT_LABELS
 from utils.logger import Logger
 from utils.storage import QdrantStorage
+from inference.embedding import OllamaEmbeddingService
 from utils.handling import handle_http_error
 
 logger = Logger.get_logger("sentiment_aggregator")
@@ -16,7 +17,7 @@ class SentimentAggregator:
 
     def __init__(
         self,
-        embedding_constructor: Callable,
+        embedding_constructor: Callable = OllamaEmbeddingService,
         collection_name: str = COLLECTION_NAME,
         labels: List[str] = LABELS,
         sentiment_map: Dict[str, str] = SENTIMENT_MAP,
@@ -33,24 +34,12 @@ class SentimentAggregator:
         self.collection_name = collection_name
         self.labels = labels
         self.sentiment_map = sentiment_map
-        self._storage = None
+        self.storage = QdrantStorage(collection_name=collection_name)
 
         logger.info(
             f"[SentimentAggregator] 초기화 완료 - 컬렉션: {collection_name}, "
             f"레이블 수: {len(labels)}, 감정 유형: {list(sentiment_map.values())}"
         )
-
-    async def __aenter__(self):
-        """비동기 컨텍스트 매니저 진입"""
-        self._storage = QdrantStorage(collection_name=self.collection_name)
-        await self._storage.__aenter__()
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        """비동기 컨텍스트 매니저 종료"""
-        if self._storage is not None:
-            await self._storage.__aexit__(exc_type, exc_val, exc_tb)
-            self._storage = None
 
     async def aggregate_sentiment(self, query: str) -> Dict[str, float]:
         """유사 댓글들의 감정을 집계하여 최종 감정을 결정합니다.
@@ -68,55 +57,50 @@ class SentimentAggregator:
             logger.error("[SentimentAggregator] 쿼리가 비어있습니다")
             raise ValueError("query is required")
 
-        if self._storage is None:
-            raise RuntimeError(
-                "[SentimentAggregator] 스토리지가 초기화되지 않았습니다."
-            )
-
         logger.info(
             f"[SentimentAggregator] 감정 집계 시작 - 쿼리: {query}, "
             f"컬렉션: {self.collection_name}"
         )
 
         try:
-            async with self.embedding_constructor() as embedder:
-                logger.info(f"[SentimentAggregator] 검색 시작 - 쿼리: {query}")
-                ret = await self.storage.search(
-                    query=query, embedding_constructor=lambda: embedder, limit=100
-                )
+            logger.info(f"[SentimentAggregator] 검색 시작 - 쿼리: {query}")
+
+            ret = await self.storage.search(
+                query=query, embedding_constructor=self.embedding_constructor, limit=100
+            )
+
+            logger.info(
+                f"[SentimentAggregator] 검색 완료 - 결과 수: {len(ret)}, "
+                f"쿼리: {query}"
+            )
+
+            results = {"긍정": 0.0, "부정": 0.0, "중립": 0.0}
+            for i, r in enumerate(ret):
+                tmp = {"긍정": 0, "부정": 0, "중립": 0}
 
                 logger.info(
-                    f"[SentimentAggregator] 검색 완료 - 결과 수: {len(ret)}, "
-                    f"쿼리: {query}"
+                    f"[SentimentAggregator] 댓글 처리 중 - {i + 1}/{len(ret)}, "
+                    f"ID: {r['id']}, 점수: {r['score']}, "
+                    f"레이블 수: {len(r['payload']['labels'])}"
                 )
 
-                results = {"긍정": 0.0, "부정": 0.0, "중립": 0.0}
-                for i, r in enumerate(ret):
-                    tmp = {"긍정": 0, "부정": 0, "중립": 0}
-
-                    logger.info(
-                        f"[SentimentAggregator] 댓글 처리 중 - {i + 1}/{len(ret)}, "
-                        f"ID: {r['id']}, 점수: {r['score']}, "
-                        f"레이블 수: {len(r['payload']['labels'])}"
+                for label in r["payload"]["labels"]:
+                    sentiment = self.sentiment_map[DICT_LABELS[label]]
+                    tmp[sentiment] += 1
+                    logger.debug(
+                        f"[SentimentAggregator] 레이블 처리 - 레이블: {label}, "
+                        f"감정: {sentiment}, 카운트: {tmp[sentiment]}"
                     )
 
-                    for label in r["payload"]["labels"]:
-                        sentiment = self.sentiment_map[DICT_LABELS[label]]
-                        tmp[sentiment] += 1
-                        logger.debug(
-                            f"[SentimentAggregator] 레이블 처리 - 레이블: {label}, "
-                            f"감정: {sentiment}, 카운트: {tmp[sentiment]}"
-                        )
+                total = sum(tmp.values())
+                if total > 0:
+                    for key, value in tmp.items():
+                        results[key] += value / total * r["score"]
 
-                    total = sum(tmp.values())
-                    if total > 0:
-                        for key, value in tmp.items():
-                            results[key] += value / total * r["score"]
-
-                    logger.info(
-                        f"[SentimentAggregator] 현재까지 감정 집계 - "
-                        f"현재: {tmp}, 누적: {results}"
-                    )
+                logger.info(
+                    f"[SentimentAggregator] 현재까지 감정 집계 - "
+                    f"현재: {tmp}, 누적: {results}"
+                )
 
         except Exception as e:
             logger.error(
@@ -145,8 +129,8 @@ class SentimentAggregator:
             f"쿼리 수: {len(queries)}, 쿼리 목록: {queries}"
         )
 
+        tasks = [self.aggregate_sentiment(query=q) for q in queries]
         try:
-            tasks = [self.aggregate_sentiment(query=q) for q in queries]
             results = await asyncio.gather(*tasks, return_exceptions=True)
             logger.info(
                 f"[SentimentAggregator] 다중 쿼리 집계 완료 - "
