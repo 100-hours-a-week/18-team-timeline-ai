@@ -5,10 +5,9 @@ from inference.host import Host
 from inference.manager import BatchManager, wrapper
 from util.store import ResultStore
 from util.logger import Logger
-import logging
 import asyncio
 
-logger = Logger.get_logger("ai_models.pipeline", log_level=logging.ERROR)
+logger = Logger.get_logger("ai_models.pipeline")
 
 
 async def Pipeline(

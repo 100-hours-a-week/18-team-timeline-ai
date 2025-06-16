@@ -6,7 +6,7 @@ from util.logger import Logger
 from openai import AsyncOpenAI
 import asyncio
 
-logger = Logger.get_logger("ai_models.pipeline", log_level=logging.ERROR)
+logger = Logger.get_logger("ai_models.pipeline")
 
 
 async def TotalPipeline(
