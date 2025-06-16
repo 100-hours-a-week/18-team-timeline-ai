@@ -1,6 +1,6 @@
 import asyncio
 from aiohttp import ClientConnectorError, ServerDisconnectedError, ClientResponseError
-from utils.logger import Logger
+from util.logger import Logger
 import time
 from datetime import datetime
 import json

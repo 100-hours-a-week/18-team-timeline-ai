@@ -1,6 +1,6 @@
 from collections import OrderedDict, defaultdict
 import logging
-from utils.logger import Logger
+from util.logger import Logger
 from config.prompts import SystemRole
 
 logger = Logger.get_logger("utils.store")
