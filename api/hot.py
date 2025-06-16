@@ -1,8 +1,10 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from dotenv import load_dotenv
 
 from util.env_utils import get_serp_key
 from util.error_utils import error_response
+from services.classify import ClassifyService
+from config.prompts import SystemRole
 from util.logger import Logger
 
 from scrapers.serpapi import get_trending_keywords
