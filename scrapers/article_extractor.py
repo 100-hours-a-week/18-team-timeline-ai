@@ -1,5 +1,4 @@
 import aiohttp
-import logging
 import asyncio
 import numpy as np
 import trafilatura
@@ -13,7 +12,7 @@ from typing import List, Dict, Optional, AsyncGenerator
 from scrapers.base_searcher import BaseSearcher
 from urllib.parse import urlparse
 
-logger = Logger.get_logger("article_extractor", log_level=logging.INFO)
+logger = Logger.get_logger("article_extractor")
 config = use_config()
 config.set("DEFAULT", "user-agent", USER_AGENT)
 headers = {"User-Agent": USER_AGENT}
@@ -32,8 +31,13 @@ class ArticleExtractor(BaseSearcher):
             "sportivomedia.net": 5,
             "default": 3,
         }
+        logger.info(
+            f"[ArticleExtractor] 초기화 완료 - 언어: {lang}, "
+            f"최대 작업자 수: {max_workers}"
+        )
 
     async def __aenter__(self):
+        logger.info("[ArticleExtractor] 세션 생성 시작")
         timeout = aiohttp.ClientTimeout(total=30)
         self.session = aiohttp.ClientSession(
             timeout=timeout,
@@ -42,24 +46,48 @@ class ArticleExtractor(BaseSearcher):
                 limit=self.max_workers, force_close=True, enable_cleanup_closed=True
             ),
         )
+        logger.info(
+            f"[ArticleExtractor] 세션 생성 완료 - "
+            f"작업자 수: {self.max_workers}, 타임아웃: 30초"
+        )
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
         if self.session and not self.session.closed:
+            logger.info("[ArticleExtractor] 세션 종료 시작")
             await self.session.close()
+            logger.info("[ArticleExtractor] 세션 종료 완료")
 
     def _get_timeout_for_domain(self, url: str) -> int:
         try:
             domain = urlparse(url).netloc
-            return self.domain_timeouts.get(domain, self.domain_timeouts["default"])
-        except Exception:
+            timeout = self.domain_timeouts.get(domain, self.domain_timeouts["default"])
+            logger.debug(
+                f"[ArticleExtractor] 도메인 타임아웃 설정 - "
+                f"도메인: {domain}, 타임아웃: {timeout}초"
+            )
+            return timeout
+        except Exception as e:
+            logger.warning(
+                f"[ArticleExtractor] 도메인 타임아웃 설정 실패 - "
+                f"URL: {url}, 기본값 사용: {self.domain_timeouts['default']}초"
+            )
             return self.domain_timeouts["default"]
 
     def _get_retries_for_domain(self, url: str) -> int:
         try:
             domain = urlparse(url).netloc
-            return self.domain_retries.get(domain, self.domain_retries["default"])
-        except Exception:
+            retries = self.domain_retries.get(domain, self.domain_retries["default"])
+            logger.debug(
+                f"[ArticleExtractor] 도메인 재시도 설정 - "
+                f"도메인: {domain}, 재시도 횟수: {retries}회"
+            )
+            return retries
+        except Exception as e:
+            logger.warning(
+                f"[ArticleExtractor] 도메인 재시도 설정 실패 - "
+                f"URL: {url}, 기본값 사용: {self.domain_retries['default']}회"
+            )
             return self.domain_retries["default"]
 
     async def _extract_single(self, url: dict) -> Optional[Dict[str, str]]:
@@ -67,28 +95,39 @@ class ArticleExtractor(BaseSearcher):
         max_retries = self._get_retries_for_domain(url["url"])
         last_error = None
         title = url["title"]
-        original_url = url["url"]  # 원본 URL 저장
+        original_url = url["url"]
+
+        logger.info(
+            f"[ArticleExtractor] 기사 추출 시작 - "
+            f"URL: {original_url}, 제목: {title}, "
+            f"최대 재시도: {max_retries}회"
+        )
 
         while retry_count < max_retries:
             try:
                 async with self.session.get(url["url"]) as response:
                     response.raise_for_status()
-                    # 응답의 인코딩 확인
                     content_type = response.headers.get("content-type", "").lower()
+
+                    logger.debug(
+                        f"[ArticleExtractor] 응답 헤더 확인 - "
+                        f"상태 코드: {response.status}, "
+                        f"Content-Type: {content_type}"
+                    )
+
                     if "charset=" in content_type:
                         encoding = content_type.split("charset=")[-1].strip()
                     else:
                         encoding = None
 
-                    # 인코딩 시도 순서
                     encodings_to_try = [
-                        encoding,  # 헤더에서 감지한 인코딩
-                        "utf-8",  # 가장 일반적인 인코딩
-                        "cp949",  # 한글 Windows
-                        "euc-kr",  # 한글 Unix
-                        "iso-8859-1",  # 기본 라틴
-                        "utf-16",  # 유니코드
-                        "utf-32",  # 유니코드
+                        encoding,
+                        "utf-8",
+                        "cp949",
+                        "euc-kr",
+                        "iso-8859-1",
+                        "utf-16",
+                        "utf-32",
                     ]
 
                     html_content = None
@@ -98,18 +137,24 @@ class ArticleExtractor(BaseSearcher):
                         try:
                             html_content = await response.text(encoding=enc)
                             logger.info(
-                                f"[ArticleExtractor] 인코딩 성공: {enc} - URL: {url['url']}"
+                                f"[ArticleExtractor] 인코딩 성공 - "
+                                f"URL: {url['url']}, 인코딩: {enc}"
                             )
                             break
                         except UnicodeDecodeError:
+                            logger.debug(
+                                f"[ArticleExtractor] 인코딩 실패 - "
+                                f"URL: {url['url']}, 인코딩: {enc}"
+                            )
                             continue
 
                     if not html_content:
                         logger.error(
-                            f"[ArticleExtractor] 모든 인코딩 시도 실패 - URL: {url['url']}"
+                            f"[ArticleExtractor] 모든 인코딩 시도 실패 - "
+                            f"URL: {url['url']}"
                         )
                         return {
-                            "url": original_url,  # 원본 URL 반환
+                            "url": original_url,
                             "title": title,
                             "input_text": "",
                         }
@@ -123,12 +168,18 @@ class ArticleExtractor(BaseSearcher):
 
                 if not text or not text.strip():
                     logger.warning(
-                        f"[ArticleExtractor] 본문 추출 실패, 제목을 본문으로 사용 - URL: {url['url']}"
+                        f"[ArticleExtractor] 본문 추출 실패 - "
+                        f"URL: {url['url']}, 제목을 본문으로 사용"
                     )
                     text = title
 
+                logger.info(
+                    f"[ArticleExtractor] 기사 추출 완료 - "
+                    f"URL: {url['url']}, 본문 길이: {len(text)}자"
+                )
+
                 return {
-                    "url": original_url,  # 원본 URL 반환
+                    "url": original_url,
                     "title": title,
                     "input_text": text.strip(),
                 }
@@ -139,29 +190,33 @@ class ArticleExtractor(BaseSearcher):
                 if retry_count < max_retries:
                     wait_time = 2**retry_count
                     logger.info(
-                        f"[ArticleExtractor] 재시도 대기 중 - URL: {url['url']}, "
-                        f"시도: {retry_count}/{max_retries}, 대기 시간: {wait_time}초"
+                        f"[ArticleExtractor] 재시도 대기 - "
+                        f"URL: {url['url']}, "
+                        f"시도: {retry_count}/{max_retries}, "
+                        f"대기 시간: {wait_time}초"
                     )
                     await asyncio.sleep(wait_time)
                 else:
                     logger.error(
-                        f"[ArticleExtractor] URL 처리 실패 - {url['url']}, "
+                        f"[ArticleExtractor] URL 처리 실패 - "
+                        f"URL: {url['url']}, "
                         f"에러: {type(last_error).__name__}: {str(last_error)}, "
                         f"재시도: {retry_count}회"
                     )
                     return {
-                        "url": original_url,  # 원본 URL 반환
+                        "url": original_url,
                         "title": title,
                         "input_text": "",
                     }
 
             except Exception as e:
                 logger.error(
-                    f"[ArticleExtractor] 기사 추출 실패 - URL: {url['url']}, "
+                    f"[ArticleExtractor] 기사 추출 실패 - "
+                    f"URL: {url['url']}, "
                     f"에러: {type(e).__name__}: {str(e)}"
                 )
                 return {
-                    "url": original_url,  # 원본 URL 반환
+                    "url": original_url,
                     "title": title,
                     "input_text": "",
                 }
@@ -170,10 +225,19 @@ class ArticleExtractor(BaseSearcher):
         try:
             return await self._extract_single(url)
         except Exception as e:
-            logger.error(f"[ArticleExtractor] 기사 추출 실패: {e}")
+            logger.error(
+                f"[ArticleExtractor] 기사 추출 실패 - "
+                f"URL: {url.get('url', 'unknown')}, "
+                f"에러: {str(e)}"
+            )
             return None
 
     async def search(self, urls: List[dict]) -> AsyncGenerator[dict, None]:
+        logger.info(
+            f"[ArticleExtractor] 배치 처리 시작 - "
+            f"URL 수: {len(urls)}, 최대 작업자 수: {self.max_workers}"
+        )
+
         semaphore = asyncio.Semaphore(self.max_workers)
 
         async def bounded_extract(url: dict) -> Optional[dict]:
@@ -183,19 +247,39 @@ class ArticleExtractor(BaseSearcher):
                     if result:
                         return {"id": url.get("id", 0), **result}
                 except Exception as e:
-                    logger.error(f"[ArticleExtractor] 기사 추출 실패: {e}")
+                    logger.error(
+                        f"[ArticleExtractor] 기사 추출 실패 - "
+                        f"URL: {url.get('url', 'unknown')}, "
+                        f"에러: {str(e)}"
+                    )
                 return None
 
         tasks = [asyncio.create_task(bounded_extract(url)) for url in urls]
+        completed = 0
 
         for task in asyncio.as_completed(tasks):
             try:
                 result = await task
+                completed += 1
                 if result:
+                    logger.info(
+                        f"[ArticleExtractor] 작업 완료 - "
+                        f"진행: {completed}/{len(urls)}, "
+                        f"URL: {result.get('url', 'unknown')}"
+                    )
                     yield result
             except Exception as e:
-                logger.error(f"[ArticleExtractor] 작업 처리 실패: {e}")
+                logger.error(
+                    f"[ArticleExtractor] 작업 처리 실패 - "
+                    f"진행: {completed}/{len(urls)}, "
+                    f"에러: {str(e)}"
+                )
                 continue
+
+        logger.info(
+            f"[ArticleExtractor] 배치 처리 완료 - "
+            f"총 URL 수: {len(urls)}, 완료: {completed}"
+        )
 
 
 def cosine_similarity(a: List[float], b: List[float]) -> float:
@@ -203,8 +287,18 @@ def cosine_similarity(a: List[float], b: List[float]) -> float:
         a, b = np.array(a), np.array(b)
         norm_a, norm_b = np.linalg.norm(a), np.linalg.norm(b)
         if norm_a == 0 or norm_b == 0:
+            logger.warning(
+                f"[cosine_similarity] 벡터 크기가 0 - "
+                f"벡터 A 크기: {norm_a}, 벡터 B 크기: {norm_b}"
+            )
             return 0.0
-        return float(np.dot(a, b) / (norm_a * norm_b))
+        similarity = float(np.dot(a, b) / (norm_a * norm_b))
+        logger.debug(
+            f"[cosine_similarity] 유사도 계산 완료 - " f"결과: {similarity:.4f}"
+        )
+        return similarity
     except Exception as e:
-        logger.error(f"[cosine_similarity] 코사인 유사도 계산 중 오류 발생: {e}")
+        logger.error(
+            f"[cosine_similarity] 코사인 유사도 계산 중 오류 발생 - " f"에러: {str(e)}"
+        )
         return 0.0
