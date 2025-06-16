@@ -3,11 +3,10 @@ from typing import List, Optional
 from scrapers.base_searcher import BaseSearcher
 import asyncio
 import aiohttp
-from util.logger import Logger
-import logging
-from util.exceptions import SearchRequestFailedError
+from utils.logger import Logger
+from utils.exceptions import SearchRequestFailedError
 
-logger = Logger.get_logger("scrapers.youtube")
+logger = Logger.get_logger("youtube_searcher")
 
 
 class YouTubeCommentAsyncFetcher(BaseSearcher):
