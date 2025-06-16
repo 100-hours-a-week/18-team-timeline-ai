@@ -2,7 +2,6 @@ import logging
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Optional
 
 # 프로젝트 루트 디렉토리 설정
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
@@ -71,7 +70,7 @@ class Logger:
     _instances: dict = {}
 
     def __new__(
-        cls, name: str, log_level: int = logging.ERROR, log_dir: str = "logs"
+        cls, name: str, log_level: int = logging.INFO, log_dir: str = "logs"
     ) -> "Logger":
         """싱글톤 패턴으로 로거 인스턴스 관리
 
@@ -89,7 +88,7 @@ class Logger:
         return cls._instances[name]
 
     def __init__(
-        self, name: str, log_level: int = logging.ERROR, log_dir: str = "logs"
+        self, name: str, log_level: int = logging.INFO, log_dir: str = "logs"
     ) -> None:
         """Logger 초기화
 
@@ -114,7 +113,7 @@ class Logger:
             logging.Logger: 설정된 로거 인스턴스
         """
         logger = logging.getLogger(self.name)
-        logger.setLevel(self.log_level)
+        logger.setLevel(logging.INFO)  # 로거 자체는 INFO 레벨로 설정
 
         if logger.handlers:
             return logger
@@ -127,13 +126,21 @@ class Logger:
         module_name = self.name.replace(".", "_")
         log_file = log_path / f"{module_name}_{current_date}.log"
 
-        # 파일 핸들러 설정
+        # 파일 핸들러 설정 (INFO 레벨)
         file_handler = logging.FileHandler(filename=str(log_file), encoding="utf-8")
-        file_handler.setLevel(self.log_level)
+        file_handler.setLevel(logging.INFO)  # 파일에는 INFO 이상 레벨 기록
 
-        # JSON 포맷터 설정
-        json_formatter = JSONFormatter()
-        file_handler.setFormatter(json_formatter)
+        # 콘솔 핸들러 설정 (ERROR 레벨)
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.ERROR)  # 콘솔에는 ERROR 이상 레벨만 출력
+
+        # 로그 포맷 설정
+        formatter = logging.Formatter(
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        file_handler.setFormatter(formatter)
+        console_handler.setFormatter(formatter)
 
         # 핸들러 추가
         logger.addHandler(file_handler)
@@ -226,7 +233,7 @@ class Logger:
 
     @classmethod
     def get_logger(
-        cls, name: str, log_level: int = logging.ERROR, log_dir: str = "logs"
+        cls, name: str, log_level: int = logging.INFO, log_dir: str = "logs"
     ) -> "Logger":
         """로거 인스턴스를 가져옵니다.
 
