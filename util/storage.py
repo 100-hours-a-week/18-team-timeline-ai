@@ -75,11 +75,13 @@ class QdrantStorage:
             self._client = None
 
             # 서버 상태 확인
+            """
             if not is_qdrant_running(host, port):
                 raise RuntimeError(
                     f"[QdrantStorage] 서버 연결 실패: {host}:{port}. "
                     "Qdrant 서버가 실행 중이지 않습니다."
                 )
+            """
 
             url = f"{host}:{port}"
             self._client = QdrantClient(
