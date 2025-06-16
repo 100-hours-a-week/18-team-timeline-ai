@@ -6,7 +6,7 @@ import asyncio
 import orjson
 from config.settings import BATCH_SIZE, OLLAMA_HOST, OLLAMA_MODEL, OLLAMA_PORT
 
-logger = Logger.get_logger("inference.embedding")
+logger = Logger.get_logger("embedding")
 
 
 class EmbeddingModel(ABC):
