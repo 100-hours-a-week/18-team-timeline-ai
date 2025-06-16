@@ -1,7 +1,65 @@
 import logging
+import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional
+
+
+class JSONFormatter(logging.Formatter):
+    """JSON 형식의 로그 포맷터"""
+
+    def format(self, record: logging.LogRecord) -> str:
+        """로그 레코드를 JSON 형식으로 변환
+
+        Args:
+            record (logging.LogRecord): 로그 레코드
+
+        Returns:
+            str: JSON 형식의 로그 문자열
+        """
+        log_data = {
+            "timestamp": datetime.fromtimestamp(record.created).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+            "level": record.levelname,
+            "name": record.name,
+            "message": record.getMessage(),
+        }
+
+        # 예외 정보가 있는 경우 추가
+        if record.exc_info:
+            log_data["exception"] = self.formatException(record.exc_info)
+
+        # 추가 속성이 있는 경우 포함
+        for key, value in record.__dict__.items():
+            if key not in [
+                "args",
+                "asctime",
+                "created",
+                "exc_info",
+                "exc_text",
+                "filename",
+                "funcName",
+                "id",
+                "levelname",
+                "levelno",
+                "lineno",
+                "module",
+                "msecs",
+                "message",
+                "msg",
+                "name",
+                "pathname",
+                "process",
+                "processName",
+                "relativeCreated",
+                "stack_info",
+                "thread",
+                "threadName",
+            ]:
+                log_data[key] = value
+
+        return json.dumps(log_data, ensure_ascii=False)
 
 
 class Logger:
@@ -16,7 +74,7 @@ class Logger:
 
         Args:
             name (str): 로거 이름
-            log_level (int, optional): 로그 레벨. Defaults to logging.INFO.
+            log_level (int, optional): 로그 레벨. Defaults to logging.ERROR.
             log_dir (str, optional): 로그 파일이 저장될 디렉토리.
                 Defaults to "logs".
 
@@ -34,7 +92,7 @@ class Logger:
 
         Args:
             name (str): 로거 이름
-            log_level (int, optional): 로그 레벨. Defaults to logging.INFO.
+            log_level (int, optional): 로그 레벨. Defaults to logging.ERROR.
             log_dir (str, optional): 로그 파일이 저장될 디렉토리.
                 Defaults to "logs".
         """
@@ -57,34 +115,25 @@ class Logger:
 
         if logger.handlers:
             return logger
+
+        # 로그 디렉토리 생성
         current_date = datetime.now().strftime("%Y-%m-%d")
         log_path = Path(self.log_dir) / current_date
-
         log_path.mkdir(parents=True, exist_ok=True)
 
         # 로그 파일명 생성
-        current_date = datetime.now().strftime("%Y-%m-%d")
         log_file = log_path / f"{self.name}_{current_date}.log"
 
         # 파일 핸들러 설정
         file_handler = logging.FileHandler(filename=log_file, encoding="utf-8")
         file_handler.setLevel(self.log_level)
 
-        # 콘솔 핸들러 설정
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(self.log_level)
-
-        # 로그 포맷 설정
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-        file_handler.setFormatter(formatter)
-        console_handler.setFormatter(formatter)
+        # JSON 포맷터 설정
+        json_formatter = JSONFormatter()
+        file_handler.setFormatter(json_formatter)
 
         # 핸들러 추가
         logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
 
         return logger
 
@@ -106,7 +155,6 @@ class Logger:
         log_path.mkdir(parents=True, exist_ok=True)
 
         # 에러 로그 파일명 생성
-        current_date = datetime.now().strftime("%Y-%m-%d")
         error_log_file = log_path / f"{self.name}_error_{current_date}.log"
 
         # 에러 파일 핸들러 설정
@@ -115,15 +163,18 @@ class Logger:
         )
         error_file_handler.setLevel(logging.ERROR)
 
-        # 에러 로그 포맷 설정
-        error_formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
-        )
-        error_file_handler.setFormatter(error_formatter)
+        # 콘솔 핸들러 설정 (에러만 출력)
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.ERROR)
+
+        # JSON 포맷터 설정
+        json_formatter = JSONFormatter()
+        error_file_handler.setFormatter(json_formatter)
+        console_handler.setFormatter(json_formatter)
 
         # 핸들러 추가
         error_logger.addHandler(error_file_handler)
+        error_logger.addHandler(console_handler)
 
         return error_logger
 
@@ -177,7 +228,7 @@ class Logger:
 
         Args:
             name (str): 로거 이름
-            log_level (int, optional): 로그 레벨. Defaults to logging.INFO.
+            log_level (int, optional): 로그 레벨. Defaults to logging.ERROR.
             log_dir (str, optional): 로그 파일이 저장될 디렉토리.
                 Defaults to "logs".
 
@@ -192,6 +243,7 @@ def setup_root_logger(log_level: int = logging.INFO, log_dir: str = "logs") -> N
 
     Args:
         log_level (int, optional): 로그 레벨. Defaults to logging.INFO.
-        log_dir (str, optional): 로그 파일이 저장될 디렉토리. Defaults to "logs".
+        log_dir (str, optional): 로그 파일이 저장될 디렉토리.
+            Defaults to "logs".
     """
     Logger.get_logger("root", log_level, log_dir)
