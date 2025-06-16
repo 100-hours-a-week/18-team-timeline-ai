@@ -1,6 +1,5 @@
 import asyncio
-import aiohttp
-from typing import Callable, List, Dict, Any
+from typing import Callable, List, Dict
 from util.logger import Logger
 from config.settings import LABELS, SENTIMENT_MAP, COLLECTION_NAME, DICT_LABELS
 from util.storage import QdrantStorage
