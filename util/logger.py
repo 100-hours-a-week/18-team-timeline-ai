@@ -143,7 +143,6 @@ class Logger:
 
         # 핸들러 추가
         logger.addHandler(file_handler)
-        logger.addHandler(console_handler)
 
         return logger
 
