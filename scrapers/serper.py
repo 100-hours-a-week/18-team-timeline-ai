@@ -1,6 +1,6 @@
 import requests
 from datetime import date, timedelta
-from utils.timeline_utils import available_url, auto_clean_url
+from util.timeline_utils import available_url, auto_clean_url
 
 # ---------------------------------------------------
 
@@ -17,11 +17,7 @@ lang_to_country = {
 
 
 # 검색어, 시작 날짜, 종료 날짜, API_KEY -> (링크, 제목) 리스트
-def get_news_serper(
-    query: str,
-    date: date,
-    api_key: str
-) -> list[tuple[str, str]]:
+def get_news_serper(query: str, date: date, api_key: str) -> list[tuple[str, str]]:
     # 변수 선언
     date_str = date.strftime("%Y-%m-%d")
     query_with_date = f"{query} {date_str}"

@@ -4,7 +4,7 @@ import asyncio
 import numpy as np
 import trafilatura
 from trafilatura.settings import use_config
-from utils.logger import Logger
+from util.logger import Logger
 from config.settings import (
     USER_AGENT,
     ARTICLE_TIMEOUT,

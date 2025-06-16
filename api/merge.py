@@ -4,12 +4,12 @@ import asyncio
 
 from fastapi import APIRouter
 
-from utils.error_utils import error_response
-from utils.timeline_utils import next_timeline_type, shrink_if_needed
+from util.error_utils import error_response
+from util.timeline_utils import next_timeline_type, shrink_if_needed
 from pipelines.total_pipeline import TotalPipeline
 from schemas.response_schema import CommonResponse, ErrorResponse, MergeRequest
 from schemas.timeline_card import TimelineCard
-from utils.logger import Logger
+from util.logger import Logger
 
 # -------------------------------------------------------------------
 

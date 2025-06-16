@@ -2,11 +2,11 @@ import re
 from typing import Optional
 from PyKakao import DaumSearch
 from scrapers.base_searcher import BaseSearcher
-from utils.exceptions import (
+from util.exceptions import (
     InvalidAPIKeyError,
     SearchRequestFailedError,
 )
-from utils.logger import Logger
+from util.logger import Logger
 
 logger = Logger.get_logger("scrapers.daum_vclip")
 

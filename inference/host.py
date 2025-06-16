@@ -1,5 +1,5 @@
 import aiohttp
-from utils.logger import Logger
+from util.logger import Logger
 from config.prompts import SYSTEM_PROMPT, SystemRole
 import orjson
 from typing import Dict, Any, Optional

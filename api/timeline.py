@@ -2,9 +2,9 @@ import os
 import dotenv
 from config.limiter import limiter
 
-from utils.env_utils import get_serper_key
-from utils.error_utils import error_response
-from utils.timeline_utils import (
+from util.env_utils import get_serper_key
+from util.error_utils import error_response
+from util.timeline_utils import (
     convert_tag,
     short_sentence,
     compress_sentence,
@@ -25,7 +25,7 @@ from schemas.response_schema import (
 from scrapers.url_to_img import get_img_link
 from scrapers.serper import distribute_news_serper
 from scrapers.filter import DaumKeywordMeaningChecker
-from utils.logger import Logger
+from util.logger import Logger
 
 # -------------------------------------------------------------------
 

@@ -1,6 +1,6 @@
 from typing import List
 from abc import ABC, abstractmethod
-from utils.logger import Logger
+from util.logger import Logger
 import aiohttp
 import asyncio
 import logging

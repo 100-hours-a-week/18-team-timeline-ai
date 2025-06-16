@@ -1,12 +1,14 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from dotenv import load_dotenv
 
-from utils.env_utils import get_serp_key
-from utils.error_utils import error_response
+from util.env_utils import get_serp_key
+from util.error_utils import error_response
+from services.classify import ClassifyService
+from config.prompts import SystemRole
+from util.logger import Logger
 
 from scrapers.serpapi import get_trending_keywords
 from schemas.response_schema import CommonResponse, ErrorResponse, HotRequest, HotData
-from utils.logger import Logger
 
 router = APIRouter()
 logger = Logger.get_logger("api.hot")

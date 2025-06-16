@@ -2,7 +2,7 @@ import os
 import dotenv
 
 from fastapi import APIRouter
-from utils.error_utils import error_response
+from util.error_utils import error_response
 from schemas.response_schema import (
     CommonResponse,
     ErrorResponse,
@@ -15,7 +15,7 @@ from scrapers.youtube_searcher import YouTubeCommentAsyncFetcher
 
 from inference.embedding import OllamaEmbeddingService
 from services.classify import SentimentAggregator
-from utils.logger import Logger
+from util.logger import Logger
 
 # -------------------------------------------------------------------
 

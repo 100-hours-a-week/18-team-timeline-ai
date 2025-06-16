@@ -3,9 +3,9 @@ from typing import List
 from scrapers.base_searcher import BaseSearcher
 import asyncio
 import aiohttp
-from utils.logger import Logger
+from util.logger import Logger
 import logging
-from utils.exceptions import SearchRequestFailedError
+from util.exceptions import SearchRequestFailedError
 
 logger = Logger.get_logger("scrapers.youtube")
 
