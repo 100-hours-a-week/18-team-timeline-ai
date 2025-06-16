@@ -83,7 +83,21 @@ class QdrantStorage:
             raise RuntimeError("[QdrantStorage] 이미 종료된 클라이언트입니다.")
 
         try:
-            url = f"{self._host}:{self._port}"
+            self.collection_name = collection_name
+            self.batch_size = batch_size
+            self.vector_size = vector_size
+            self._client = None
+
+            # 서버 상태 확인
+            """
+            if not is_qdrant_running(host, port):
+                raise RuntimeError(
+                    f"[QdrantStorage] 서버 연결 실패: {host}:{port}. "
+                    "Qdrant 서버가 실행 중이지 않습니다."
+                )
+            """
+
+            url = f"{host}:{port}"
             self._client = QdrantClient(
                 url=url,
                 api_key=self._api_key,
