@@ -1,11 +1,10 @@
 import asyncio
-import aiohttp
-from typing import Callable, List, Dict, Any
-from util.logger import Logger
+from typing import Callable, List, Dict
 from config.settings import LABELS, SENTIMENT_MAP, COLLECTION_NAME, DICT_LABELS
-from util.storage import QdrantStorage
+from utils.logger import Logger
+from utils.storage import QdrantStorage
 from inference.embedding import OllamaEmbeddingService
-from util.handling import handle_http_error
+from utils.handling import handle_http_error
 
 logger = Logger.get_logger("sentiment_aggregator")
 
