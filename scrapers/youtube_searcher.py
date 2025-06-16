@@ -6,7 +6,7 @@ import aiohttp
 from utils.logger import Logger
 from utils.exceptions import SearchRequestFailedError
 
-logger = Logger.get_logger("youtube_searcher")
+logger = Logger.get_logger("scrapers.youtube")
 
 
 class YouTubeCommentAsyncFetcher(BaseSearcher):
