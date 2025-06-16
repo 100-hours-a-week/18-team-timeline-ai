@@ -1,10 +1,16 @@
 import asyncio
-from typing import Callable, List, Dict
+import aiohttp
+from typing import Callable, List, Dict, Any
+from util.logger import Logger
 from config.settings import LABELS, SENTIMENT_MAP, COLLECTION_NAME, DICT_LABELS
-from utils.logger import Logger
-from utils.storage import QdrantStorage
+from util.storage import QdrantStorage
 from inference.embedding import OllamaEmbeddingService
-from utils.handling import handle_http_error
+from scrapers.daum_vclip_searcher import DaumVclipSearcher
+from scrapers.youtube_searcher import YouTubeCommentAsyncFetcher
+from config.prompts import SystemRole
+from util.handling import handle_http_error
+import time
+import logging
 
 logger = Logger.get_logger("sentiment_aggregator")
 
