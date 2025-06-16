@@ -3,12 +3,19 @@
 # Qdrant 설정
 import os
 from dotenv import load_dotenv
+from utils.logger import Logger
 
 load_dotenv(override=True)
 
+logger = Logger.get_logger("settings")
+
 QDRANT_HOST = os.getenv("QDRANT_HOST")
-QDRANT_PORT = os.getenv("QDRANT_PORT", "6333")
-QDRANT_API_KEY = os.getenv("QDRANT_API_KEY", "")
+QDRANT_PORT = os.getenv("QDRANT_PORT")
+QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
+
+if not all([QDRANT_HOST, QDRANT_PORT, QDRANT_API_KEY]):
+    logger.error("Qdrant 환경변수가 설정되지 않았습니다.")
+
 VECTOR_SIZE = 1024
 BATCH_SIZE = 32
 # 감정 레이블 설정
@@ -117,8 +124,13 @@ COLLECTION_NAME = "kote"
 DATASET_VOLUME = "./qdrant_storage"
 # ------------------------------------------------------------------------------
 # OLLAMA 설정
-OLLAMA_HOST = "http://localhost:11434"
+OLLAMA_HOST = os.getenv("OLLAMA_HOST")
+OLLAMA_PORT = os.getenv("OLLAMA_PORT")
 OLLAMA_MODEL = "bge-m3"
+
+if not all([OLLAMA_HOST, OLLAMA_PORT]):
+    logger.error("Ollama 환경변수가 설정되지 않았습니다.")
+
 # ------------------------------------------------------------------------------
 # 밴 방지용 설정
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/113.0.0.0 Safari/537.36"
