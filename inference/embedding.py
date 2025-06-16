@@ -11,7 +11,7 @@ from config.settings import (
     OLLAMA_MODEL,
 )
 
-logger = Logger.get_logger("embedding", log_level=logging.ERROR)
+logger = Logger.get_logger("inference.embedding")
 
 
 class EmbeddingModel(ABC):

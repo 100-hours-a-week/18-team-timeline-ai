@@ -9,7 +9,7 @@ from schemas.response_schema import CommonResponse, ErrorResponse, HotRequest, H
 from utils.logger import Logger
 
 router = APIRouter()
-logger = Logger.get_logger("api_hot")
+logger = Logger.get_logger("api.hot")
 
 
 @router.post(

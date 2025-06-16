@@ -8,7 +8,7 @@ from utils.exceptions import (
 )
 from utils.logger import Logger
 
-logger = Logger.get_logger("daum_vclip")
+logger = Logger.get_logger("scrapers.daum_vclip")
 
 
 class DaumVclipSearcher(BaseSearcher):

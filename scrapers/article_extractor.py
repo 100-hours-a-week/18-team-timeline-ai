@@ -48,7 +48,6 @@ class ArticleExtractor(BaseSearcher):
         if self.session and not self.session.closed:
             await self.session.close()
 
-
     def _get_timeout_for_domain(self, url: str) -> int:
         try:
             domain = urlparse(url).netloc

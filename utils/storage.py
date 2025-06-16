@@ -16,7 +16,7 @@ from config.settings import (
 from contextlib import asynccontextmanager
 from qdrant_client.http.exceptions import UnexpectedResponse
 
-logger = Logger.get_logger("storage")
+logger = Logger.get_logger("utils.storage")
 
 
 def is_qdrant_running(host: str, port: int, timeout: float = 1.0) -> bool:

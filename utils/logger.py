@@ -3,6 +3,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+# 프로젝트 루트 디렉토리 설정
+PROJECT_ROOT = Path(__file__).parent.parent.absolute()
+
 
 class Logger:
     """로깅을 관리하는 클래스"""
@@ -15,7 +18,7 @@ class Logger:
         """싱글톤 패턴으로 로거 인스턴스 관리
 
         Args:
-            name (str): 로거 이름
+            name (str): 로거 이름 (모듈 경로 형식, 예: 'api.hot', 'utils.storage')
             log_level (int, optional): 로그 레벨. Defaults to logging.INFO.
             log_dir (str, optional): 로그 파일이 저장될 디렉토리.
                 Defaults to "logs".
@@ -33,7 +36,7 @@ class Logger:
         """Logger 초기화
 
         Args:
-            name (str): 로거 이름
+            name (str): 로거 이름 (모듈 경로 형식, 예: 'api.hot', 'utils.storage')
             log_level (int, optional): 로그 레벨. Defaults to logging.INFO.
             log_dir (str, optional): 로그 파일이 저장될 디렉토리.
                 Defaults to "logs".
@@ -41,7 +44,7 @@ class Logger:
         if not hasattr(self, "initialized"):
             self.name = name
             self.log_level = log_level
-            self.log_dir = log_dir
+            self.log_dir = PROJECT_ROOT / log_dir
             self.logger = self._setup_logger()
             self.error_logger = self._setup_error_logger()
             self.initialized = True
@@ -57,17 +60,17 @@ class Logger:
 
         if logger.handlers:
             return logger
-        current_date = datetime.now().strftime("%Y-%m-%d")
-        log_path = Path(self.log_dir) / current_date
 
+        current_date = datetime.now().strftime("%Y-%m-%d")
+        log_path = self.log_dir / current_date
         log_path.mkdir(parents=True, exist_ok=True)
 
-        # 로그 파일명 생성
-        current_date = datetime.now().strftime("%Y-%m-%d")
-        log_file = log_path / f"{self.name}_{current_date}.log"
+        # 로그 파일명 생성 (모듈 경로를 파일명으로 변환)
+        module_name = self.name.replace(".", "_")
+        log_file = log_path / f"{module_name}_{current_date}.log"
 
         # 파일 핸들러 설정
-        file_handler = logging.FileHandler(filename=log_file, encoding="utf-8")
+        file_handler = logging.FileHandler(filename=str(log_file), encoding="utf-8")
         file_handler.setLevel(self.log_level)
 
         # 콘솔 핸들러 설정
@@ -102,16 +105,16 @@ class Logger:
 
         # 로그 디렉토리 생성
         current_date = datetime.now().strftime("%Y-%m-%d")
-        log_path = Path(self.log_dir) / current_date
+        log_path = self.log_dir / current_date
         log_path.mkdir(parents=True, exist_ok=True)
 
-        # 에러 로그 파일명 생성
-        current_date = datetime.now().strftime("%Y-%m-%d")
-        error_log_file = log_path / f"{self.name}_error_{current_date}.log"
+        # 에러 로그 파일명 생성 (모듈 경로를 파일명으로 변환)
+        module_name = self.name.replace(".", "_")
+        error_log_file = log_path / f"{module_name}_error_{current_date}.log"
 
         # 에러 파일 핸들러 설정
         error_file_handler = logging.FileHandler(
-            filename=error_log_file, encoding="utf-8"
+            filename=str(error_log_file), encoding="utf-8"
         )
         error_file_handler.setLevel(logging.ERROR)
 

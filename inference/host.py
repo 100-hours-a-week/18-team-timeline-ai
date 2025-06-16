@@ -4,7 +4,7 @@ from config.prompts import SYSTEM_PROMPT, SystemRole
 import orjson
 from typing import Dict, Any, Optional
 
-logger = Logger.get_logger("ai_models.host")
+logger = Logger.get_logger("inference.host")
 
 
 class Host:

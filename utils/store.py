@@ -3,7 +3,7 @@ import logging
 from utils.logger import Logger
 from config.prompts import SystemRole
 
-logger = Logger.get_logger("ai_models.store", log_level=logging.ERROR)
+logger = Logger.get_logger("utils.store")
 
 
 class ResultStore:

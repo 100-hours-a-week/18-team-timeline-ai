@@ -8,7 +8,7 @@ import logging
 import time
 import uuid
 
-logger = Logger.get_logger("ai_models.manager", log_level=logging.ERROR)
+logger = Logger.get_logger("inference.manager")
 
 
 class BatchManager:
