@@ -3,15 +3,10 @@ from abc import ABC, abstractmethod
 from utils.logger import Logger
 import aiohttp
 import asyncio
-import logging
 import orjson
-from config.settings import (
-    BATCH_SIZE,
-    OLLAMA_HOST,
-    OLLAMA_MODEL,
-)
+from config.settings import BATCH_SIZE, OLLAMA_HOST, OLLAMA_MODEL, OLLAMA_PORT
 
-logger = Logger.get_logger("embedding", log_level=logging.ERROR)
+logger = Logger.get_logger("embedding")
 
 
 class EmbeddingModel(ABC):
@@ -37,7 +32,7 @@ class OllamaEmbeddingService(EmbeddingModel):
 
     def __init__(
         self,
-        base_url: str = OLLAMA_HOST,
+        base_url: str = f"{OLLAMA_HOST}:{OLLAMA_PORT}",
         model: str = OLLAMA_MODEL,
         batch_size: int = BATCH_SIZE,
     ):
@@ -55,20 +50,27 @@ class OllamaEmbeddingService(EmbeddingModel):
         self.model = model
         self.batch_size = batch_size
         self.session = None
+        logger.info(
+            f"[OllamaEmbeddingService] 서버 {base_url} 초기화 완료 - "
+            f"모델: {model}, 배치 크기: {batch_size}"
+        )
 
     async def __aenter__(self):
+        logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 생성 시작")
         self.session = aiohttp.ClientSession()
+        logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 생성 완료")
         return self
 
     async def __aexit__(self, exc_type, exc, tb):
         if self.session and not self.session.closed:
+            logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 종료 시작")
             await self.session.close()
+            logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 종료 완료")
 
     async def _make_embedding_request(self, text: str) -> List[float]:
         """단일 텍스트에 대한 임베딩 요청을 수행합니다.
 
         Args:
-            session (aiohttp.ClientSession): HTTP 세션
             text (str): 임베딩할 텍스트
 
         Returns:
@@ -77,33 +79,56 @@ class OllamaEmbeddingService(EmbeddingModel):
         Raises:
             Exception: 임베딩 생성 실패 시
         """
-        logger.info(f"[OllamaEmbeddingService] 임베딩 생성 시작: {text}")
+        logger.info(
+            f"[OllamaEmbeddingService] 서버 {self.base_url} 임베딩 생성 시작 - "
+            f"텍스트 길이: {len(text)}"
+        )
         payload = orjson.dumps(
             {"model": self.model, "prompt": text},
         )
         headers = {"Content-Type": "application/json"}
-        logger.info(f"[OllamaEmbeddingService] 임베딩 생성 요청: {payload}")
+        logger.debug(
+            f"[OllamaEmbeddingService] 서버 {self.base_url} 요청 페이로드: {payload}"
+        )
+
         try:
+            if not self.session:
+                raise Exception("세션이 초기화되지 않았습니다.")
+
             async with self.session.post(
                 f"{self.base_url}/api/embeddings",
                 data=payload,
                 headers=headers,
             ) as response:
-                logger.info(
-                    f"[OllamaEmbeddingService] 임베딩 생성 응답: {response.status}"
+                logger.debug(
+                    f"[OllamaEmbeddingService] 서버 {self.base_url} 응답 상태 코드: {response.status}"
                 )
                 response_text = await response.text()
-                logger.info(
-                    f"[OllamaEmbeddingService] 임베딩 생성 응답: {response_text}"
-                )
+
                 if response.status == 200:
-                    logger.info(f"[OllamaEmbeddingService] 임베딩 생성 성공")
+                    logger.info(
+                        f"[OllamaEmbeddingService] 서버 {self.base_url} 임베딩 생성 성공"
+                    )
                     data = orjson.loads(response_text)
-                    return data["embedding"]
+                    embedding = data["embedding"]
+                    logger.debug(
+                        f"[OllamaEmbeddingService] 서버 {self.base_url} "
+                        f"생성된 임베딩 크기: {len(embedding)}"
+                    )
+                    return embedding
+
                 error_text = await response.text()
-                raise Exception(f"{error_text}")
+                logger.error(
+                    f"[OllamaEmbeddingService] 서버 {self.base_url} 임베딩 생성 실패 - "
+                    f"상태 코드: {response.status}, 에러: {error_text}"
+                )
+                raise Exception(f"임베딩 생성 실패: {error_text}")
+
         except Exception as e:
-            logger.error(f"[OllamaEmbeddingService] 임베딩 생성 실패: {e}")
+            logger.error(
+                f"[OllamaEmbeddingService] 서버 {self.base_url} "
+                f"임베딩 생성 중 예외 발생: {str(e)}"
+            )
             raise
 
     async def embed_documents(self, texts: List[str]) -> List[List[float]]:
@@ -115,22 +140,43 @@ class OllamaEmbeddingService(EmbeddingModel):
         Returns:
             List[List[float]]: 임베딩된 벡터 리스트
         """
-
+        logger.info(
+            f"[OllamaEmbeddingService] 서버 {self.base_url} 문서 임베딩 시작 - "
+            f"총 문서 수: {len(texts)}"
+        )
         all_embeddings = []
+
         try:
             for i in range(0, len(texts), self.batch_size):
                 batch = texts[i : i + self.batch_size]
                 logger.info(
-                    f"[OllamaEmbeddingService] 임베딩 생성 시작: {i} : {i + self.batch_size}"
+                    f"[OllamaEmbeddingService] 서버 {self.base_url} 배치 처리 시작 - "
+                    f"{i}~{i + len(batch)}/{len(texts)}"
                 )
                 tasks = [self._make_embedding_request(text) for text in batch]
-                logger.info(f"[OllamaEmbeddingService] 임베딩 생성 대기: {tasks}")
+                logger.debug(
+                    f"[OllamaEmbeddingService] 서버 {self.base_url} "
+                    f"배치 작업 생성 완료 - 작업 수: {len(tasks)}"
+                )
+
                 embeddings = await asyncio.gather(*tasks)
                 all_embeddings.extend(embeddings)
-                logger.info(f"배치 처리 완료: {i + len(batch)}/{len(texts)}")
+                logger.info(
+                    f"[OllamaEmbeddingService] 서버 {self.base_url} 배치 처리 완료 - "
+                    f"{i + len(batch)}/{len(texts)}"
+                )
+
+            logger.info(
+                f"[OllamaEmbeddingService] 서버 {self.base_url} 전체 문서 임베딩 완료 - "
+                f"총 임베딩 수: {len(all_embeddings)}"
+            )
             return all_embeddings
+
         except Exception as e:
-            logger.error(f"[OllamaEmbeddingService] 임베딩 생성 실패: {e}")
+            logger.error(
+                f"[OllamaEmbeddingService] 서버 {self.base_url} "
+                f"문서 임베딩 중 예외 발생: {str(e)}"
+            )
             raise
 
     async def embed_query(self, text: str) -> List[float]:
@@ -142,8 +188,20 @@ class OllamaEmbeddingService(EmbeddingModel):
         Returns:
             List[float]: 임베딩된 벡터
         """
+        logger.info(
+            f"[OllamaEmbeddingService] 서버 {self.base_url} 쿼리 임베딩 시작 - "
+            f"텍스트 길이: {len(text)}"
+        )
         try:
-            return await self._make_embedding_request(text)
+            embedding = await self._make_embedding_request(text)
+            logger.info(
+                f"[OllamaEmbeddingService] 서버 {self.base_url} 쿼리 임베딩 완료 - "
+                f"임베딩 크기: {len(embedding)}"
+            )
+            return embedding
         except Exception as e:
-            logger.error(f"[OllamaEmbeddingService] 임베딩 생성 실패: {e}")
+            logger.error(
+                f"[OllamaEmbeddingService] 서버 {self.base_url} "
+                f"쿼리 임베딩 중 예외 발생: {str(e)}"
+            )
             raise
