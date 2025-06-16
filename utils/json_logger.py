@@ -2,7 +2,8 @@ import logging
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, Optional
+import time
 
 # 프로젝트 루트 디렉토리 설정
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
@@ -69,14 +70,14 @@ class JsonFormatter(logging.Formatter):
         return json.dumps(log_data, ensure_ascii=False)
 
 
-class Logger:
+class JsonLogger:
     """JSON 형식의 로그를 관리하는 클래스"""
 
-    _instances: Dict[str, "Logger"] = {}
+    _instances: Dict[str, "JsonLogger"] = {}
 
     def __new__(
         cls, name: str, log_level: int = logging.INFO, log_dir: str = "logs"
-    ) -> "Logger":
+    ) -> "JsonLogger":
         """싱글톤 패턴으로 로거 인스턴스 관리
 
         Args:
@@ -85,7 +86,7 @@ class Logger:
             log_dir: 로그 디렉토리
 
         Returns:
-            Logger: 로거 인스턴스
+            JsonLogger: 로거 인스턴스
         """
         if name not in cls._instances:
             cls._instances[name] = super().__new__(cls)
@@ -94,7 +95,7 @@ class Logger:
     def __init__(
         self, name: str, log_level: int = logging.INFO, log_dir: str = "logs"
     ) -> None:
-        """Logger 초기화
+        """JsonLogger 초기화
 
         Args:
             name: 로거 이름
@@ -143,6 +144,7 @@ class Logger:
 
         # 핸들러 추가
         logger.addHandler(file_handler)
+        logger.addHandler(console_handler)
 
         return logger
 
@@ -210,7 +212,7 @@ class Logger:
     @classmethod
     def get_logger(
         cls, name: str, log_level: int = logging.INFO, log_dir: str = "logs"
-    ) -> "Logger":
+    ) -> "JsonLogger":
         """로거 인스턴스를 가져옵니다.
 
         Args:
@@ -219,7 +221,7 @@ class Logger:
             log_dir: 로그 디렉토리
 
         Returns:
-            Logger: 로거 인스턴스
+            JsonLogger: 로거 인스턴스
         """
         return cls(name, log_level, log_dir)
 
@@ -231,4 +233,4 @@ def setup_root_logger(log_level: int = logging.INFO, log_dir: str = "logs") -> N
         log_level: 로그 레벨
         log_dir: 로그 디렉토리
     """
-    Logger.get_logger("root", log_level, log_dir)
+    JsonLogger.get_logger("root", log_level, log_dir)

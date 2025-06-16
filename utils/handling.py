@@ -56,99 +56,90 @@ async def handle_http_error(result, query, logger):
 
     if isinstance(result, ClientConnectorError):
         response_time = time.time() - start_time
-        log_msg = format_log_message(
-            level="ERROR",
-            message="Connection failed",
+        logger.error(
+            "Connection failed",
             query=query,
             response_time=response_time,
-            error=str(result),
+            error_type="ClientConnectorError",
+            error_message=str(result),
         )
-        logger.error(log_msg)
         await asyncio.sleep(3)
         return False
 
     elif isinstance(result, ServerDisconnectedError):
         response_time = time.time() - start_time
-        log_msg = format_log_message(
-            level="ERROR",
-            message="Server disconnected",
+        logger.error(
+            "Server disconnected",
             query=query,
             response_time=response_time,
-            error=str(result),
+            error_type="ServerDisconnectedError",
+            error_message=str(result),
         )
-        logger.error(log_msg)
         await asyncio.sleep(1.5)
         return False
 
     elif isinstance(result, ClientResponseError):
         response_time = time.time() - start_time
         if 500 <= result.status < 600:
-            log_msg = format_log_message(
-                level="WARNING",
-                message="Server internal error",
+            logger.warning(
+                "Server internal error",
                 query=query,
                 status=result.status,
                 response_time=response_time,
-                error=str(result),
+                error_type="ClientResponseError",
+                error_message=str(result),
             )
-            logger.warning(log_msg)
             await asyncio.sleep(1.5)
         elif 400 <= result.status < 500:
-            log_msg = format_log_message(
-                level="WARNING",
-                message="Client error",
+            logger.warning(
+                "Client error",
                 query=query,
                 status=result.status,
                 response_time=response_time,
-                error=str(result),
+                error_type="ClientResponseError",
+                error_message=str(result),
             )
-            logger.warning(log_msg)
             await asyncio.sleep(1.5)
         else:
-            log_msg = format_log_message(
-                level="WARNING",
-                message="Unexpected HTTP error",
+            logger.warning(
+                "Unexpected HTTP error",
                 query=query,
                 status=result.status,
                 response_time=response_time,
-                error=str(result),
+                error_type="ClientResponseError",
+                error_message=str(result),
             )
-            logger.warning(log_msg)
         return False
 
     elif isinstance(result, dict) and "error" in result:
         response_time = time.time() - start_time
-        log_msg = format_log_message(
-            level="ERROR",
-            message="API error",
+        logger.error(
+            "API error",
             query=query,
             response_time=response_time,
-            error=str(result),
+            error_type="APIError",
+            error_message=str(result),
         )
-        logger.error(log_msg)
         await asyncio.sleep(2)
         return False
 
     elif isinstance(result, Exception):
         response_time = time.time() - start_time
-        log_msg = format_log_message(
-            level="ERROR",
-            message="Unexpected error",
+        logger.error(
+            "Unexpected error",
             query=query,
             response_time=response_time,
-            error=str(result),
+            error_type=type(result).__name__,
+            error_message=str(result),
         )
-        logger.error(log_msg)
         return False
     else:
         response_time = time.time() - start_time
-        log_msg = format_log_message(
-            level="INFO",
-            message="Success",
+        logger.info(
+            "Success",
             query=query,
             status=200,
             response_time=response_time,
-            additional_info={"result": str(result)[:200]},
+            result=str(result)[:200],
         )
-        logger.info(log_msg)
         return True
