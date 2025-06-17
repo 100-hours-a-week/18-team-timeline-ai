@@ -1,5 +1,5 @@
 import asyncio
-from typing import Callable, List, Dict
+from typing import Any, List, Dict
 from config.settings import LABELS, SENTIMENT_MAP, COLLECTION_NAME, DICT_LABELS
 from utils.logger import Logger
 from utils.storage import QdrantStorage
@@ -16,7 +16,7 @@ class SentimentAggregator:
 
     def __init__(
         self,
-        embedding_constructor: Callable,
+        embedding_constructor: Any,
         collection_name: str = COLLECTION_NAME,
         labels: List[str] = LABELS,
         sentiment_map: Dict[str, str] = SENTIMENT_MAP,
@@ -93,7 +93,6 @@ class SentimentAggregator:
             results = {"긍정": 0.0, "부정": 0.0, "중립": 0.0}
             for i, r in enumerate(ret):
                 tmp = {"긍정": 0, "부정": 0, "중립": 0}
-
 
                 logger.info(
                     f"[SentimentAggregator] 검색 완료 - 결과 수: {len(ret)}, "
