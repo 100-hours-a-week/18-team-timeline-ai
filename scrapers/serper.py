@@ -69,14 +69,30 @@ def distribute_news_serper(
     if current < endAt - timedelta(days=90):
         current = endAt - timedelta(days=90)
 
+    # 검색어 공백 기준 분할
+    query_tokens = query.strip().split()
+
     # 기사 수집
     while current <= endAt:
+        # 한 날짜의 여러 뉴스 링크
+        max_count = -1
+        best_news = None
         news_list = get_news_serper(query, current, api_key)
+
+        # 검색어가 많이 나타난 뉴스 찾기
         for link, title in news_list:
-            if link not in seen_links:
-                seen_links.add(link)
-                results.append((link, title, current))
-                break  # 날짜당 하나만 고르도록 유지
+            if link in seen_links:
+                continue
+
+            count = sum(title.count(token) for token in query_tokens)
+            if count > max_count:
+                best_news = (link, title)
+                max_count = count
+
+        # 최적의 뉴스 result에 추가
+        link, title = best_news
+        seen_links.add(link)
+        results.append((link, title, current))
         current += timedelta(days=1)
 
     return results
