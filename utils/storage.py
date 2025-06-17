@@ -30,6 +30,8 @@ def is_qdrant_running(host: str, port: int, timeout: float = 1.0) -> bool:
 
 
 class QdrantStorage:
+    _instance_count = 0  # 클래스 레벨 카운터
+
     def __init__(
         self,
         collection_name: str = COLLECTION_NAME,
@@ -47,6 +49,9 @@ class QdrantStorage:
         self._port = port
         self._api_key = api_key
         self._closed = False
+        self._instance_id = QdrantStorage._instance_count
+        QdrantStorage._instance_count += 1
+        logger.info(f"[QdrantStorage] 인스턴스 생성 (ID: {self._instance_id})")
 
     async def __aenter__(self):
         if self._closed:
@@ -60,25 +65,53 @@ class QdrantStorage:
                 timeout=30.0,
                 prefer_grpc=False,
             )
-            logger.info(f"[QdrantStorage] Async 클라이언트 생성 완료: {url}")
+            logger.info(
+                f"[QdrantStorage] Async 클라이언트 생성 완료 (ID: {self._instance_id}, URL: {url})"
+            )
             return self
         except Exception as e:
-            logger.error(f"[QdrantStorage] 초기화 실패: {str(e)}")
+            logger.error(
+                f"[QdrantStorage] 초기화 실패 (ID: {self._instance_id}): {str(e)}"
+            )
+            if self._client:
+                try:
+                    await self._client.close()
+                    logger.info(
+                        f"[QdrantStorage] 실패 후 클라이언트 닫힘 (ID: {self._instance_id})"
+                    )
+                except Exception as ce:
+                    logger.warning(f"[QdrantStorage] 실패 후 close 중 오류: {ce}")
+                finally:
+                    self._client = None
+                    self._closed = True
             raise
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self.close()
+        try:
+            await self.close()
+        except Exception as e:
+            logger.error(
+                f"[QdrantStorage] 종료 중 오류 발생 (ID: {self._instance_id}): {str(e)}"
+            )
+            raise
 
     async def close(self):
         if self._client is not None and not self._closed:
             try:
                 await self._client.close()
-                logger.info("[QdrantStorage] 클라이언트 연결 종료")
+                logger.info(
+                    f"[QdrantStorage] 클라이언트 연결 종료 (ID: {self._instance_id})"
+                )
             except Exception as e:
-                logger.error(f"[QdrantStorage] 클라이언트 연결 종료 실패: {str(e)}")
+                logger.error(
+                    f"[QdrantStorage] 클라이언트 연결 종료 실패 (ID: {self._instance_id}): {str(e)}"
+                )
             finally:
                 self._client = None
                 self._closed = True
+                logger.info(
+                    f"[QdrantStorage] 인스턴스 정리 완료 (ID: {self._instance_id})"
+                )
 
     @asynccontextmanager
     async def get_client(self):
@@ -88,12 +121,24 @@ class QdrantStorage:
             raise RuntimeError("[QdrantStorage] 이미 종료된 클라이언트입니다.")
 
         try:
+            logger.debug(
+                f"[QdrantStorage] 클라이언트 사용 시작 (ID: {self._instance_id})"
+            )
             yield self._client
+            logger.debug(
+                f"[QdrantStorage] 클라이언트 사용 완료 (ID: {self._instance_id})"
+            )
         except UnexpectedResponse as e:
-            logger.error(f"[QdrantStorage] Qdrant 서버 응답 오류: {str(e)}")
+            logger.error(
+                f"[QdrantStorage] Qdrant 서버 응답 오류 (ID: {self._instance_id}): {str(e)}"
+            )
+            await self.close()
             raise
         except Exception as e:
-            logger.error(f"[QdrantStorage] 클라이언트 작업 실패: {str(e)}")
+            logger.error(
+                f"[QdrantStorage] 클라이언트 작업 실패 (ID: {self._instance_id}): {str(e)}"
+            )
+            await self.close()
             raise
 
     async def _init_collection(self):

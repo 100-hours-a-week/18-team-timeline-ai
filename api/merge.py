@@ -30,7 +30,7 @@ API_KEY = os.getenv("OPENAI_API_KEY")
         500: {"model": ErrorResponse},
     },
 )
-def merge_timeline(request: MergeRequest):
+async def merge_timeline(request: MergeRequest):
     # Request exception
     if not request.timeline:
         return error_response(400, "Timeline이 비어 있습니다.")
@@ -45,7 +45,7 @@ def merge_timeline(request: MergeRequest):
         imgs.extend(card.source)
         contents.append(card.content)
     contents = shrink_if_needed(contents)
-    final_res = asyncio.run(TotalPipeline(contents, API_KEY))
+    final_res = await TotalPipeline(contents, API_KEY)
     if not final_res or not final_res["total_summary"]:
         return error_response(500, "인공지능이 병합 요약에 실패했습니다.")
 

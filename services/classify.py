@@ -4,6 +4,7 @@ from config.settings import LABELS, SENTIMENT_MAP, COLLECTION_NAME, DICT_LABELS
 from utils.logger import Logger
 from utils.storage import QdrantStorage  # AsyncQdrantClient 기반으로 구현된 storage
 from utils.handling import handle_http_error
+from contextlib import AsyncExitStack
 
 logger = Logger.get_logger("sentiment_aggregator")
 
@@ -42,15 +43,16 @@ class SentimentAggregator:
 
     async def __aenter__(self):
         """비동기 컨텍스트 매니저 진입"""
-        self._storage = QdrantStorage(collection_name=self.collection_name)
-        await self._storage.__aenter__()
+        self._stack = AsyncExitStack()
+        self._storage = await self._stack.enter_async_context(
+            QdrantStorage(collection_name=self.collection_name)
+        )
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """비동기 컨텍스트 매니저 종료"""
-        if self._storage is not None:
-            await self._storage.__aexit__(exc_type, exc_val, exc_tb)
-            self._storage = None
+        await self._stack.aclose()
+        self._storage = None
 
     async def aggregate_sentiment(self, query: str) -> Dict[str, float]:
         """유사 댓글들의 감정을 집계하여 최종 감정을 결정합니다.

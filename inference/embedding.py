@@ -57,15 +57,31 @@ class OllamaEmbeddingService(EmbeddingModel):
 
     async def __aenter__(self):
         logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 생성 시작")
-        self.session = aiohttp.ClientSession()
-        logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 생성 완료")
-        return self
+        try:
+            self.session = aiohttp.ClientSession()
+            logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 생성 완료")
+            return self
+        except Exception as e:
+            logger.error(f"[OllamaEmbeddingService] 세션 생성 중 예외 발생: {str(e)}")
+            if self.session and not self.session.closed:
+                await self.session.close()
+                logger.info(f"[OllamaEmbeddingService] 예외 발생으로 세션 강제 종료")
+            raise
 
     async def __aexit__(self, exc_type, exc, tb):
         if self.session and not self.session.closed:
             logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 종료 시작")
-            await self.session.close()
-            logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 종료 완료")
+            try:
+                await self.session.close()
+                logger.info(
+                    f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 종료 완료"
+                )
+            except Exception as e:
+                logger.warning(
+                    f"[OllamaEmbeddingService] 세션 종료 중 예외 발생: {str(e)}"
+                )
+            finally:
+                self.session = None
 
     async def _make_embedding_request(self, text: str) -> List[float]:
         """단일 텍스트에 대한 임베딩 요청을 수행합니다.
