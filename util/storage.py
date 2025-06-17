@@ -68,39 +68,40 @@ class QdrantStorage:
             port (int, optional): Qdrant 서버 포트. Defaults to 6333.
             api_key (str, optional): Qdrant API 키. Defaults to None.
         """
+        self.collection_name = collection_name
+        self.batch_size = batch_size
+        self.vector_size = vector_size
+        self._client = None
+        self._host = host
+        self._port = port
+        self._api_key = api_key
+        self._closed = False
+
+    async def __aenter__(self):
+        """비동기 컨텍스트 매니저 진입"""
+        if self._closed:
+            raise RuntimeError("[QdrantStorage] 이미 종료된 클라이언트입니다.")
+
         try:
-            self.collection_name = collection_name
-            self.batch_size = batch_size
-            self.vector_size = vector_size
-            self._client = None
-
-            # 서버 상태 확인
-            """
-            if not is_qdrant_running(host, port):
-                raise RuntimeError(
-                    f"[QdrantStorage] 서버 연결 실패: {host}:{port}. "
-                    "Qdrant 서버가 실행 중이지 않습니다."
-                )
-            """
-
-            url = f"{host}:{port}"
+            url = f"{self._host}:{self._port}"
             self._client = QdrantClient(
                 url=url,
-                api_key=api_key,
-                check_compatibility=False,  # 버전 체크 비활성화
+                api_key=self._api_key,
+                check_compatibility=False,
             )
             logger.info(f"[QdrantStorage] 클라이언트 생성 완료: {url}")
+            return self
         except Exception as e:
             logger.error(f"[QdrantStorage] 초기화 실패: {str(e)}")
             raise
 
-    def __del__(self):
-        """소멸자: 리소스 정리"""
-        self.close()
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """비동기 컨텍스트 매니저 종료"""
+        await self.close()
 
-    def close(self):
+    async def close(self):
         """클라이언트 연결을 종료합니다."""
-        if self._client is not None:
+        if self._client is not None and not self._closed:
             try:
                 self._client.close()
                 logger.info("[QdrantStorage] 클라이언트 연결 종료")
@@ -108,6 +109,7 @@ class QdrantStorage:
                 logger.error(f"[QdrantStorage] 클라이언트 연결 종료 실패: {str(e)}")
             finally:
                 self._client = None
+                self._closed = True
 
     @asynccontextmanager
     async def get_client(self):
@@ -118,6 +120,9 @@ class QdrantStorage:
         """
         if self._client is None:
             raise RuntimeError("[QdrantStorage] 클라이언트가 초기화되지 않았습니다.")
+        if self._closed:
+            raise RuntimeError("[QdrantStorage] 이미 종료된 클라이언트입니다.")
+
         try:
             yield self._client
         except UnexpectedResponse as e:
@@ -129,6 +134,11 @@ class QdrantStorage:
 
     def _init_collection(self) -> None:
         """컬렉션을 초기화합니다."""
+        if self._client is None:
+            raise RuntimeError("[QdrantStorage] 클라이언트가 초기화되지 않았습니다.")
+        if self._closed:
+            raise RuntimeError("[QdrantStorage] 이미 종료된 클라이언트입니다.")
+
         try:
             logger.info(f"[QdrantStorage] 컬렉션 초기화 시작: {self.collection_name}")
             collections = self._client.get_collections().collections
@@ -168,6 +178,11 @@ class QdrantStorage:
             RuntimeError: 클라이언트가 초기화되지 않은 경우
             Exception: 검색 실패 시
         """
+        if self._client is None:
+            raise RuntimeError("[QdrantStorage] 클라이언트가 초기화되지 않았습니다.")
+        if self._closed:
+            raise RuntimeError("[QdrantStorage] 이미 종료된 클라이언트입니다.")
+
         try:
             async with embedding_constructor() as embedder:
                 logger.info(f"[QdrantStorage] 임베딩 생성 시작: {query}")
@@ -206,6 +221,11 @@ class QdrantStorage:
         Raises:
             Exception: 저장 실패 시
         """
+        if self._client is None:
+            raise RuntimeError("[QdrantStorage] 클라이언트가 초기화되지 않았습니다.")
+        if self._closed:
+            raise RuntimeError("[QdrantStorage] 이미 종료된 클라이언트입니다.")
+
         try:
             points = [
                 {
@@ -228,12 +248,3 @@ class QdrantStorage:
         except Exception as e:
             logger.error(f"[QdrantStorage] 배치 저장 실패: {str(e)}")
             raise
-
-
-if __name__ == "__main__":
-
-    from config.settings import QDRANT_HOST, QDRANT_PORT, QDRANT_API_KEY
-
-    qdrant_client = QdrantStorage()
-
-    print(qdrant_client._client.get_collections())
