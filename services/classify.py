@@ -33,12 +33,24 @@ class SentimentAggregator:
         self.collection_name = collection_name
         self.labels = labels
         self.sentiment_map = sentiment_map
-        self.storage = QdrantStorage(collection_name=collection_name)
+        self._storage = None
 
         logger.info(
             f"[SentimentAggregator] 초기화 완료 - 컬렉션: {collection_name}, "
             f"레이블 수: {len(labels)}, 감정 유형: {list(sentiment_map.values())}"
         )
+
+    async def __aenter__(self):
+        """비동기 컨텍스트 매니저 진입"""
+        self._storage = QdrantStorage(collection_name=self.collection_name)
+        await self._storage.__aenter__()
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """비동기 컨텍스트 매니저 종료"""
+        if self._storage is not None:
+            await self._storage.__aexit__(exc_type, exc_val, exc_tb)
+            self._storage = None
 
     async def aggregate_sentiment(self, query: str) -> Dict[str, float]:
         """유사 댓글들의 감정을 집계하여 최종 감정을 결정합니다.
@@ -56,17 +68,32 @@ class SentimentAggregator:
             logger.error("[SentimentAggregator] 쿼리가 비어있습니다")
             raise ValueError("query is required")
 
+        if self._storage is None:
+            raise RuntimeError(
+                "[SentimentAggregator] 스토리지가 초기화되지 않았습니다."
+            )
+
         logger.info(
             f"[SentimentAggregator] 감정 집계 시작 - 쿼리: {query}, "
             f"컬렉션: {self.collection_name}"
         )
 
         try:
-            async with self.embedding_constructor() as embedder:
-                logger.info(f"[SentimentAggregator] 검색 시작 - 쿼리: {query}")
-                ret = await self.storage.search(
-                    query=query, embedding_constructor=lambda: embedder, limit=100
-                )
+            logger.info(f"[SentimentAggregator] 검색 시작 - 쿼리: {query}")
+
+            ret = await self._storage.search(
+                query=query, embedding_constructor=self.embedding_constructor, limit=100
+            )
+
+            logger.info(
+                f"[SentimentAggregator] 검색 완료 - 결과 수: {len(ret)}, "
+                f"쿼리: {query}"
+            )
+
+            results = {"긍정": 0.0, "부정": 0.0, "중립": 0.0}
+            for i, r in enumerate(ret):
+                tmp = {"긍정": 0, "부정": 0, "중립": 0}
+
 
                 logger.info(
                     f"[SentimentAggregator] 검색 완료 - 결과 수: {len(ret)}, "
