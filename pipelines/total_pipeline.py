@@ -93,7 +93,7 @@ async def process_with_openai(
     for attempt in range(max_retries):
         try:
             response = await client.chat.completions.create(
-                model=model, messages=messages, temperature=0.5, max_tokens=64
+                model=model, messages=messages, temperature=0.5, max_tokens=100
             )
 
             result = response.choices[0].message.content
