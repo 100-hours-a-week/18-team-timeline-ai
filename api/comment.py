@@ -17,8 +17,6 @@ from services.classify import SentimentAggregator
 from utils.logger import Logger
 from inference.embedding import OllamaEmbeddingService
 
-# -------------------------------------------------------------------
-
 router = APIRouter()
 logger = Logger.get_logger("api_comment")
 
@@ -29,11 +27,8 @@ REST_API_KEY = os.getenv("REST_API_KEY")
 daum_vclip_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
 youtube_searcher = YouTubeCommentAsyncFetcher(api_key=YOUTUBE_API_KEY, max_comments=10)
 
-# -------------------------------------------------------------------
-
 
 async def main(query: str):
-    # 댓글 데이터 수집
     df = daum_vclip_searcher.search(query=query)
     if not df:
         logger.warning("DaumVclip 검색 결과가 없습니다!")
@@ -50,26 +45,20 @@ async def main(query: str):
         return error_response(404, "Youtube 댓글이 없습니다")
 
     async with OllamaEmbeddingService() as embedder:
-        async with SentimentAggregator(
-            embedding_constructor=lambda: embedder
-        ) as aggregator:
+        async with SentimentAggregator(embedder=embedder) as aggregator:
             ret = await aggregator.aggregate_multiple_queries(queries=ripple)
 
-            # 댓글 데이터 분류
             total = sum(ret.values())
             if total == 0:
-                ret["긍정"] = 0
-                ret["부정"] = 0
-                ret["중립"] = 0
+                result = {"긍정": 0, "부정": 0, "중립": 0}
             else:
-                ret["긍정"] = int(ret["긍정"] * 100 / total)
-                ret["부정"] = int(ret["부정"] * 100 / total)
-                ret["중립"] = 100 - ret["긍정"] - ret["부정"]
+                result = {
+                    "긍정": int(ret["긍정"] * 100 / total),
+                    "부정": int(ret["부정"] * 100 / total),
+                }
+                result["중립"] = 100 - result["긍정"] - result["부정"]
 
-            return ret
-
-
-# -------------------------------------------------------------------
+            return result
 
 
 @router.post(
@@ -81,25 +70,24 @@ async def main(query: str):
     },
 )
 async def classify_comments(request: CommentRequest):
-    # Request parsing
     num = request.num
     if not num or not isinstance(num, int) or num > 50:
         num = 10
     query_str = " ".join(request.query)
 
-    # 통계
     res = await main(query=query_str)
     if not res:
         logger.error("댓글 분류 실패!")
         return error_response(500, "댓글 분류 실패!")
+
     summary = CommentData(
         positive=res["긍정"],
         neutral=res["중립"],
         negative=res["부정"],
     )
 
-    # ----------------------------------------------------
-
     return CommonResponse(
-        success=True, message="데이터가 성공적으로 생성되었습니다.", data=summary
+        success=True,
+        message="데이터가 성공적으로 생성되었습니다.",
+        data=summary,
     )

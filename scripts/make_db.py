@@ -56,10 +56,9 @@ def load_kote_dataset(
         raise
 
 
-async def main(dataset):
-
+async def main(dataset, embedder):
     storage = QdrantStorage()
-    async with OllamaEmbeddingService() as embedder:
+    async with storage:
         from datasets import concatenate_datasets
 
         dataset = concatenate_datasets(
