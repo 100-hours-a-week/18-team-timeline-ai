@@ -140,6 +140,7 @@ async def get_timeline(request: Request, payload: TimelineRequest):
 
     # Tag extraction
     final_res = final_res["total_summary"]
+    print(f"원본 제목: {final_res["title"][0]}")
     total_title = short_sentence(final_res["title"][0])
     tag_id = convert_tag(request.app.state.classifier.classify(total_title))
 

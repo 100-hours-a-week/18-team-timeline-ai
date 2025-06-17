@@ -3,7 +3,6 @@ from typing import Callable, List, Dict
 from config.settings import LABELS, SENTIMENT_MAP, COLLECTION_NAME, DICT_LABELS
 from utils.logger import Logger
 from utils.storage import QdrantStorage
-from inference.embedding import OllamaEmbeddingService
 from utils.handling import handle_http_error
 
 logger = Logger.get_logger("sentiment_aggregator")
@@ -17,7 +16,7 @@ class SentimentAggregator:
 
     def __init__(
         self,
-        embedding_constructor: Callable = OllamaEmbeddingService,
+        embedding_constructor: Callable,
         collection_name: str = COLLECTION_NAME,
         labels: List[str] = LABELS,
         sentiment_map: Dict[str, str] = SENTIMENT_MAP,
@@ -95,29 +94,39 @@ class SentimentAggregator:
             for i, r in enumerate(ret):
                 tmp = {"긍정": 0, "부정": 0, "중립": 0}
 
+
                 logger.info(
-                    f"[SentimentAggregator] 댓글 처리 중 - {i + 1}/{len(ret)}, "
-                    f"ID: {r['id']}, 점수: {r['score']}, "
-                    f"레이블 수: {len(r['payload']['labels'])}"
+                    f"[SentimentAggregator] 검색 완료 - 결과 수: {len(ret)}, "
+                    f"쿼리: {query}"
                 )
 
-                for label in r["payload"]["labels"]:
-                    sentiment = self.sentiment_map[DICT_LABELS[label]]
-                    tmp[sentiment] += 1
-                    logger.debug(
-                        f"[SentimentAggregator] 레이블 처리 - 레이블: {label}, "
-                        f"감정: {sentiment}, 카운트: {tmp[sentiment]}"
+                results = {"긍정": 0.0, "부정": 0.0, "중립": 0.0}
+                for i, r in enumerate(ret):
+                    tmp = {"긍정": 0, "부정": 0, "중립": 0}
+
+                    logger.info(
+                        f"[SentimentAggregator] 댓글 처리 중 - {i + 1}/{len(ret)}, "
+                        f"ID: {r['id']}, 점수: {r['score']}, "
+                        f"레이블 수: {len(r['payload']['labels'])}"
                     )
 
-                total = sum(tmp.values())
-                if total > 0:
-                    for key, value in tmp.items():
-                        results[key] += value / total * r["score"]
+                    for label in r["payload"]["labels"]:
+                        sentiment = self.sentiment_map[DICT_LABELS[label]]
+                        tmp[sentiment] += 1
+                        logger.debug(
+                            f"[SentimentAggregator] 레이블 처리 - 레이블: {label}, "
+                            f"감정: {sentiment}, 카운트: {tmp[sentiment]}"
+                        )
 
-                logger.info(
-                    f"[SentimentAggregator] 현재까지 감정 집계 - "
-                    f"현재: {tmp}, 누적: {results}"
-                )
+                    total = sum(tmp.values())
+                    if total > 0:
+                        for key, value in tmp.items():
+                            results[key] += value / total * r["score"]
+
+                    logger.info(
+                        f"[SentimentAggregator] 현재까지 감정 집계 - "
+                        f"현재: {tmp}, 누적: {results}"
+                    )
 
         except Exception as e:
             logger.error(
@@ -146,8 +155,8 @@ class SentimentAggregator:
             f"쿼리 수: {len(queries)}, 쿼리 목록: {queries}"
         )
 
-        tasks = [self.aggregate_sentiment(query=q) for q in queries]
         try:
+            tasks = [self.aggregate_sentiment(query=q) for q in queries]
             results = await asyncio.gather(*tasks, return_exceptions=True)
             logger.info(
                 f"[SentimentAggregator] 다중 쿼리 집계 완료 - "
