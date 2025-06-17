@@ -16,5 +16,3 @@ install_ollama() {
     unset OLLAMA_PID
     log_info "Ollama 종료"
 }
-
-install_ollama
