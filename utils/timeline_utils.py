@@ -87,14 +87,6 @@ def short_sentence(text: str) -> str:
     if "｜" in text:
         text = text.split("｜")[0].strip()
 
-    # 쉼표 파싱
-    parts = [part.strip() for part in text.split(",") if part.strip()]
-    if len(parts) >= 3:
-        parts = [parts[0], parts[-1]]
-    if len(parts) >= 2 and len(parts[0]) >= 10:
-        parts.pop(0)
-    text = ", ".join(parts)
-
     # 연속 공백 정리
     text = re.sub(r"\s+", " ", text).strip()
 
