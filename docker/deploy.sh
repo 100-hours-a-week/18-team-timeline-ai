@@ -36,6 +36,7 @@ docker run -d \
   --name "$container_name" \
   --env-file ./.env \
   --add-host host.docker.internal:host-gateway \
+  -v /tmp/api_poetry_data/envs:/opt/poetry_envs \
   -p 8000:8000 \
   $IMAGE
 
