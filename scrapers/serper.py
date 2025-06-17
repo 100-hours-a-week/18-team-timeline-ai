@@ -1,5 +1,6 @@
 import requests
 from datetime import date, timedelta
+from utils.error_utils import error_response
 from utils.timeline_utils import available_url, auto_clean_url
 
 # ---------------------------------------------------
@@ -82,6 +83,8 @@ def distribute_news_serper(
         max_count = -1
         best_news = None
         news_list = get_news_serper(query, current, api_key)
+        if not news_list:
+            return error_response(404, f"{current}에 해당하는 기사가 없습니다!")
 
         # 검색어가 많이 나타난 뉴스 찾기
         for link, title in news_list:
