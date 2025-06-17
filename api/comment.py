@@ -15,6 +15,7 @@ from scrapers.youtube_searcher import YouTubeCommentAsyncFetcher
 
 from services.classify import SentimentAggregator
 from utils.logger import Logger
+from inference.embedding import OllamaEmbeddingService
 
 # -------------------------------------------------------------------
 
@@ -48,23 +49,24 @@ async def main(query: str):
         logger.warning("Youtube 댓글이 없습니다")
         return error_response(404, "Youtube 댓글이 없습니다")
 
-    aggregator = SentimentAggregator()
-    ret = await aggregator.aggregate_multiple_queries(
-        queries=ripple,
-    )
+    async with OllamaEmbeddingService() as embedder:
+        async with SentimentAggregator(
+            embedding_constructor=lambda: embedder
+        ) as aggregator:
+            ret = await aggregator.aggregate_multiple_queries(queries=ripple)
 
-    # 댓글 데이터 분류
-    total = sum(ret.values())
-    if total == 0:
-        ret["긍정"] = 0
-        ret["부정"] = 0
-        ret["중립"] = 0
-    else:
-        ret["긍정"] = int(ret["긍정"] * 100 / total)
-        ret["부정"] = int(ret["부정"] * 100 / total)
-        ret["중립"] = 100 - ret["긍정"] - ret["부정"]
+            # 댓글 데이터 분류
+            total = sum(ret.values())
+            if total == 0:
+                ret["긍정"] = 0
+                ret["부정"] = 0
+                ret["중립"] = 0
+            else:
+                ret["긍정"] = int(ret["긍정"] * 100 / total)
+                ret["부정"] = int(ret["부정"] * 100 / total)
+                ret["중립"] = 100 - ret["긍정"] - ret["부정"]
 
-    return ret
+            return ret
 
 
 # -------------------------------------------------------------------
