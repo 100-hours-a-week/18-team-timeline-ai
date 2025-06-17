@@ -1,0 +1,30 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1
+WORKDIR /app
+
+# 시스템 패키지 설치
+RUN apt-get update && apt-get install -y \
+    curl git build-essential && \
+    rm -rf /var/lib/apt/lists/*
+
+# Poetry 환경변수 설정 (공식 지원 변수들)
+ENV POETRY_VIRTUALENVS_PATH=/opt/poetry_envs \
+    POETRY_CACHE_DIR=/opt/poetry_cache \
+    POETRY_VIRTUALENVS_IN_PROJECT=false \
+    POETRY_HOME=/opt/poetry
+
+# Poetry 설치
+RUN curl -sSL https://install.python-poetry.org | python -
+
+# PATH에 Poetry 바이너리 경로 추가
+ENV PATH="${POETRY_HOME}/bin:${PATH}"
+
+# 나머지 소스 코드 복사
+COPY . .
+
+# 포트 노출
+EXPOSE 8000
+
+# 실행 명령
+CMD ["/bin/sh", "-c", "poetry install --no-root && poetry run opentelemetry-instrument uvicorn main:app --host 0.0.0.0 --port 8000"]
