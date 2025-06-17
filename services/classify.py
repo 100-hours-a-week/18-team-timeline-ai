@@ -94,13 +94,12 @@ class SentimentAggregator:
             for i, r in enumerate(ret):
                 tmp = {"긍정": 0, "부정": 0, "중립": 0}
                 for label in r["payload"]["labels"]:
-                    sentiment = self.sentiment_map.get(label, "중립")
+                    sentiment = self.sentiment_map.get(DICT_LABELS[label], "중립")
                     tmp[sentiment] += 1
 
                 # 가중치 적용 (상위 결과에 더 높은 가중치)
-                weight = 1.0 / (i + 1)
                 for sentiment in results:
-                    results[sentiment] += tmp[sentiment] * weight
+                    results[sentiment] += tmp[sentiment] * r.get("score", 1.0 / (i + 1))
 
             # 정규화
             total = sum(results.values())
