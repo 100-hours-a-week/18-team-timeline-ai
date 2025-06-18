@@ -29,6 +29,7 @@ youtube_searcher = YouTubeCommentAsyncFetcher(api_key=YOUTUBE_API_KEY, max_comme
 
 
 async def main(query: str):
+    query = query + "유튜브"
     df = daum_vclip_searcher.search(query=query)
     if not df:
         logger.warning("DaumVclip 검색 결과가 없습니다!")
