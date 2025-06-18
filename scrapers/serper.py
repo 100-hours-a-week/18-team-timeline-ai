@@ -83,7 +83,7 @@ def distribute_news_serper(
         seen_links = set()
         news_list = get_news_serper(query, current, api_key)
         if not news_list:
-            return None
+            continue
 
         # 검색어가 많이 나타난 뉴스 찾기
         for link, title in news_list:
