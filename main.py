@@ -6,9 +6,25 @@ from config.limiter import limiter
 from slowapi.errors import RateLimitExceeded
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
 
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
 import gc
 from contextlib import asynccontextmanager
 from services.category import NewsClassifier
+
+# ---------------------------------------------------------
+# Monitoring
+if not isinstance(trace.get_tracer_provider(), TracerProvider):
+    trace.set_tracer_provider(TracerProvider())
+
+otlp_exporter = OTLPSpanExporter()
+span_processor = BatchSpanProcessor(otlp_exporter)
+trace.get_tracer_provider().add_span_processor(span_processor)
+print("Trace insert checking")
 
 # ---------------------------------------------------------
 
