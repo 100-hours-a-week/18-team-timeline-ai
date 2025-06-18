@@ -132,9 +132,9 @@ class Host:
             logger.warning(f"[Host] 빈 텍스트 감지: {text}")
             return {"choices": [{"message": {"content": "빈 텍스트입니다."}}]}
 
-        if len(text) > 8000:  # 토큰 제한 고려
+        if len(text) > 1000:  # 토큰 제한 고려
             logger.warning(f"[Host] 텍스트가 너무 김: {len(text)} 문자")
-            text = text[:8000]
+            text = text[:1000]
 
         # 시스템 프롬프트 길이 제한
         system_prompt = SYSTEM_PROMPT[task]
