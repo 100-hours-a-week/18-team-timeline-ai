@@ -1,5 +1,6 @@
 import os
 import dotenv
+from pprint import pprint
 from config.limiter import limiter
 
 from utils.env_utils import get_serper_key
@@ -72,6 +73,9 @@ async def get_timeline(request: Request, payload: TimelineRequest):
     Returns:
         Dict: 타임라인 데이터
     """
+    print("===== 요청 헤더 =====")
+    pprint(dict(request.headers))
+    print("=====================")
 
     # Request parsing
     query_str = " ".join(payload.query)
