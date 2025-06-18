@@ -78,12 +78,12 @@ async def get_timeline(request: Request, payload: TimelineRequest):
 
     # Meaningful checking
     if not checker.is_meaningful(query_str):
-        return await error_response(404, "기사가 나오지 않는 검색어입니다.")
+        return error_response(404, "기사가 나오지 않는 검색어입니다.")
 
     # Scraping
     SERPER_API_KEY = get_serper_key(0)
     if not SERPER_API_KEY:
-        return await error_response(500, "SERPER_API_KEY를 찾을 수 없습니다.")
+        return error_response(500, "SERPER_API_KEY를 찾을 수 없습니다.")
     scraping_res = distribute_news_serper(
         query=query_str,
         startAt=payload.startAt,
@@ -99,18 +99,18 @@ async def get_timeline(request: Request, payload: TimelineRequest):
         dates = list(dates)
         scraping_list = [{"url": u, "title": t} for u, t in zip(urls, titles)]
     else:
-        return await error_response(404, "스크래핑에 실패했습니다.")
+        return error_response(404, "스크래핑에 실패했습니다.")
 
     # 1st Summarization
     summary = []
     first_res = await Pipeline(scraping_list, SERVER, MODEL)
     if not first_res:
-        return await error_response(500, "인공지능 1차 요약 실패!")
+        return error_response(500, "인공지능 1차 요약 실패!")
     for i, url in enumerate(urls):
         data = first_res.get(url)
         if not data or not data.get("summary"):
             logger.error(f'기사 내용이 없습니다! "{titles[i][:15]}..."')
-            return await error_response(500, "인공지능 1차 요약 도중 빈 요약 반환")
+            return error_response(500, "인공지능 1차 요약 도중 빈 요약 반환")
         else:
             summary.append(data["summary"][0])
 
@@ -136,7 +136,7 @@ async def get_timeline(request: Request, payload: TimelineRequest):
 
     final_res = await TotalPipeline(total_texts, API_KEY)
     if not final_res or not final_res["total_summary"]:
-        return await error_response(500, "인공지능 2차 요약 실패!")
+        return error_response(500, "인공지능 2차 요약 실패!")
 
     # Tag extraction
     final_res = final_res["total_summary"]
