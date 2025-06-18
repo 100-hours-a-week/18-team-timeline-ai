@@ -140,11 +140,25 @@ class OllamaEmbeddingService(EmbeddingModel):
                 )
                 raise Exception(f"임베딩 생성 실패: {error_text}")
 
-        except Exception as e:
+        except aiohttp.ClientConnectorError as e:
             logger.error(
-                f"[OllamaEmbeddingService] 서버 {self.base_url} "
-                f"임베딩 생성 중 예외 발생: {str(e)}"
+                f"[OllamaEmbeddingService] 서버 {self.base_url} 연결 오류: {str(e)}"
             )
+            logger.error(f"[OllamaEmbeddingService] 연결 오류 타입: {type(e).__name__}")
+            raise
+        except asyncio.TimeoutError as e:
+            logger.error(
+                f"[OllamaEmbeddingService] 서버 {self.base_url} 타임아웃 오류: {str(e)}"
+            )
+            logger.error(
+                f"[OllamaEmbeddingService] 타임아웃 오류 타입: {type(e).__name__}"
+            )
+            raise
+        except aiohttp.ClientResponseError as e:
+            logger.error(
+                f"[OllamaEmbeddingService] 서버 {self.base_url} HTTP 응답 오류: {str(e)}"
+            )
+            logger.error(f"[OllamaEmbeddingService] HTTP 오류 타입: {type(e).__name__}")
             raise
 
     async def embed_documents(self, texts: List[str]) -> List[List[float]]:

@@ -3,6 +3,7 @@ from utils.logger import Logger
 from config.prompts import SYSTEM_PROMPT, SystemRole
 import orjson
 from typing import Dict, Any, Optional
+import asyncio
 
 logger = Logger.get_logger("ai_models.host")
 
@@ -125,6 +126,24 @@ class Host:
         if not payload or "text" not in payload:
             raise ValueError("Invalid payload: must contain 'text' field")
 
+        # 텍스트 유효성 검사
+        text = payload["text"]
+        if not text or not text.strip():
+            logger.warning(f"[Host] 빈 텍스트 감지: {text}")
+            return {"choices": [{"message": {"content": "빈 텍스트입니다."}}]}
+
+        if len(text) > 8000:  # 토큰 제한 고려
+            logger.warning(f"[Host] 텍스트가 너무 김: {len(text)} 문자")
+            text = text[:8000]
+
+        # 시스템 프롬프트 길이 제한
+        system_prompt = SYSTEM_PROMPT[task]
+        if len(system_prompt) > 1000:  # 시스템 프롬프트 길이 제한
+            logger.warning(
+                f"[Host] 시스템 프롬프트가 너무 김: {len(system_prompt)} 문자"
+            )
+            system_prompt = system_prompt[:1000]
+
         headers = {"Content-Type": "application/json"}
 
         body = {
@@ -132,15 +151,17 @@ class Host:
             "messages": [
                 {
                     "role": "system",
-                    "content": SYSTEM_PROMPT[task],
+                    "content": system_prompt,
                 },
-                {"role": "user", "content": payload["text"]},
+                {"role": "user", "content": text},
             ],
             "temperature": self.temperature,
             "max_tokens": self.max_tokens,
         }
 
         logger.debug(f"[Host] Request body: {body}")
+        logger.debug(f"[Host] 텍스트 길이: {len(text)}")
+        logger.debug(f"[Host] 시스템 프롬프트 길이: {len(system_prompt)}")
         url = f"{self.host}/v1/chat/completions"
 
         try:
@@ -150,6 +171,16 @@ class Host:
                 timeout=self.timeout,
                 headers=headers,
             ) as response:
+                logger.debug(f"[Host] HTTP 응답 수신 - 상태 코드: {response.status}")
+
+                # 400 오류 시 상세 정보 로깅
+                if response.status == 400:
+                    response_text = await response.text()
+                    logger.error(f"[Host] Bad Request 응답 내용: {response_text}")
+                    logger.error(f"[Host] Bad Request 요청 본문: {body}")
+                    logger.error(f"[Host] Bad Request 요청 URL: {url}")
+                    logger.error(f"[Host] Bad Request 요청 헤더: {headers}")
+
                 response.raise_for_status()
                 response_text = await response.text()
                 logger.debug(f"[Host] Response text: {response_text}")
@@ -172,6 +203,22 @@ class Host:
 
         except aiohttp.ClientResponseError as e:
             logger.error(f"[Host] HTTP {e.status} error: {e.message}")
+            raise
+        except aiohttp.ClientConnectorError as e:
+            logger.error(f"[Host] 연결 오류: {e}")
+            logger.error(f"[Host] 연결 오류 타입: {type(e).__name__}")
+            import traceback
+
+            logger.error(f"[Host] 연결 오류 스택 트레이스: {traceback.format_exc()}")
+            raise
+        except asyncio.TimeoutError as e:
+            logger.error(f"[Host] 타임아웃 오류: {e}")
+            logger.error(f"[Host] 타임아웃 오류 타입: {type(e).__name__}")
+            import traceback
+
+            logger.error(
+                f"[Host] 타임아웃 오류 스택 트레이스: {traceback.format_exc()}"
+            )
             raise
         except Exception as e:
             logger.error(f"[Host] Unexpected error: {str(e)}")
