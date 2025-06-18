@@ -76,11 +76,13 @@ def distribute_news_serper(
     query_tokens = query.strip().split()
 
     # 기사 수집
+    current -= timedelta(days=1)
     while current <= endAt:
         # 한 날짜의 여러 뉴스 링크
         max_count = -1
         best_news = None
         seen_links = set()
+        current += timedelta(days=1)
         news_list = get_news_serper(query, current, api_key)
         if not news_list:
             continue
@@ -99,6 +101,5 @@ def distribute_news_serper(
         link, title = best_news
         seen_links.add(link)
         results.append((link, title, current))
-        current += timedelta(days=1)
 
     return results
