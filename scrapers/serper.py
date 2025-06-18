@@ -67,7 +67,6 @@ def distribute_news_serper(
 ) -> list[tuple[str, str, date]]:
     results = []
     current = startAt
-    seen_links = set()
 
     # 3개월 이상 차단, 안전장치
     if current < endAt - timedelta(days=90):
@@ -81,6 +80,7 @@ def distribute_news_serper(
         # 한 날짜의 여러 뉴스 링크
         max_count = -1
         best_news = None
+        seen_links = set()
         news_list = get_news_serper(query, current, api_key)
         if not news_list:
             return None
