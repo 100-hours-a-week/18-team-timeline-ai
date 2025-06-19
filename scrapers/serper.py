@@ -1,6 +1,7 @@
 import requests
 from datetime import date, timedelta
 from utils.timeline_utils import available_url, auto_clean_url
+from utils.timeline_utils import reporter_issue, contains_korean
 
 # ---------------------------------------------------
 
@@ -46,8 +47,14 @@ def get_news_serper(
         # Getting news URL
         valid_news = []
         for news in result:
-            link = auto_clean_url(news.get("link"))
             title = news.get("title")
+            snippet = news.get("snippet")
+            link = auto_clean_url(news.get("link"))
+
+            if (not title) or (not snippet) or (not link):
+                continue
+            if reporter_issue(query, snippet) or (not contains_korean(title)):
+                continue
             if available_url(link):
                 valid_news.append((link, title))
 

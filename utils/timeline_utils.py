@@ -34,6 +34,7 @@ def convert_tag(tag: str) -> int:
         return 0
 
 
+# 스크래핑이 차단되거나, 뉴스사가 아닌 링크들을 배제
 def available_url(url: str) -> bool:
     publishers = ["chosun", "sbs", "msn.com", "worktoday", "kspnews",
                   "thisisgame", "artinsight", "footboom", "koreatimes",
@@ -45,6 +46,21 @@ def available_url(url: str) -> bool:
     return True
 
 
+# 인명을 검색했는데, 기자 이름을 인식한 경우를 탐지
+def reporter_issue(query: str, snippet: str) -> bool:
+    reporter_names = re.findall(r'([가-힣]{2,4})\s*기자', snippet)
+    for name in reporter_names:
+        if name in query:
+            return True
+    return False
+
+
+# 외국어 기사 필터링용
+def contains_korean(title: str) -> bool:
+    return bool(re.search(r'[가-힣]', title))
+
+
+# 기사 링크에 붙은 불필요한 파라미터를 제거
 def auto_clean_url(url):
     parsed = urlparse(url)
     query = parse_qs(parsed.query, keep_blank_values=True)
@@ -71,6 +87,7 @@ def auto_clean_url(url):
     return cleaned_url
 
 
+# 제목을 짧게 자르기 위한 함수
 def short_sentence(text: str) -> str:
     # 각종 괄호 제거
     patterns = [r"\[.*?\]", r"\(.*?\)", r"<.*?>", r"【.*?】", r"《.*?》"]
@@ -96,6 +113,7 @@ def short_sentence(text: str) -> str:
     return text.strip()
 
 
+# 요약본을 특정 길이로 자연스럽게 자르는 함수
 def compress_sentence(text: str, target_len: int = 70) -> str:
     # 마침표 기준으로 문장 분할
     sentences = re.split(r"[.…]", text)
@@ -111,6 +129,7 @@ def compress_sentence(text: str, target_len: int = 70) -> str:
     return result.strip()
 
 
+# AI 입력을 위해 기사 원본을, 문맥 무시하고 자르는 함수
 def shrink_if_needed(strings, threshold=4000):
     total_len = sum(len(s) for s in strings)
     if total_len <= threshold:
