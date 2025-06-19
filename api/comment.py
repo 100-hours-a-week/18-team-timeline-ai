@@ -32,7 +32,7 @@ async def main(query_str: str):
     # 유튜브 영상 링크 찾기
     df = daum_vclip_searcher.search(query=query_str+" 유튜브")
     if not df:
-        logger.warning(f"DaumVclip: {query_str+" 유튜브"} 검색 결과 없음, 다른 방법으로 재시도")
+        logger.warning(f"DaumVclip: {query_str} 유튜브 검색 결과 없음, 다른 방법으로 재시도")
         df = daum_vclip_searcher.search(query=query_str)
     if not df:
         logger.warning(f"DaumVclip: {query_str} 검색 결과가 없습니다!")
