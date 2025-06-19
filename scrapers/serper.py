@@ -84,7 +84,7 @@ def distribute_news_serper(
 
     # 기사 수집
     current -= timedelta(days=1)
-    while current <= endAt:
+    while current < endAt:
         # 한 날짜의 여러 뉴스 링크
         max_count = -1
         best_news = None
