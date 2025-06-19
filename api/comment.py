@@ -29,12 +29,15 @@ youtube_searcher = YouTubeCommentAsyncFetcher(api_key=YOUTUBE_API_KEY, max_comme
 
 
 async def main(query: str):
-    query = query + " 유튜브"
-    df = daum_vclip_searcher.search(query=query)
+    # 유튜브 영상 링크 찾기
+    df = daum_vclip_searcher.search(query=query+" 유튜브")
     if not df:
-        logger.warning("DaumVclip 검색 결과가 없습니다!")
+        df = daum_vclip_searcher.search(query=query)
+    if not df:
+        logger.warning(f"DaumVclip: {query} 검색 결과가 없습니다!")
         return error_response(404, "DaumVclip 검색 결과가 없습니다!")
 
+    # 유튜브 댓글 추출하기
     ripple = await youtube_searcher.search(df=df)
     if not ripple:
         logger.error("Youtube 데이터를 불러오는 데 실패했습니다")
@@ -45,6 +48,7 @@ async def main(query: str):
         logger.warning("Youtube 댓글이 없습니다")
         return error_response(404, "Youtube 댓글이 없습니다")
 
+    # 댓글 분류하기
     async with OllamaEmbeddingService() as embedder:
         async with SentimentAggregator(embedder=embedder) as aggregator:
             ret = await aggregator.aggregate_multiple_queries(queries=ripple)
