@@ -73,6 +73,14 @@ async def get_timeline(request: Request, payload: TimelineRequest):
         Dict: 타임라인 데이터
     """
 
+    # Print request body for debugging
+    print("=== Timeline API 요청 Body ===")
+    print(f"Request payload: {payload}")
+    print(f"Query: {payload.query}")
+    print(f"StartAt: {payload.startAt}")
+    print(f"EndAt: {payload.endAt}")
+    print("=============================")
+
     # Request parsing
     query_str = " ".join(payload.query)
 
