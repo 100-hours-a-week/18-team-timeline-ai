@@ -81,7 +81,7 @@ async def classify_comments(request: CommentRequest):
         num = 10
     query_str = " ".join(request.query)
 
-    res = await main(query=query_str)
+    res = await main(query_str=query_str)
     if not res:
         logger.error("댓글 분류 실패!")
         return error_response(500, "댓글 분류 실패!")
