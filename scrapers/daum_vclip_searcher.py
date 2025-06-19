@@ -79,14 +79,9 @@ class DaumVclipSearcher(BaseSearcher):
             )
             raise SearchRequestFailedError(f"문제가 생겼습니다: {e}")
 
-        if results is None:
-            logger.error(f"[DaumVclipSearcher] 검색 결과 없음 - " f"쿼리: '{query}'")
-            raise SearchRequestFailedError(
-                f"'{query}'에 대한 검색 요청에 실패했습니다."
-            )
-        if not results["documents"]:
-            logger.warning(f"[DaumVclipSearcher] 검색 결과 없음 - " f"쿼리: '{query}'")
-            raise ValueError(f"'{query}'에 대한 검색 결과가 없습니다.")
+        # 검색 결과가 없음
+        if (results is None) or (not results.get("documents")):
+            return None
 
         # YouTube URL만 필터링 (youtube.com 또는 youtu.be 도메인)
         youtube_pattern = r"(youtube\.com|youtu\.be)"
