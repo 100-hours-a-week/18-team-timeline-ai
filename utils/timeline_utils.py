@@ -39,7 +39,8 @@ def available_url(url: str) -> bool:
     publishers = ["chosun", "sbs", "msn.com", "worktoday", "kspnews",
                   "thisisgame", "artinsight", "footboom", "koreatimes",
                   "breaknews", "ecojournal", "anewsa.com", "koreadaily",
-                  "100news", "blog", "tistory", "theqoo", "dcinside"]
+                  "100news", "blog", "tistory", "theqoo", "dcinside",
+                  "jajusibo", "vop.co.kr"]
     for publisher in publishers:
         if publisher in url:
             return False
