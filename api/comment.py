@@ -28,13 +28,14 @@ daum_vclip_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
 youtube_searcher = YouTubeCommentAsyncFetcher(api_key=YOUTUBE_API_KEY, max_comments=10)
 
 
-async def main(query: str):
+async def main(query_str: str):
     # 유튜브 영상 링크 찾기
-    df = daum_vclip_searcher.search(query=query+" 유튜브")
+    df = daum_vclip_searcher.search(query=query_str+" 유튜브")
     if not df:
-        df = daum_vclip_searcher.search(query=query)
+        logger.warning(f"DaumVclip: {query_str+" 유튜브"} 검색 결과 없음, 다른 방법으로 재시도")
+        df = daum_vclip_searcher.search(query=query_str)
     if not df:
-        logger.warning(f"DaumVclip: {query} 검색 결과가 없습니다!")
+        logger.warning(f"DaumVclip: {query_str} 검색 결과가 없습니다!")
         return error_response(404, "DaumVclip 검색 결과가 없습니다!")
 
     # 유튜브 댓글 추출하기
