@@ -35,8 +35,9 @@ def convert_tag(tag: str) -> int:
 
 
 def available_url(url: str) -> bool:
-    publishers = ["chosun", "sbs", "msn.com", "worktoday",
-                  "thisisgame", "artinsight", "footboom"]
+    publishers = ["chosun", "sbs", "msn.com", "worktoday", "kspnews",
+                  "thisisgame", "artinsight", "footboom", "koreatimes",
+                  "breaknews"]
     for publisher in publishers:
         if publisher in url:
             return False
