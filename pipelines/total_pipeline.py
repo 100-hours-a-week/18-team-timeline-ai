@@ -13,7 +13,7 @@ logger = Logger.get_logger("ai_models.pipeline", log_level=logging.ERROR)
 async def TotalPipeline(
     text: list[str],
     api_key: str,
-    model: str = "gpt-4",
+    model: str = "gpt-4o-mini",
     roles: list[SystemRole] = [SystemRole.summary, SystemRole.title],
     batch_size: int = 5,
     max_wait_time: float = 0.5,
