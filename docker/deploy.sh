@@ -57,3 +57,20 @@ if [ -z "$HEALTH_JSON" ]; then
   docker logs ai-api
   exit 1
 fi
+
+# Docker 정리 - 안 쓰는 이미지와 컨테이너 정리
+echo "Docker 정리 시작..."
+echo "사용하지 않는 컨테이너 정리..."
+docker container prune -f || echo "컨테이너 정리 실패 (무시)"
+
+echo "사용하지 않는 이미지 정리..."
+docker image prune -f || echo "dangling 이미지 정리 실패 (무시)"
+
+echo "오래된 이미지 정리 (현재 사용 중인 이미지 제외)..."
+docker image prune -a -f --filter "until=24h" || echo "오래된 이미지 정리 실패 (무시)"
+
+echo "Docker 정리 완료!"
+
+# 디스크 사용량 확인
+echo "현재 디스크 사용량:"
+df -h /var/lib/docker 2>/dev/null || df -h / | head -2
