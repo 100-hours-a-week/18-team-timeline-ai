@@ -10,11 +10,6 @@ from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-
-import gc
-from contextlib import asynccontextmanager
-from services.category import NewsClassifier
 
 # ---------------------------------------------------------
 # Monitoring
@@ -28,18 +23,7 @@ print("Trace insert checking")
 
 # ---------------------------------------------------------
 
-
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    print("[Startup] Loading NewsClassifier...")
-    app.state.classifier = NewsClassifier(threshold=0.2)
-    yield
-    print("[Shutdown] Releasing NewsClassifier...")
-    del app.state.classifier
-    gc.collect()
-
-
-app = FastAPI(title="AI News Timeline API", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="AI News Timeline API", version="1.0.0")
 app.state.limiter = limiter
 
 
