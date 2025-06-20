@@ -1,5 +1,4 @@
-import asyncio
-from typing import Any, List, Dict
+from typing import Any, Dict
 from utils.logger import Logger
 from utils.storage import QdrantStorage
 from contextlib import AsyncExitStack
@@ -11,20 +10,22 @@ TAG_LABELS = {
     2: "연예",
     3: "스포츠",
 }
-THRESHOLD = 0.75  # 코사인 유사도 기준 (0~1)
+
+THRESHOLD = 0.75  # 코사인 유사도 기준 미만이면 기타로 분류
+
 
 class TagClassifier:
     def __init__(
         self,
         embedder: Any,
-        collection_name: str = "tag",  # Qdrant에 저장된 collection 이름
-        label_map: Dict[int, str] = TAG_LABELS,
+        collection_name: str = "tag",
         threshold: float = THRESHOLD,
+        label_map: Dict[int, str] = TAG_LABELS,
     ):
         self.embedder = embedder
         self.collection_name = collection_name
-        self.label_map = label_map
         self.threshold = threshold
+        self.label_map = label_map
         self._storage = None
 
         logger.info(
@@ -43,10 +44,11 @@ class TagClassifier:
         self._storage = None
 
     async def classify(self, title: str) -> int:
-        """뉴스 제목을 태그 분류합니다.
+        """
+        뉴스 제목을 태그 분류합니다.
 
         Returns:
-            int: 0(기타), 1(경제), 2(연예), 3(스포츠)w
+            int: 0(기타), 1(경제), 2(연예), 3(스포츠)
         """
         if not title:
             raise ValueError("title is required")
@@ -57,7 +59,6 @@ class TagClassifier:
         logger.info(f"[TagClassifier] 태그 분류 시작 - 입력 제목: {title}")
 
         try:
-            # Qdrant 유사도 검색
             results = await self._storage.search(
                 query=title,
                 embedder=self.embedder,
@@ -68,21 +69,25 @@ class TagClassifier:
                 logger.info("[TagClassifier] 유사 결과 없음 - 기타(0) 반환")
                 return 0
 
-            label_scores = {label: 0.0 for label in self.label_map}
+            label_scores = {label: 0.0 for label in self.label_map.keys()}
+
             for r in results:
                 score = r.get("score", 0.0)
                 if score < self.threshold:
                     continue
-                for label in r["payload"]["labels"]:
-                    if label in label_scores:
-                        label_scores[label] += score
+
+                label = r["payload"].get("labels")
+                if isinstance(label, int) and label in label_scores:
+                    label_scores[label] += score
 
             if not any(score > 0 for score in label_scores.values()):
                 logger.info("[TagClassifier] 임계값 이상 레이블 없음 - 기타(0) 반환")
                 return 0
 
             best_label = max(label_scores, key=label_scores.get)
-            logger.info(f"[TagClassifier] 최종 레이블: {self.label_map[best_label]}({best_label})")
+            logger.info(
+                f"[TagClassifier] 최종 태그: {self.label_map.get(best_label, '기타')} ({best_label})"
+            )
             return best_label
 
         except Exception as e:
