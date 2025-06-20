@@ -5,7 +5,6 @@ from config.limiter import limiter
 from utils.env_utils import get_serper_key
 from utils.error_utils import error_response
 from utils.timeline_utils import (
-    convert_tag,
     short_sentence,
     compress_sentence,
     shrink_if_needed,
@@ -26,6 +25,9 @@ from scrapers.url_to_img import get_img_link
 from scrapers.serper import distribute_news_serper
 from scrapers.filter import DaumKeywordMeaningChecker
 from utils.logger import Logger
+
+from services.tagger import TagClassifier
+from inference.embedding import OllamaEmbeddingService
 
 # -------------------------------------------------------------------
 
@@ -142,7 +144,11 @@ async def get_timeline(request: Request, payload: TimelineRequest):
     final_res = final_res["total_summary"]
     print(f"원본 제목: {final_res['title'][0]}")
     total_title = short_sentence(final_res["title"][0])
-    tag_id = convert_tag(request.app.state.classifier.classify(total_title))
+
+    # Tag classification
+    async with OllamaEmbeddingService() as embedder:
+        async with TagClassifier(embedder=embedder) as classifier:
+            tag_id = await classifier.classify(total_title)
 
     # Image Extraction
     img_link = get_img_link(urls[0])
