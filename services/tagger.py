@@ -11,7 +11,7 @@ TAG_LABELS = {
     3: "스포츠",
 }
 
-THRESHOLD = 0.75  # 코사인 유사도 기준 미만이면 기타로 분류
+THRESHOLD = 0.2  # 코사인 유사도 기준 미만이면 기타로 분류
 
 
 class TagClassifier:
