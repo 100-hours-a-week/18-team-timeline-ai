@@ -40,7 +40,7 @@ def available_url(url: str) -> bool:
                   "thisisgame", "artinsight", "footboom", "koreatimes",
                   "breaknews", "ecojournal", "anewsa.com", "koreadaily",
                   "100news", "blog", "tistory", "theqoo", "dcinside",
-                  "jajusibo", "vop.co.kr"]
+                  "jajusibo", "vop.co.kr", "jeongpil"]
     for publisher in publishers:
         if publisher in url:
             return False
