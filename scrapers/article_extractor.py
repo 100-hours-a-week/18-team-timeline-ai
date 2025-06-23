@@ -167,9 +167,9 @@ class ArticleExtractor(BaseSearcher):
                     config=config,
                 )
 
-                if not text or not text.strip():
+                if (not text) or (not text.strip()) or (len(text) < 200):
                     logger.warning(
-                        f"[ArticleExtractor] 본문 추출 실패 - "
+                        f"[ArticleExtractor] 본문이 없습니다 - "
                         f"URL: {url['url']}, 제목을 본문으로 사용"
                     )
                     text = title
