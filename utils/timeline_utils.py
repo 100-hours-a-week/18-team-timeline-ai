@@ -40,36 +40,11 @@ def available_url(url: str) -> bool:
                   "thisisgame", "artinsight", "footboom", "koreatimes",
                   "breaknews", "ecojournal", "anewsa.com", "koreadaily",
                   "100news", "blog", "tistory", "theqoo", "dcinside",
-                  "jajusibo", "vop.co.kr", "jeongpil"]
+                  "jajusibo", "vop.co.kr", "jeongpil", "starnewskorea"]
     for publisher in publishers:
         if publisher in url:
             return False
     return True
-
-
-# 인명을 검색했는데, 기자 이름을 인식한 경우를 탐지
-def reporter_issue(query: str, snippet: str) -> bool:
-    reporter_names = re.findall(r'([가-힣]{2,4})\s*기자', snippet)
-    for name in reporter_names:
-        if name in query:
-            return True
-    return False
-
-
-def remove_sidebar_noise(text: str) -> str:
-    # '최신뉴스', '베스트클릭' 등과 같이 본문 외 사이드 뉴스 이후의 텍스트를 제거합니다.
-
-    noise_keywords = ["최신뉴스", "베스트클릭", "관련기사", "많이 본 뉴스", "함께 본 뉴스", "주요뉴스", "핫클릭"]
-
-    lines = text.splitlines()
-    clean_lines = []
-
-    for line in lines:
-        if any(keyword in line for keyword in noise_keywords):
-            break
-        clean_lines.append(line)
-
-    return "\n".join(clean_lines).strip()
 
 
 # 외국어 기사 필터링용
