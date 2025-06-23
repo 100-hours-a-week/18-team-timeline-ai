@@ -13,8 +13,8 @@ from sklearn.metrics.pairwise import cosine_similarity
 # ---------------------------------------------------
 
 dotenv.load_dotenv(override=True)
-api_key = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key="AIzaSyCSewGz5W04Zb9vmV5pr-MeI779puducNA")
+API_KEY = os.getenv("GEMINI_API_KEY")
+client = genai.Client(api_key=API_KEY)
 
 # ---------------------------------------------------
 
