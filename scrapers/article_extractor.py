@@ -176,7 +176,8 @@ class ArticleExtractor(BaseSearcher):
 
                 if not contains_korean(text):
                     logger.error(
-                        "[ArticleExtractor] 본문에 한글이 없습니다. 기사를 확인해주세요. - "
+                        "[ArticleExtractor] 본문에 한글이 없어 건너뜁니다. - "
+                        f"url: {original_url} - "
                     )
                     text = ""
 
