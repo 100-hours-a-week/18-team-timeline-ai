@@ -86,7 +86,7 @@ def distribute_news_serper(
     current -= timedelta(days=1)
     while current < endAt:
         # 한 날짜의 여러 뉴스 링크
-        max_count = -1
+        max_count = 0
         best_news = None
         seen_links = set()
         current += timedelta(days=1)
@@ -103,6 +103,10 @@ def distribute_news_serper(
             if count > max_count:
                 best_news = (link, title)
                 max_count = count
+
+        # 관련없는 뉴스만 나옴
+        if not best_news:
+            continue
 
         # 최적의 뉴스 result에 추가
         link, title = best_news
