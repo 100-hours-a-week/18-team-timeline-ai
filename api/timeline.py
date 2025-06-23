@@ -22,7 +22,7 @@ from schemas.response_schema import (
 )
 
 from scrapers.url_to_img import get_img_link
-from scrapers.serper import distribute_news_serper
+from scrapers.serper import relevant_news_serper
 from scrapers.filter import DaumKeywordMeaningChecker
 from utils.logger import Logger
 
@@ -86,7 +86,7 @@ async def get_timeline(request: Request, payload: TimelineRequest):
     SERPER_API_KEY = get_serper_key(0)
     if not SERPER_API_KEY:
         return error_response(500, "SERPER_API_KEY를 찾을 수 없습니다.")
-    scraping_res = distribute_news_serper(
+    scraping_res = relevant_news_serper(
         query=query_str,
         startAt=payload.startAt,
         endAt=payload.endAt,
