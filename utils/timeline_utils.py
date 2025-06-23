@@ -56,6 +56,22 @@ def reporter_issue(query: str, snippet: str) -> bool:
     return False
 
 
+def remove_sidebar_noise(text: str) -> str:
+    # '최신뉴스', '베스트클릭' 등과 같이 본문 외 사이드 뉴스 이후의 텍스트를 제거합니다.
+
+    noise_keywords = ["최신뉴스", "베스트클릭", "관련기사", "많이 본 뉴스", "함께 본 뉴스", "주요뉴스", "핫클릭"]
+
+    lines = text.splitlines()
+    clean_lines = []
+
+    for line in lines:
+        if any(keyword in line for keyword in noise_keywords):
+            break
+        clean_lines.append(line)
+
+    return "\n".join(clean_lines).strip()
+
+
 # 외국어 기사 필터링용
 def contains_korean(title: str) -> bool:
     return bool(re.search(r'[가-힣]', title))
