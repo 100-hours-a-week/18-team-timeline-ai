@@ -4,6 +4,7 @@ import numpy as np
 import trafilatura
 from trafilatura.settings import use_config
 from utils.logger import Logger
+from utils.timeline_utils import contains_korean
 from config.settings import (
     USER_AGENT,
     ARTICLE_TIMEOUT,
@@ -172,6 +173,12 @@ class ArticleExtractor(BaseSearcher):
                         f"URL: {url['url']}, 제목을 본문으로 사용"
                     )
                     text = title
+
+                if not contains_korean(text):
+                    logger.error(
+                        "[ArticleExtractor] 본문에 한글이 없습니다. 기사를 확인해주세요. - "
+                    )
+                    text = ""
 
                 logger.info(
                     f"[ArticleExtractor] 기사 추출 완료 - "
