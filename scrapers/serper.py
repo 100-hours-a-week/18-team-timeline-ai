@@ -1,5 +1,6 @@
 import os
 import dotenv
+import random
 import requests
 
 from datetime import date, timedelta
@@ -13,15 +14,19 @@ from sklearn.metrics.pairwise import cosine_similarity
 # ---------------------------------------------------
 
 dotenv.load_dotenv(override=True)
-API_KEY = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=API_KEY)
+api_keys = os.getenv("GEMINI_API_KEYS", "").split(",")
 
 # ---------------------------------------------------
 
 
-def get_embedding(text: str) -> list[float]:
+def get_client():
+    key = random.choice(api_keys)
+    return genai.Client(api_key=key)
+
+
+def get_embedding(client: any, text: str) -> list[float]:
     result = client.models.embed_content(
-        model="gemini-embedding-exp-03-07",
+        model="models/text-embedding-004",
         contents=text,
         config=types.EmbedContentConfig(task_type="SEMANTIC_SIMILARITY"))
 
@@ -148,7 +153,8 @@ def relevant_news_serper(
 
         # 임베딩 벡터 구하기
         try:
-            embeddings = [get_embedding(title) for title in titles]
+            client = get_client()
+            embeddings = [get_embedding(client, title) for title in titles]
         except Exception as e:
             print(f"[{dt}] 임베딩 실패: {e}")
             continue
