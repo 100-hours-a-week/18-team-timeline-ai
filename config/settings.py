@@ -120,13 +120,13 @@ SENTIMENT_MAP = {
 # 데이터셋 설정
 DATASET_NAME = "searle-j/kote"
 DATASET_CACHE_DIR = ".dataset"
-COLLECTION_NAME = "kote"
+COLLECTION_NAME = "kote_768"
 DATASET_VOLUME = "./qdrant_storage"
 # ------------------------------------------------------------------------------
 # OLLAMA 설정
 OLLAMA_HOST = os.getenv("OLLAMA_HOST")
 OLLAMA_PORT = os.getenv("OLLAMA_PORT")
-OLLAMA_MODEL = "bge-m3"
+OLLAMA_MODEL = "nomic-embed-text"
 
 if not all([OLLAMA_HOST, OLLAMA_PORT]):
     logger.error("Ollama 환경변수가 설정되지 않았습니다.")
