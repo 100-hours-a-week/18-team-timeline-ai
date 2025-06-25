@@ -2,23 +2,16 @@ from typing import Any, Dict
 from utils.logger import Logger
 from utils.storage import QdrantStorage
 from contextlib import AsyncExitStack
+from config.settings import TAG_LABELS, THRESHOLD, TAG_COLLECTION_NAME
 
 logger = Logger.get_logger("tag_classifier")
-
-TAG_LABELS = {
-    1: "경제",
-    2: "연예",
-    3: "스포츠",
-}
-
-THRESHOLD = 0.2  # 코사인 유사도 기준 미만이면 기타로 분류
 
 
 class TagClassifier:
     def __init__(
         self,
         embedder: Any,
-        collection_name: str = "tag",
+        collection_name: str = TAG_COLLECTION_NAME,
         threshold: float = THRESHOLD,
         label_map: Dict[int, str] = TAG_LABELS,
     ):

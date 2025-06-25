@@ -28,6 +28,7 @@ from utils.logger import Logger
 
 from services.tagger import TagClassifier
 from inference.embedding import OllamaEmbeddingService
+from config.settings import OLLAMA_MODELS
 
 # -------------------------------------------------------------------
 
@@ -147,7 +148,7 @@ async def get_timeline(request: Request, payload: TimelineRequest):
     total_title = short_sentence(final_res["title"][0])
 
     # Tag classification
-    async with OllamaEmbeddingService() as embedder:
+    async with OllamaEmbeddingService(model=OLLAMA_MODELS[1]) as embedder:
         async with TagClassifier(embedder=embedder) as classifier:
             tag_id = await classifier.classify(total_title)
 

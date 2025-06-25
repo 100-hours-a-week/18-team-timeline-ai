@@ -4,7 +4,7 @@ from utils.logger import Logger
 import aiohttp
 import asyncio
 import orjson
-from config.settings import BATCH_SIZE, OLLAMA_HOST, OLLAMA_MODEL, OLLAMA_PORT
+from config.settings import BATCH_SIZE, OLLAMA_HOST, OLLAMA_MODELS, OLLAMA_PORT
 
 logger = Logger.get_logger("embedding")
 
@@ -33,7 +33,7 @@ class OllamaEmbeddingService(EmbeddingModel):
     def __init__(
         self,
         base_url: str = f"{OLLAMA_HOST}:{OLLAMA_PORT}",
-        model: str = OLLAMA_MODEL,
+        model: str = OLLAMA_MODELS[0],
         batch_size: int = BATCH_SIZE,
     ):
         """OllamaEmbeddingService 초기화
