@@ -125,7 +125,7 @@ SENTIMENT_MAP = {
 # 데이터셋 설정 (scripts/make_db.py 등)
 COMMENT_DATASET_NAME = "searle-j/kote"
 COMMENT_DATASET_CACHE_DIR = ".dataset"
-COMMENT_COLLECTION_NAME = "kote_768"
+COMMENT_COLLECTION_NAME = "kote"
 COMMENT_DATASET_VOLUME = "./qdrant_storage"
 # ------------------------------------------------------------------------------
 # OLLAMA 설정 (inference/embedding.py, scripts/make_db.py, api/comment.py, api/timeline.py)
@@ -135,7 +135,7 @@ if not OLLAMA_HOST:
 OLLAMA_PORT = os.getenv("OLLAMA_PORT")
 if not OLLAMA_PORT:
     logger.error("OLLAMA_PORT 환경변수가 설정되지 않았습니다.")
-OLLAMA_MODELS = ["nomic-embed-text", "bge-m3"]
+OLLAMA_MODELS = ["bge-m3", "bge-m3"]
 
 # ------------------------------------------------------------------------------
 # 밴 방지용 설정
