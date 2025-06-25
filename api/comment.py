@@ -16,6 +16,7 @@ from scrapers.youtube_searcher import YouTubeCommentAsyncFetcher
 from services.classify import SentimentAggregator
 from utils.logger import Logger
 from inference.embedding import OllamaEmbeddingService
+from config.settings import OLLAMA_MODELS
 
 router = APIRouter()
 logger = Logger.get_logger("api_comment")
@@ -30,9 +31,11 @@ youtube_searcher = YouTubeCommentAsyncFetcher(api_key=YOUTUBE_API_KEY, max_comme
 
 async def main(query_str: str):
     # 유튜브 영상 링크 찾기
-    df = daum_vclip_searcher.search(query=query_str+" 유튜브")
+    df = daum_vclip_searcher.search(query=query_str + " 유튜브")
     if not df:
-        logger.warning(f"DaumVclip: {query_str} 유튜브 검색 결과 없음, 다른 방법으로 재시도")
+        logger.warning(
+            f"DaumVclip: {query_str} 유튜브 검색 결과 없음, 다른 방법으로 재시도"
+        )
         df = daum_vclip_searcher.search(query=query_str)
     if not df:
         logger.warning(f"DaumVclip: {query_str} 검색 결과가 없습니다!")
@@ -50,7 +53,7 @@ async def main(query_str: str):
         return error_response(404, "Youtube 댓글이 없습니다")
 
     # 댓글 분류하기
-    async with OllamaEmbeddingService() as embedder:
+    async with OllamaEmbeddingService(model=OLLAMA_MODELS[0]) as embedder:
         async with SentimentAggregator(embedder=embedder) as aggregator:
             ret = await aggregator.aggregate_multiple_queries(queries=ripple)
 

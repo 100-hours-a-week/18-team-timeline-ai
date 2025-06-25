@@ -3,13 +3,14 @@ from typing import List, Any
 import logging
 from utils.logger import Logger
 from config.settings import (
-    DATASET_CACHE_DIR,
-    DATASET_NAME,
+    COMMENT_DATASET_CACHE_DIR,
+    COMMENT_DATASET_NAME,
     BATCH_SIZE,
-    COLLECTION_NAME,
+    COMMENT_COLLECTION_NAME,
     QDRANT_PORT,
     QDRANT_HOST,
     QDRANT_API_KEY,
+    OLLAMA_MODELS,
 )
 from utils.storage import QdrantStorage
 from inference.embedding import OllamaEmbeddingService
@@ -41,7 +42,7 @@ def create_documents(dataset) -> List[dict[str, Any]]:
 
 
 def load_kote_dataset(
-    dataset_name: str = DATASET_NAME, cache_dir: str = DATASET_CACHE_DIR
+    dataset_name: str = COMMENT_DATASET_NAME, cache_dir: str = COMMENT_DATASET_CACHE_DIR
 ):
     from datasets import load_dataset
 
@@ -57,7 +58,7 @@ def load_kote_dataset(
 
 
 async def main(dataset, embedder):
-    storage = QdrantStorage()
+    storage = QdrantStorage(collection_name=COMMENT_COLLECTION_NAME)
     async with storage:
         from datasets import concatenate_datasets
 
@@ -84,5 +85,9 @@ async def main(dataset, embedder):
 
 if __name__ == "__main__":
 
-    dataset = load_kote_dataset()
-    asyncio.run(main(dataset))
+    async def async_main():
+        dataset = load_kote_dataset()
+        async with OllamaEmbeddingService(model=OLLAMA_MODELS[0]) as embedder:
+            await main(dataset, embedder)
+
+    asyncio.run(async_main())

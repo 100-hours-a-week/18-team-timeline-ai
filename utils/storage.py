@@ -8,7 +8,6 @@ from config.settings import (
     QDRANT_PORT,
     BATCH_SIZE,
     VECTOR_SIZE,
-    COLLECTION_NAME,
     QDRANT_HOST,
     QDRANT_API_KEY,
 )
@@ -34,7 +33,7 @@ class QdrantStorage:
 
     def __init__(
         self,
-        collection_name: str = COLLECTION_NAME,
+        collection_name: str = None,
         batch_size: int = BATCH_SIZE,
         vector_size: int = VECTOR_SIZE,
         host: str = QDRANT_HOST,

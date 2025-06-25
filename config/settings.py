@@ -118,15 +118,15 @@ SENTIMENT_MAP = {
 }
 # ------------------------------------------------------------------------------
 # 데이터셋 설정
-DATASET_NAME = "searle-j/kote"
-DATASET_CACHE_DIR = ".dataset"
-COLLECTION_NAME = "kote_768"
-DATASET_VOLUME = "./qdrant_storage"
+COMMENT_DATASET_NAME = "searle-j/kote"
+COMMENT_DATASET_CACHE_DIR = ".dataset"
+COMMENT_COLLECTION_NAME = "kote_768"
+COMMENT_DATASET_VOLUME = "./qdrant_storage"
 # ------------------------------------------------------------------------------
 # OLLAMA 설정
 OLLAMA_HOST = os.getenv("OLLAMA_HOST")
 OLLAMA_PORT = os.getenv("OLLAMA_PORT")
-OLLAMA_MODEL = "nomic-embed-text"
+OLLAMA_MODELS = ["nomic-embed-text", "bge-m3"]
 
 if not all([OLLAMA_HOST, OLLAMA_PORT]):
     logger.error("Ollama 환경변수가 설정되지 않았습니다.")
@@ -138,3 +138,13 @@ POOL_CONECTION = 100
 POOL_MAXSIZE = 100
 MAX_RETRIES = 3
 ARTICLE_TIMEOUT = 10
+# ------------------------------------------------------------------------------
+# tagger.py
+TAG_LABELS = {
+    1: "경제",
+    2: "연예",
+    3: "스포츠",
+}
+
+THRESHOLD = 0.2  # 코사인 유사도 기준 미만이면 기타로 분류
+TAG_COLLECTION_NAME = "tag"

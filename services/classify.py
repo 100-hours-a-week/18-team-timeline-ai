@@ -1,6 +1,6 @@
 import asyncio
 from typing import Any, List, Dict
-from config.settings import LABELS, SENTIMENT_MAP, COLLECTION_NAME, DICT_LABELS
+from config.settings import LABELS, SENTIMENT_MAP, COMMENT_COLLECTION_NAME, DICT_LABELS
 from utils.logger import Logger
 from utils.storage import QdrantStorage  # AsyncQdrantClient 기반으로 구현된 storage
 from utils.handling import handle_http_error
@@ -18,7 +18,7 @@ class SentimentAggregator:
     def __init__(
         self,
         embedder: Any,
-        collection_name: str = COLLECTION_NAME,
+        collection_name: str = COMMENT_COLLECTION_NAME,
         labels: List[str] = LABELS,
         sentiment_map: Dict[str, str] = SENTIMENT_MAP,
     ):
