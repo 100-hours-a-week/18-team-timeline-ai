@@ -8,6 +8,11 @@ from utils.timeline_utils import contains_korean
 from config.settings import (
     USER_AGENT,
     ARTICLE_TIMEOUT,
+    MAX_WORKERS,
+    DEFAULT_LANG,
+    DOMAIN_TIMEOUTS,
+    DOMAIN_RETRIES,
+    CLIENT_TIMEOUT,
 )
 from typing import List, Dict, Optional, AsyncGenerator
 from scrapers.base_searcher import BaseSearcher
@@ -20,18 +25,12 @@ headers = {"User-Agent": USER_AGENT}
 
 
 class ArticleExtractor(BaseSearcher):
-    def __init__(self, lang: str = "ko", max_workers: int = 6):
+    def __init__(self, lang: str = DEFAULT_LANG, max_workers: int = MAX_WORKERS):
         self.max_workers = max_workers
         self.lang = lang
         self.session = None
-        self.domain_timeouts = {
-            "sportivomedia.net": 30,
-            "default": ARTICLE_TIMEOUT,
-        }
-        self.domain_retries = {
-            "sportivomedia.net": 5,
-            "default": 3,
-        }
+        self.domain_timeouts = DOMAIN_TIMEOUTS
+        self.domain_retries = DOMAIN_RETRIES
         logger.info(
             f"[ArticleExtractor] 초기화 완료 - 언어: {lang}, "
             f"최대 작업자 수: {max_workers}"
@@ -39,7 +38,7 @@ class ArticleExtractor(BaseSearcher):
 
     async def __aenter__(self):
         logger.info("[ArticleExtractor] 세션 생성 시작")
-        timeout = aiohttp.ClientTimeout(total=30)
+        timeout = aiohttp.ClientTimeout(total=CLIENT_TIMEOUT)
         self.session = aiohttp.ClientSession(
             timeout=timeout,
             headers={"User-Agent": USER_AGENT},
@@ -49,7 +48,7 @@ class ArticleExtractor(BaseSearcher):
         )
         logger.info(
             f"[ArticleExtractor] 세션 생성 완료 - "
-            f"작업자 수: {self.max_workers}, 타임아웃: 30초"
+            f"작업자 수: {self.max_workers}, 타임아웃: {CLIENT_TIMEOUT}초"
         )
         return self
 
@@ -288,25 +287,3 @@ class ArticleExtractor(BaseSearcher):
             f"[ArticleExtractor] 배치 처리 완료 - "
             f"총 URL 수: {len(urls)}, 완료: {completed}"
         )
-
-
-def cosine_similarity(a: List[float], b: List[float]) -> float:
-    try:
-        a, b = np.array(a), np.array(b)
-        norm_a, norm_b = np.linalg.norm(a), np.linalg.norm(b)
-        if norm_a == 0 or norm_b == 0:
-            logger.warning(
-                f"[cosine_similarity] 벡터 크기가 0 - "
-                f"벡터 A 크기: {norm_a}, 벡터 B 크기: {norm_b}"
-            )
-            return 0.0
-        similarity = float(np.dot(a, b) / (norm_a * norm_b))
-        logger.debug(
-            f"[cosine_similarity] 유사도 계산 완료 - " f"결과: {similarity:.4f}"
-        )
-        return similarity
-    except Exception as e:
-        logger.error(
-            f"[cosine_similarity] 코사인 유사도 계산 중 오류 발생 - " f"에러: {str(e)}"
-        )
-        return 0.0

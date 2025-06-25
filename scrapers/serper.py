@@ -1,5 +1,4 @@
 import os
-import dotenv
 import random
 import requests
 
@@ -11,10 +10,9 @@ from google import genai
 from google.genai import types
 from sklearn.metrics.pairwise import cosine_similarity
 
-# ---------------------------------------------------
+from config.settings import GEMINI_API_KEYS
 
-dotenv.load_dotenv(override=True)
-api_keys = os.getenv("GEMINI_API_KEYS", "").split(",")
+api_keys = GEMINI_API_KEYS
 
 # ---------------------------------------------------
 
@@ -28,18 +26,15 @@ def get_embedding(client: any, text: str) -> list[float]:
     result = client.models.embed_content(
         model="models/text-embedding-004",
         contents=text,
-        config=types.EmbedContentConfig(task_type="SEMANTIC_SIMILARITY"))
+        config=types.EmbedContentConfig(task_type="SEMANTIC_SIMILARITY"),
+    )
 
     [embedding] = result.embeddings
     return embedding.values
 
 
 # 검색어, 시작 날짜, 종료 날짜, API_KEY -> (링크, 제목) 리스트
-def get_news_serper(
-    query: str,
-    date: date,
-    api_key: str
-) -> list[tuple[str, str]]:
+def get_news_serper(query: str, date: date, api_key: str) -> list[tuple[str, str]]:
     # 변수 선언
     date_str = date.strftime("%Y-%m-%d")
     query_with_date = f"{query} {date_str}"

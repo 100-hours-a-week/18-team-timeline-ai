@@ -1,9 +1,10 @@
 # ------------------------------------------------------------------------------
 # classify 설정
-# Qdrant 설정
+# Qdrant 설정 (services/classify.py, utils/storage.py 등)
 import os
 from dotenv import load_dotenv
 from utils.logger import Logger
+from utils.env_check import check_env_vars
 
 load_dotenv(override=True)
 
@@ -13,12 +14,16 @@ QDRANT_HOST = os.getenv("QDRANT_HOST")
 QDRANT_PORT = os.getenv("QDRANT_PORT")
 QDRANT_API_KEY = os.getenv("QDRANT_API_KEY")
 
-if not all([QDRANT_HOST, QDRANT_PORT, QDRANT_API_KEY]):
-    logger.error("Qdrant 환경변수가 설정되지 않았습니다.")
+QDRANT_VARS = {
+    "QDRANT_HOST": QDRANT_HOST,
+    "QDRANT_PORT": QDRANT_PORT,
+    "QDRANT_API_KEY": QDRANT_API_KEY,
+}
+check_env_vars(QDRANT_VARS, logger, prefix="Qdrant: ")
 
 VECTOR_SIZE = 1024
 BATCH_SIZE = 32
-# 감정 레이블 설정
+# 감정 레이블 설정 (services/classify.py 등)
 LABELS = [
     "불평/불만",
     "환영/호의",
@@ -117,19 +122,20 @@ SENTIMENT_MAP = {
     "비장함": "중립",
 }
 # ------------------------------------------------------------------------------
-# 데이터셋 설정
+# 데이터셋 설정 (scripts/make_db.py 등)
 COMMENT_DATASET_NAME = "searle-j/kote"
 COMMENT_DATASET_CACHE_DIR = ".dataset"
 COMMENT_COLLECTION_NAME = "kote_768"
 COMMENT_DATASET_VOLUME = "./qdrant_storage"
 # ------------------------------------------------------------------------------
-# OLLAMA 설정
+# OLLAMA 설정 (inference/embedding.py, scripts/make_db.py, api/comment.py, api/timeline.py)
 OLLAMA_HOST = os.getenv("OLLAMA_HOST")
+if not OLLAMA_HOST:
+    logger.error("OLLAMA_HOST 환경변수가 설정되지 않았습니다.")
 OLLAMA_PORT = os.getenv("OLLAMA_PORT")
+if not OLLAMA_PORT:
+    logger.error("OLLAMA_PORT 환경변수가 설정되지 않았습니다.")
 OLLAMA_MODELS = ["nomic-embed-text", "bge-m3"]
-
-if not all([OLLAMA_HOST, OLLAMA_PORT]):
-    logger.error("Ollama 환경변수가 설정되지 않았습니다.")
 
 # ------------------------------------------------------------------------------
 # 밴 방지용 설정
@@ -148,3 +154,79 @@ TAG_LABELS = {
 
 THRESHOLD = 0.2  # 코사인 유사도 기준 미만이면 기타로 분류
 TAG_COLLECTION_NAME = "tag"
+# ------------------------------------------------------------------------------
+# timeline.py
+TAG_NAMES = ["", "ECONOMY", "ENTERTAINMENT", "SPORTS", "SCIENCE"]
+BASE_IMG_URL = "https://github.com/user-attachments/assets/"
+IMG_LINKS = [
+    "1eeef1f6-3e0a-416a-bc4d-4922b27db855",
+    "6cf88794-2743-4dd1-858c-4fcd76f8f107",
+    "35ee8d58-b5d8-47c0-82e8-38073f4193eb",
+    "3f4248cb-7d8d-4532-a71a-2346e8a82957",
+    "e3b550d9-1d62-4940-b942-5b431ba6674e",
+]
+
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+if not YOUTUBE_API_KEY:
+    logger.error("YOUTUBE_API_KEY 환경변수가 설정되지 않았습니다.")
+REST_API_KEY = os.getenv("REST_API_KEY")
+if not REST_API_KEY:
+    logger.error("REST_API_KEY 환경변수가 설정되지 않았습니다.")
+MAX_COMMENTS = 10
+
+MAX_WORKERS = 6
+# ------------------------------------------------------------------------------
+# article_extractor
+DEFAULT_LANG = "ko"
+DOMAIN_TIMEOUTS = {
+    "sportivomedia.net": 30,
+    "default": ARTICLE_TIMEOUT,
+}
+DOMAIN_RETRIES = {
+    "sportivomedia.net": 5,
+    "default": 3,
+}
+CLIENT_TIMEOUT = 30
+# ------------------------------------------------------------------------------
+# timeline.py에서 사용
+SERVER = os.getenv("SERVER")
+if not SERVER:
+    logger.error("SERVER 환경변수가 설정되지 않았습니다.")
+MODEL = os.getenv("MODEL")
+if not MODEL:
+    logger.error("MODEL 환경변수가 설정되지 않았습니다.")
+API_KEY = os.getenv("OPENAI_API_KEY")
+if not API_KEY:
+    logger.error("OPENAI_API_KEY 환경변수가 설정되지 않았습니다.")
+
+# ------------------------------------------------------------------------------
+# SERP/Serper API 키 (api/hot.py 등)
+SERP_API_KEYS = os.getenv("SERP_API_KEYS", "").split(",")
+if not SERP_API_KEYS or SERP_API_KEYS == [""]:
+    logger.error("SERP_API_KEYS 환경변수가 설정되지 않았습니다.")
+SERPER_API_KEYS = os.getenv("SERPER_API_KEYS", "").split(",")
+if not SERPER_API_KEYS or SERPER_API_KEYS == [""]:
+    logger.error("SERPER_API_KEYS 환경변수가 설정되지 않았습니다.")
+
+
+def get_serp_key(i: int):
+    if not SERP_API_KEYS or i < 0 or i >= len(SERP_API_KEYS):
+        return ""
+    return SERP_API_KEYS[i].strip()
+
+
+def get_serper_key(i: int):
+    if not SERPER_API_KEYS or i < 0:
+        return ""
+    if i >= len(SERPER_API_KEYS):
+        return ""
+    import random
+
+    return random.choice(SERPER_API_KEYS).strip()
+
+
+# ------------------------------------------------------------------------------
+# Gemini API 키 (scrapers/serper.py 등)
+GEMINI_API_KEYS = os.getenv("GEMINI_API_KEYS", "").split(",")
+if not GEMINI_API_KEYS or GEMINI_API_KEYS == [""]:
+    logger.error("GEMINI_API_KEYS 환경변수가 설정되지 않았습니다.")

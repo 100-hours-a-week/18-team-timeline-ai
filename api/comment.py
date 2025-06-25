@@ -1,6 +1,3 @@
-import os
-import dotenv
-
 from fastapi import APIRouter
 from utils.error_utils import error_response
 from schemas.response_schema import (
@@ -16,17 +13,15 @@ from scrapers.youtube_searcher import YouTubeCommentAsyncFetcher
 from services.classify import SentimentAggregator
 from utils.logger import Logger
 from inference.embedding import OllamaEmbeddingService
-from config.settings import OLLAMA_MODELS
+from config.settings import OLLAMA_MODELS, YOUTUBE_API_KEY, REST_API_KEY, MAX_COMMENTS
 
 router = APIRouter()
 logger = Logger.get_logger("api_comment")
 
-dotenv.load_dotenv(override=True)
-YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
-REST_API_KEY = os.getenv("REST_API_KEY")
-
 daum_vclip_searcher = DaumVclipSearcher(api_key=REST_API_KEY)
-youtube_searcher = YouTubeCommentAsyncFetcher(api_key=YOUTUBE_API_KEY, max_comments=10)
+youtube_searcher = YouTubeCommentAsyncFetcher(
+    api_key=YOUTUBE_API_KEY, max_comments=MAX_COMMENTS
+)
 
 
 async def main(query_str: str):

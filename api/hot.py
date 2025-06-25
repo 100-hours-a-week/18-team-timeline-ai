@@ -1,7 +1,6 @@
 from fastapi import APIRouter
-from dotenv import load_dotenv
 
-from utils.env_utils import get_serp_key
+from config.settings import get_serp_key
 from utils.error_utils import error_response
 
 from scrapers.serpapi import get_trending_keywords
@@ -22,7 +21,6 @@ logger = Logger.get_logger("api_hot")
 )
 def get_hot_topics(request: HotRequest):
     # SerpAPI
-    load_dotenv()
     SERP_API_KEY = get_serp_key(0)
     if not SERP_API_KEY:
         return error_response(500, "SERP_API_KEY를 찾을 수 없습니다.")

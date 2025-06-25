@@ -1,5 +1,5 @@
 import os
-import dotenv
+from config.settings import get_serper_key, API_KEY
 import asyncio
 
 from fastapi import APIRouter
@@ -15,9 +15,6 @@ from utils.logger import Logger
 
 router = APIRouter()
 logger = Logger.get_logger("api_merge")
-
-dotenv.load_dotenv(override=True)
-API_KEY = os.getenv("OPENAI_API_KEY")
 
 # -------------------------------------------------------------------
 

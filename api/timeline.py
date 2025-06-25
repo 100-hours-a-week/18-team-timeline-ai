@@ -1,8 +1,7 @@
 import os
-import dotenv
 from config.limiter import limiter
 
-from utils.env_utils import get_serper_key
+from config.settings import get_serper_key
 from utils.error_utils import error_response
 from utils.timeline_utils import (
     short_sentence,
@@ -28,29 +27,23 @@ from utils.logger import Logger
 
 from services.tagger import TagClassifier
 from inference.embedding import OllamaEmbeddingService
-from config.settings import OLLAMA_MODELS
+from config.settings import (
+    OLLAMA_MODELS,
+    TAG_NAMES,
+    BASE_IMG_URL,
+    IMG_LINKS,
+    SERVER,
+    MODEL,
+    REST_API_KEY,
+    API_KEY,
+)
 
 # -------------------------------------------------------------------
 
 router = APIRouter()
 logger = Logger.get_logger("api_timeline")
 
-dotenv.load_dotenv(override=True)
-SERVER = os.getenv("SERVER")
-MODEL = os.getenv("MODEL")
-REST_API_KEY = os.getenv("REST_API_KEY")
-API_KEY = os.getenv("OPENAI_API_KEY")
-
 checker = DaumKeywordMeaningChecker(REST_API_KEY)
-tag_names = ["", "ECONOMY", "ENTERTAINMENT", "SPORTS", "SCIENCE"]
-base_img_url = "https://github.com/user-attachments/assets/"
-img_links = [
-    "1eeef1f6-3e0a-416a-bc4d-4922b27db855",
-    "6cf88794-2743-4dd1-858c-4fcd76f8f107",
-    "35ee8d58-b5d8-47c0-82e8-38073f4193eb",
-    "3f4248cb-7d8d-4532-a71a-2346e8a82957",
-    "e3b550d9-1d62-4940-b942-5b431ba6674e",
-]
 
 # -------------------------------------------------------------------
 
@@ -155,14 +148,14 @@ async def get_timeline(request: Request, payload: TimelineRequest):
     # Image Extraction
     img_link = get_img_link(urls[0])
     if not img_link:
-        img_link = base_img_url + img_links[tag_id]
+        img_link = BASE_IMG_URL + IMG_LINKS[tag_id]
 
     # Timeline
     timeline = TimelineData(
         title=total_title,
         summary=short_sentence(final_res["summary"][0]),
         image=img_link,
-        category=tag_names[tag_id],
+        category=TAG_NAMES[tag_id],
         timeline=card_list,
     )
 
