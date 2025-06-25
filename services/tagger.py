@@ -77,7 +77,7 @@ class TagClassifier:
                 logger.info("[TagClassifier] 임계값 이상 레이블 없음 - 기타(0) 반환")
                 return 0
 
-            best_label = max(label_scores, key=label_scores.get)
+            best_label = max(label_scores.keys(), key=lambda k: label_scores[k])
             logger.info(
                 f"[TagClassifier] 최종 태그: {self.label_map.get(best_label, '기타')} ({best_label})"
             )

@@ -1,4 +1,5 @@
 import os
+from typing_extensions import runtime
 from config.limiter import limiter
 
 from config.settings import get_serper_key
@@ -74,12 +75,18 @@ async def get_timeline(request: Request, payload: TimelineRequest):
 
     # Meaningful checking
     if not checker.is_meaningful(query_str):
-        return error_response(404, "기사가 나오지 않는 검색어입니다.")
+        return error_response(
+            404,
+            "입력하신 검색어로는 관련 기사를 찾을 수 없습니다. 다른 키워드로 시도해 주세요.",
+        )
 
     # Scraping
     SERPER_API_KEY = get_serper_key(0)
     if not SERPER_API_KEY:
-        return error_response(500, "SERPER_API_KEY를 찾을 수 없습니다.")
+        return error_response(
+            500,
+            "내부 서버 오류: SERPER API KEY가 설정되어 있지 않습니다. 관리자에게 문의해 주세요.",
+        )
     scraping_res = relevant_news_serper(
         query=query_str,
         startAt=payload.startAt,
@@ -95,13 +102,18 @@ async def get_timeline(request: Request, payload: TimelineRequest):
         dates = list(dates)
         scraping_list = [{"url": u, "title": t} for u, t in zip(urls, titles)]
     else:
-        return error_response(404, "스크래핑에 실패했습니다.")
+        return error_response(
+            404, "뉴스 기사 스크래핑에 실패했습니다. 잠시 후 다시 시도해 주세요."
+        )
 
     # 1st Summarization
     summary = []
     first_res = await Pipeline(scraping_list, SERVER, MODEL)
     if not first_res:
-        return error_response(500, "인공지능 1차 요약 실패!")
+        return error_response(
+            500,
+            "AI 1차 요약 과정에서 오류가 발생했습니다. 입력값을 확인하거나 잠시 후 다시 시도해 주세요.",
+        )
     for i, url in enumerate(urls):
         data = first_res.get(url)
         if not data or not data.get("summary"):
@@ -130,16 +142,22 @@ async def get_timeline(request: Request, payload: TimelineRequest):
     # 2nd Summarization
     total_texts = [card.content for card in card_list]
     total_texts = shrink_if_needed(total_texts)
+    if not total_texts:
+        raise RuntimeError("요약할 텍스트가 존재하지 않습니다. 입력값을 확인해 주세요.")
 
     final_res = await TotalPipeline(total_texts, API_KEY)
     if not final_res or not final_res["total_summary"]:
-        return error_response(500, "인공지능 2차 요약 실패!")
+        return error_response(
+            500,
+            "AI 2차 요약 과정에서 오류가 발생했습니다. 입력값을 확인하거나 잠시 후 다시 시도해 주세요.",
+        )
 
     # Tag extraction
     final_res = final_res["total_summary"]
     print(f"원본 제목: {final_res['title'][0]}")
     total_title = short_sentence(final_res["title"][0])
-
+    if not total_title:
+        raise RuntimeError("최종 요약 결과가 비어 있습니다. 입력값을 확인해 주세요.")
     # Tag classification
     async with OllamaEmbeddingService(model=OLLAMA_MODELS[1]) as embedder:
         async with TagClassifier(embedder=embedder) as classifier:

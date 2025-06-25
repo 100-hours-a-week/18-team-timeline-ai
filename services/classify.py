@@ -84,7 +84,7 @@ class SentimentAggregator:
             logger.info(f"[SentimentAggregator] 검색 시작 - 쿼리: {query}")
 
             ret = await self._storage.search(
-                query=query, embedder=self.embedder, limit=100
+                query=query, embedder=self.embedder, limit=10
             )
 
             logger.info(
