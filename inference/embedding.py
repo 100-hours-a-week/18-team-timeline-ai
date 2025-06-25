@@ -95,14 +95,15 @@ class OllamaEmbeddingService(EmbeddingModel):
                 logger.info(
                     f"[OllamaEmbeddingService] 세션 종료 시작 (base_url: {self.base_url}, model: {self.model})"
                 )
-            except Exception as e:
-                logger.warning(
-                    f"[OllamaEmbeddingService] 세션 종료 중 예외 발생: {str(e)}"
+                await self.session.close()
+                logger.info(
+                    f"[OllamaEmbeddingService] 세션 종료 완료 (base_url: {self.base_url}, model: {self.model})"
                 )
-            finally:
-                self.session = None
-        else:
-            logger.debug(f"[OllamaEmbeddingService] 세션이 이미 없거나 닫혀있음")
+            else:
+                logger.debug(f"[OllamaEmbeddingService] 세션이 이미 없거나 닫혀있음")
+        except Exception as e:
+            logger.warning(f"[OllamaEmbeddingService] 세션 종료 중 예외 발생: {str(e)}")
+        finally:
             self.session = None
 
     async def _make_embedding_request(self, text: str) -> List[float]:
