@@ -58,8 +58,10 @@ class OllamaEmbeddingService(EmbeddingModel):
     async def __aenter__(self):
         logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 생성 시작")
         try:
-            timeout = aiohttp.ClientTimeout(total=300.0, connect=60.0, sock_read=60.0)
-            self.session = aiohttp.ClientSession(timeout=timeout)
+            timeout = aiohttp.ClientTimeout(total=30.0, connect=10.0, sock_read=20.0)
+            # 새로운 connector 생성으로 완전히 독립적인 세션 보장
+            connector = aiohttp.TCPConnector(limit=10, limit_per_host=10)
+            self.session = aiohttp.ClientSession(timeout=timeout, connector=connector)
             logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 생성 완료")
             return self
         except Exception as e:
@@ -74,8 +76,6 @@ class OllamaEmbeddingService(EmbeddingModel):
             logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 종료 시작")
             try:
                 await self.session.close()
-                # 세션 종료 후 잠깐 대기하여 완전한 정리 보장
-                await asyncio.sleep(0.1)
                 logger.info(
                     f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 종료 완료"
                 )
@@ -114,14 +114,8 @@ class OllamaEmbeddingService(EmbeddingModel):
         )
 
         try:
-            # 세션 상태 확인 및 재생성
-            if not self.session or self.session.closed:
-                logger.warning(f"[OllamaEmbeddingService] 세션이 없거나 닫혀있음, 새 세션 생성")
-                timeout = aiohttp.ClientTimeout(total=300.0, connect=60.0, sock_read=60.0)
-                if self.session and not self.session.closed:
-                    await self.session.close()
-                self.session = aiohttp.ClientSession(timeout=timeout)
-                logger.info(f"[OllamaEmbeddingService] 새 세션 생성 완료")
+            if not self.session:
+                raise Exception("세션이 초기화되지 않았습니다.")
 
             async with self.session.post(
                 f"{self.base_url}/api/embeddings",
