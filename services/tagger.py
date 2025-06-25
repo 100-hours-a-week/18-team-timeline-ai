@@ -1,6 +1,4 @@
 from typing import Any, Dict
-
-from cv2 import log
 from utils.logger import Logger
 from utils.storage import QdrantStorage
 from contextlib import AsyncExitStack
