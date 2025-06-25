@@ -6,9 +6,8 @@ import asyncio
 import orjson
 from config.settings import BATCH_SIZE, OLLAMA_HOST, OLLAMA_MODELS, OLLAMA_PORT
 import os
-import logging
 
-logger = Logger.get_logger("embedding", logging.INFO)
+logger = Logger.get_logger("embedding")
 
 
 class EmbeddingModel(ABC):
@@ -55,7 +54,7 @@ class OllamaEmbeddingService(EmbeddingModel):
         os.environ["OLLAMA_NUM_GPU_LAYERS"] = "0"
         logger.info(
             f"[OllamaEmbeddingService] 서버 {base_url} 초기화 완료 - "
-            f"모델: {model}, 배치 크기: {batch_size}"
+            f"모델: {self.model}, 배치 크기: {batch_size}"
         )
 
     async def __aenter__(self):

@@ -3,9 +3,8 @@ from utils.logger import Logger
 from utils.storage import QdrantStorage
 from contextlib import AsyncExitStack
 from config.settings import TAG_LABELS, THRESHOLD, TAG_COLLECTION_NAME
-import logging
 
-logger = Logger.get_logger("tag_classifier", log_level=logging.INFO)
+logger = Logger.get_logger("tag_classifier")
 
 
 class TagClassifier:

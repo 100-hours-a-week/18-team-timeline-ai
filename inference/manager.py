@@ -1,6 +1,5 @@
 import asyncio
-from typing import List, Dict, Any, Tuple, AsyncGenerator
-from contextlib import asynccontextmanager
+from typing import List, Dict, Any, Tuple
 from inference.host import Host
 from config.prompts import SystemRole
 from utils.logger import Logger
@@ -30,32 +29,36 @@ class BatchManager:
         self._cleanup_task = None
         self._lock = asyncio.Lock()
         self._cleanup_interval = 30  # 30초마다 정리
+        self.runner = None
 
-    async def start(self) -> None:
-        """배치 매니저 시작"""
-        if self.running:
-            logger.warning("[BatchManager] 이미 실행 중입니다.")
-            return
-
+    async def __aenter__(self):
         self.running = True
-        if self._cleanup_task is None or self._cleanup_task.done():
-            self._cleanup_task = asyncio.create_task(self._cleanup_pending_tasks())
-        logger.info("[BatchManager] 배치 매니저가 시작되었습니다.")
+        self.runner = asyncio.create_task(self.run())
+        return self
 
-    async def stop(self) -> None:
-        """배치 매니저 정지"""
-        if not self.running:
-            logger.warning("[BatchManager] 이미 정지되었습니다.")
-            return
-
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         self.running = False
+        # cleanup 태스크 정리
         if self._cleanup_task and not self._cleanup_task.done():
             self._cleanup_task.cancel()
             try:
                 await self._cleanup_task
             except asyncio.CancelledError:
                 pass
-        logger.info("[BatchManager] 배치 매니저가 정지되었습니다.")
+        # runner 태스크 정리
+        if self.runner:
+            try:
+                await asyncio.wait_for(self.runner, timeout=5.0)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                if not self.runner.done():
+                    self.runner.cancel()
+                    try:
+                        await self.runner
+                    except asyncio.CancelledError:
+                        pass
+        # Host 세션도 같이 닫기
+        if self.host:
+            await self.host.close()
 
     async def submit(self, role: SystemRole, payload: Dict[str, Any]) -> Dict[str, Any]:
         """요청 제출
@@ -322,42 +325,3 @@ async def wrapper(url, role, content, manager):
 
         traceback.print_exc()
         return url, role, {"error": str(e)}
-
-
-@asynccontextmanager
-async def create_batch_manager(
-    host: Host, batch_size: int = 4, max_wait_time: float = 1.0
-) -> AsyncGenerator[BatchManager, None]:
-    """
-    BatchManager 생성 및 관리를 위한 컨텍스트 관리자
-
-    Args:
-        host: AI 모델 호스트
-        batch_size: 배치 크기
-        max_wait_time: 최대 대기 시간(초)
-
-    Yields:
-        BatchManager: 배치 관리자 인스턴스
-    """
-    manager = BatchManager(host, batch_size=batch_size, max_wait_time=max_wait_time)
-    runner = asyncio.create_task(manager.run())
-
-    try:
-        yield manager
-    finally:
-        # 정상적인 종료 처리
-        manager.running = False
-        await asyncio.sleep(0.5)
-
-        try:
-            # 최대 5초 대기로 변경하여 정상 종료 기회 제공
-            await asyncio.wait_for(runner, timeout=5.0)
-        except (asyncio.TimeoutError, asyncio.CancelledError):
-            logger.warning("[BatchManager] Runner 태스크 정리 중 타임아웃 또는 취소됨")
-            # 태스크 강제 취소
-            if not runner.done():
-                runner.cancel()
-                try:
-                    await runner
-                except asyncio.CancelledError:
-                    pass

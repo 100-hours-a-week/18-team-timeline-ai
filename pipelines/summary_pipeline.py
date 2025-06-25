@@ -4,11 +4,10 @@ from scrapers.article_extractor import ArticleExtractor
 from inference.host import Host
 from inference.manager import BatchManager, wrapper
 from utils.store import ResultStore
-import logging
 from utils.logger import Logger
 import asyncio
 
-logger = Logger.get_logger("ai_models.pipeline", log_level=logging.ERROR)
+logger = Logger.get_logger("ai_models.pipeline")
 
 
 async def Pipeline(
@@ -40,8 +39,6 @@ async def Pipeline(
     logger.info(f"[PIPELINE]: {len(urls)}개 URL, {len(roles)}개 역할")
 
     results_dict = ResultStore()
-    manager = None
-    runner = None
 
     try:
         async with Host(server, model) as host:
@@ -50,12 +47,13 @@ async def Pipeline(
             async with ArticleExtractor() as extractor:
                 async for result in extractor.search(urls):
                     if not result:
-                        logger.warning(f"[SummaryPipeline] 결과가 없는 URL 건너뜀")
+                        logger.warning("[SummaryPipeline] 결과가 없는 URL 건너뜀")
                         continue
 
                     if not result.get("input_text"):
                         logger.warning(
-                            f"[SummaryPipeline] 본문 추출 실패: URL={result.get('url', 'unknown')}, "
+                            f"[SummaryPipeline] 본문 추출 실패: "
+                            f"URL={result.get('url', 'unknown')}, "
                             f"제목={result.get('title', 'unknown')}"
                         )
                         continue
@@ -67,44 +65,27 @@ async def Pipeline(
                         f"본문 길이={len(result['input_text'])}"
                     )
 
-            # 배치 매니저 초기화
-            manager = BatchManager(
+            # 배치 매니저 컨텍스트 매니저로 사용
+            async with BatchManager(
                 host, batch_size=batch_size, max_wait_time=max_wait_time
-            )
-            runner = asyncio.create_task(manager.run())
+            ) as manager:
+                # 태스크 생성
+                tasks = []
+                for url, input_text in url_sentences.items():
+                    for role in roles:
+                        logger.info(
+                            f"[PIPELINE] URL: {url}, ROLE: {role}, "
+                            f"TEXT: {input_text[:10]}..."
+                        )
+                        tasks.append(
+                            asyncio.create_task(wrapper(url, role, input_text, manager))
+                        )
 
-            # 태스크 생성
-            tasks = []
-            for url, input_text in url_sentences.items():
-                for role in roles:
-                    logger.info(
-                        f"[PIPELINE] URL: {url}, ROLE: {role}, "
-                        f"TEXT: {input_text[:10]}..."
-                    )
-                    tasks.append(
-                        asyncio.create_task(wrapper(url, role, input_text, manager))
-                    )
-
-            results = await asyncio.gather(*tasks, return_exceptions=True)
+                results = await asyncio.gather(*tasks, return_exceptions=True)
     finally:
-        # 리소스 정리
-        if manager:
-            manager.running = False
-            await asyncio.sleep(1.0)  # 대기 시간 증가
+        pass
 
-        if runner:
-            try:
-                await asyncio.wait_for(runner, timeout=5.0)  # 타임아웃 증가
-            except (asyncio.TimeoutError, asyncio.CancelledError) as e:
-                logger.warning(f"[PIPELINE] Runner 태스크 정리 중 오류: {e}")
-                if not runner.done():
-                    runner.cancel()
-                    try:
-                        await runner
-                    except asyncio.CancelledError:
-                        pass
-
-    for task in results:
+    for idx, task in enumerate(results):
         if isinstance(task, Exception):
             logger.error(f"[PIPELINE] 태스크 예외 발생: {repr(task)}")
             continue
@@ -112,7 +93,7 @@ async def Pipeline(
         logger.info(f"[PIPELINE] URL : {url}")
         if isinstance(response, dict) and "error" in response:
             logger.error(
-                f"응답 오류: URL={url}, ROLE={role}, " f"ERROR={response['error']}"
+                f"응답 오류: URL={url}, ROLE={role}, ERROR={response['error']}"
             )
             continue
 
