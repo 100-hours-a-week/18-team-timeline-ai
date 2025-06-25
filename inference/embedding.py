@@ -58,7 +58,7 @@ class OllamaEmbeddingService(EmbeddingModel):
     async def __aenter__(self):
         logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 생성 시작")
         try:
-            self.session = aiohttp.ClientSession()
+            self.session = aiohttp.ClientSession(connect=10.0, sock_read=20.0, total=30.0)
             logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 생성 완료")
             return self
         except Exception as e:
