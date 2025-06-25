@@ -1,10 +1,13 @@
 from typing import Any, Dict
+
+from cv2 import log
 from utils.logger import Logger
 from utils.storage import QdrantStorage
 from contextlib import AsyncExitStack
 from config.settings import TAG_LABELS, THRESHOLD, TAG_COLLECTION_NAME
+import logging
 
-logger = Logger.get_logger("tag_classifier")
+logger = Logger.get_logger("tag_classifier", log_level=logging.INFO)
 
 
 class TagClassifier:
@@ -26,15 +29,51 @@ class TagClassifier:
         )
 
     async def __aenter__(self):
-        self._stack = AsyncExitStack()
-        self._storage = await self._stack.enter_async_context(
-            QdrantStorage(collection_name=self.collection_name)
+        logger.info(
+            f"[TagClassifier] __aenter__ 진입 (collection: {self.collection_name})"
         )
-        return self
+        self._stack = AsyncExitStack()
+        try:
+            self._storage = await self._stack.enter_async_context(
+                QdrantStorage(collection_name=self.collection_name)
+            )
+            logger.info(
+                f"[TagClassifier] QdrantStorage 진입 성공 (collection: {self.collection_name})"
+            )
+            return self
+        except Exception as e:
+            logger.error(f"[TagClassifier] QdrantStorage 진입 실패: {str(e)}")
+            try:
+                await self._stack.aclose()
+                logger.info(
+                    f"[TagClassifier] __aenter__ 예외 발생 시 스택 정리 완료 (collection: {self.collection_name})"
+                )
+            finally:
+                self._storage = None
+                self._stack = None
+                logger.info(
+                    f"[TagClassifier] __aenter__ finally: 내부 상태 None 처리 (collection: {self.collection_name})"
+                )
+            raise
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        await self._stack.aclose()
-        self._storage = None
+        logger.info(
+            f"[TagClassifier] __aexit__ 진입 (collection: {self.collection_name})"
+        )
+        try:
+            if hasattr(self, "_stack") and self._stack is not None:
+                await self._stack.aclose()
+                logger.info(
+                    f"[TagClassifier] __aexit__ 스택 정리 완료 (collection: {self.collection_name})"
+                )
+        except Exception as e:
+            logger.error(f"[TagClassifier] 세션 종료 중 예외 발생: {str(e)}")
+        finally:
+            self._storage = None
+            self._stack = None
+            logger.info(
+                f"[TagClassifier] __aexit__ finally: 내부 상태 None 처리 (collection: {self.collection_name})"
+            )
 
     async def classify(self, title: str) -> int:
         """

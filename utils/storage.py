@@ -54,10 +54,16 @@ class QdrantStorage:
 
     async def __aenter__(self):
         if self._closed:
+            logger.error(
+                f"[QdrantStorage] __aenter__ 진입 시 이미 종료된 클라이언트 (ID: {self._instance_id})"
+            )
             raise RuntimeError("[QdrantStorage] 이미 종료된 클라이언트입니다.")
-
+        logger.info(f"[QdrantStorage] __aenter__ 진입 (ID: {self._instance_id})")
         try:
             url = f"{self._host}:{self._port}"
+            logger.info(
+                f"[QdrantStorage] AsyncQdrantClient 생성 시도 (ID: {self._instance_id}, URL: {url})"
+            )
             self._client = AsyncQdrantClient(
                 url=url,
                 api_key=self._api_key,
@@ -70,7 +76,7 @@ class QdrantStorage:
             return self
         except Exception as e:
             logger.error(
-                f"[QdrantStorage] 초기화 실패 (ID: {self._instance_id}): {str(e)}"
+                f"[QdrantStorage] __aenter__ 초기화 실패 (ID: {self._instance_id}): {str(e)}"
             )
             if self._client:
                 try:
@@ -79,13 +85,19 @@ class QdrantStorage:
                         f"[QdrantStorage] 실패 후 클라이언트 닫힘 (ID: {self._instance_id})"
                     )
                 except Exception as ce:
-                    logger.warning(f"[QdrantStorage] 실패 후 close 중 오류: {ce}")
+                    logger.warning(
+                        f"[QdrantStorage] 실패 후 close 중 오류 (ID: {self._instance_id}): {ce}"
+                    )
                 finally:
                     self._client = None
                     self._closed = True
+                    logger.info(
+                        f"[QdrantStorage] __aenter__ finally: 클라이언트 None 및 closed 처리 (ID: {self._instance_id})"
+                    )
             raise
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
+        logger.info(f"[QdrantStorage] __aexit__ 진입 (ID: {self._instance_id})")
         try:
             await self.close()
         except Exception as e:
@@ -93,8 +105,13 @@ class QdrantStorage:
                 f"[QdrantStorage] 종료 중 오류 발생 (ID: {self._instance_id}): {str(e)}"
             )
             raise
+        finally:
+            logger.info(
+                f"[QdrantStorage] __aexit__ finally: 클라이언트 정리 완료 (ID: {self._instance_id})"
+            )
 
     async def close(self):
+        logger.info(f"[QdrantStorage] close() 호출 (ID: {self._instance_id})")
         if self._client is not None and not self._closed:
             try:
                 await self._client.close()
@@ -109,8 +126,12 @@ class QdrantStorage:
                 self._client = None
                 self._closed = True
                 logger.info(
-                    f"[QdrantStorage] 인스턴스 정리 완료 (ID: {self._instance_id})"
+                    f"[QdrantStorage] close() finally: 인스턴스 정리 완료 (ID: {self._instance_id})"
                 )
+        else:
+            logger.info(
+                f"[QdrantStorage] close() - 이미 닫혀있거나 클라이언트 없음 (ID: {self._instance_id})"
+            )
 
     @asynccontextmanager
     async def get_client(self):

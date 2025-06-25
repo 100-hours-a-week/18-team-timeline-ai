@@ -5,8 +5,10 @@ import aiohttp
 import asyncio
 import orjson
 from config.settings import BATCH_SIZE, OLLAMA_HOST, OLLAMA_MODELS, OLLAMA_PORT
+import os
+import logging
 
-logger = Logger.get_logger("embedding")
+logger = Logger.get_logger("embedding", logging.INFO)
 
 
 class EmbeddingModel(ABC):
@@ -50,13 +52,16 @@ class OllamaEmbeddingService(EmbeddingModel):
         self.model = model
         self.batch_size = batch_size
         self.session = None
+        os.environ["OLLAMA_NUM_GPU_LAYERS"] = "0"
         logger.info(
             f"[OllamaEmbeddingService] 서버 {base_url} 초기화 완료 - "
             f"모델: {model}, 배치 크기: {batch_size}"
         )
 
     async def __aenter__(self):
-        logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 생성 시작")
+        logger.info(
+            f"[OllamaEmbeddingService] __aenter__ 진입 (base_url: {self.base_url}, model: {self.model})"
+        )
         try:
             timeout = aiohttp.ClientTimeout(total=30.0, connect=10.0, sock_read=20.0)
             # 새로운 connector 생성으로 완전히 독립적인 세션 보장
@@ -65,19 +70,30 @@ class OllamaEmbeddingService(EmbeddingModel):
             logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 생성 완료")
             return self
         except Exception as e:
-            logger.error(f"[OllamaEmbeddingService] 세션 생성 중 예외 발생: {str(e)}")
-            if self.session and not self.session.closed:
-                await self.session.close()
-                logger.info(f"[OllamaEmbeddingService] 예외 발생으로 세션 강제 종료")
+            logger.error(
+                f"[OllamaEmbeddingService] 세션 생성 중 예외 발생: {str(e)} (base_url: {self.base_url}, model: {self.model})"
+            )
+            try:
+                if self.session and not self.session.closed:
+                    await self.session.close()
+                    logger.info(
+                        f"[OllamaEmbeddingService] 예외 발생으로 세션 강제 종료 (base_url: {self.base_url}, model: {self.model})"
+                    )
+            finally:
+                self.session = None
+                logger.info(
+                    f"[OllamaEmbeddingService] __aenter__ finally: 세션 None 처리 (base_url: {self.base_url}, model: {self.model})"
+                )
             raise
 
     async def __aexit__(self, exc_type, exc, tb):
-        if self.session and not self.session.closed:
-            logger.info(f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 종료 시작")
-            try:
-                await self.session.close()
+        logger.info(
+            f"[OllamaEmbeddingService] __aexit__ 진입 (base_url: {self.base_url}, model: {self.model})"
+        )
+        try:
+            if self.session and not self.session.closed:
                 logger.info(
-                    f"[OllamaEmbeddingService] 서버 {self.base_url} 세션 종료 완료"
+                    f"[OllamaEmbeddingService] 세션 종료 시작 (base_url: {self.base_url}, model: {self.model})"
                 )
             except Exception as e:
                 logger.warning(
