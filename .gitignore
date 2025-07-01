@@ -203,7 +203,12 @@ qdrant_storage/
 # Dataset
 .dataset/
 *.txt
+
 # Model
 .model/
 .vscode/settings.json
 .DS_Store
+
+# Service
+/services/news_tag/
+/services/sentiment/
