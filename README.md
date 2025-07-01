@@ -62,7 +62,7 @@ poetry install --with gpu,download
 .
 ├── api/                    # API 엔드포인트 정의
 │   ├── router.py          # 메인 라우터 설정
-│   ├── timeline.py        # 타임라인 관련 API
+│   ├── timeline.py       # 타임라인 관련 API
 │   ├── hot.py            # 인기 콘텐츠 관련 API
 │   ├── comment.py        # 댓글 관련 API
 │   └── merge.py          # 데이터 병합 관련 API
@@ -71,9 +71,9 @@ poetry install --with gpu,download
 │   ├── settings.py       # 기본 설정
 │   └── constants.py      # 상수 정의
 │
-├── docker/               # Docker 관련 파일
-│   ├── Dockerfile       # 메인 Dockerfile
-│   └── docker-compose.yml # 서비스 구성
+├── docker/                  # Docker 관련 파일
+│   ├── Dockerfile          # 메인 Dockerfile
+│   └── docker-compose.yml  # 서비스 구성
 │
 ├── inference/           # AI 추론 관련 코드
 │   ├── models/         # 추론 모델
@@ -92,18 +92,18 @@ poetry install --with gpu,download
 │   ├── web/          # 웹 스크래핑
 │   └── api/          # API 데이터 수집
 │
-├── services/          # 비즈니스 로직
-│   ├── classify.py   # 분류 서비스
-│   └── category.py   # 카테고리 서비스
+├── services/           # 비즈니스 로직
+│   ├── news_tag.py    # 뉴스 분류 서비스
+│   └── sentiment.py   # 댓글 분류 서비스
 │
 ├── utils/            # 유틸리티 함수
 │   ├── logger.py    # 로깅 유틸리티
 │   ├── cache.py     # 캐싱 유틸리티
 │   └── helpers.py   # 헬퍼 함수
 │
-├── test/            # 테스트 코드
-│   ├── unit/       # 단위 테스트
-│   └── integration/ # 통합 테스트
+├── test/               # 테스트 코드
+│   ├── unit/          # 단위 테스트
+│   └── integration/   # 통합 테스트
 │
 ├── schemas/         # 데이터 스키마
 │   ├── request.py  # 요청 스키마
