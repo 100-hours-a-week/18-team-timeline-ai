@@ -1,3 +1,4 @@
+import asyncio
 from fastapi import APIRouter
 from utils.error_utils import error_response
 from schemas.response_schema import (
@@ -7,13 +8,12 @@ from schemas.response_schema import (
     CommentData,
 )
 
+from services.sentiment import classify_comment_async
 from scrapers.daum_vclip_searcher import DaumVclipSearcher
 from scrapers.youtube_searcher import YouTubeCommentAsyncFetcher
 
-from services.classify import SentimentAggregator
 from utils.logger import Logger
-from inference.embedding import OllamaEmbeddingService
-from config.settings import OLLAMA_MODELS, YOUTUBE_API_KEY, REST_API_KEY, MAX_COMMENTS
+from config.settings import YOUTUBE_API_KEY, REST_API_KEY, MAX_COMMENTS
 
 router = APIRouter()
 logger = Logger.get_logger("api_comment")
@@ -41,28 +41,32 @@ async def main(query_str: str):
     if not ripple:
         logger.error("Youtube 데이터를 불러오는 데 실패했습니다")
         return error_response(500, "Youtube 데이터를 불러오는 데 실패했습니다")
-
     ripple = [r["comment"] for r in ripple]
     if not ripple:
         logger.warning("Youtube 댓글이 없습니다")
         return error_response(404, "Youtube 댓글이 없습니다")
 
-    # 댓글 분류하기
-    async with OllamaEmbeddingService(model=OLLAMA_MODELS[0]) as embedder:
-        async with SentimentAggregator(embedder=embedder) as aggregator:
-            ret = await aggregator.aggregate_multiple_queries(queries=ripple)
+    # 비동기 예측 수행
+    tasks = [classify_comment_async(comment) for comment in ripple]
+    results = await asyncio.gather(*tasks)
+    counts = {"긍정": 0, "부정": 0, "중립": 0}
+    for sentiment in results:
+        counts[sentiment] += 1
 
-            total = sum(ret.values())
-            if total == 0:
-                result = {"긍정": 0, "부정": 0, "중립": 0}
-            else:
-                result = {
-                    "긍정": int(ret["긍정"] * 100 / total),
-                    "부정": int(ret["부정"] * 100 / total),
-                }
-                result["중립"] = 100 - result["긍정"] - result["부정"]
+    # 결과 정리
+    total = sum(counts.values())
+    if total == 0:
+        result = {"긍정": 0, "부정": 0, "중립": 0}
+    else:
+        pos = int(counts["긍정"] * 100 / total)
+        neg = int(counts["부정"] * 100 / total)
+        result = {
+            "긍정": pos,
+            "부정": neg,
+            "중립": 100 - pos - neg,
+        }
 
-            return result
+    return result
 
 
 @router.post(
