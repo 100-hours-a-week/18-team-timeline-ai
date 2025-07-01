@@ -1,7 +1,4 @@
-import os
-from typing_extensions import runtime
 from config.limiter import limiter
-
 from config.settings import get_serper_key
 from utils.error_utils import error_response
 from utils.timeline_utils import (
@@ -24,12 +21,11 @@ from schemas.response_schema import (
 from scrapers.url_to_img import get_img_link
 from scrapers.serper import relevant_news_serper
 from scrapers.filter import DaumKeywordMeaningChecker
-from utils.logger import Logger
 
-from services.tagger import TagClassifier
-from inference.embedding import OllamaEmbeddingService
+from utils.logger import Logger
+from services.news_tag import classify_news
+
 from config.settings import (
-    OLLAMA_MODELS,
     TAG_NAMES,
     BASE_IMG_URL,
     IMG_LINKS,
@@ -152,16 +148,15 @@ async def get_timeline(request: Request, payload: TimelineRequest):
             "AI 2차 요약 과정에서 오류가 발생했습니다. 입력값을 확인하거나 잠시 후 다시 시도해 주세요.",
         )
 
-    # Tag extraction
+    # Total title
     final_res = final_res["total_summary"]
     print(f"원본 제목: {final_res['title'][0]}")
     total_title = short_sentence(final_res["title"][0])
     if not total_title:
         raise RuntimeError("최종 요약 결과가 비어 있습니다. 입력값을 확인해 주세요.")
+
     # Tag classification
-    async with OllamaEmbeddingService(model=OLLAMA_MODELS[1]) as embedder:
-        async with TagClassifier(embedder=embedder) as classifier:
-            tag_id = await classifier.classify(total_title)
+    tag_id = classify_news(total_title)
 
     # Image Extraction
     img_link = get_img_link(urls[0])
