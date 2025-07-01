@@ -182,10 +182,9 @@ kobart-summarization/
 EXAONE-3.5-2.4B-Instruct/
 HyperCLOVAX-SEED-Text-Instruct-1.5B/
 models--naver-hyperclovax--HyperCLOVAX-SEED-Text-Instruct-1.5B/
+
 # test
-test_comment.py
-test_inference.py
-summarizer.py
+/test/local/
 
 # 캐시 파일
 __pycache__/
