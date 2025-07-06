@@ -23,8 +23,14 @@ ENV PATH="${POETRY_HOME}/bin:${PATH}"
 # 나머지 소스 코드 복사
 COPY . .
 
+# 의존성 설치 (transformers 포함)
+RUN poetry install --no-interaction --no-ansi --no-root --only monitor,main,download
+
+# 모델 다운로드 (팀원이 작성한 스크립트 사용)
+RUN PYTHONPATH=. poetry run python scripts/download_open_model.py
+
 # 포트 노출
 EXPOSE 8000
 
 # 실행 명령
-CMD ["/bin/sh", "-c", "poetry install --no-interaction --no-ansi --no-root --only monitor,main && poetry run opentelemetry-instrument uvicorn main:app --host 0.0.0.0 --port 8000"]
+CMD ["/bin/sh", "-c", "poetry run opentelemetry-instrument uvicorn main:app --host 0.0.0.0 --port 8000"]
