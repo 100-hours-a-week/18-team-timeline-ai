@@ -1,5 +1,7 @@
 import asyncio
 from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+
 from utils.error_utils import error_response
 from schemas.response_schema import (
     CommonResponse,
@@ -78,16 +80,18 @@ async def main(query_str: str):
     },
 )
 async def classify_comments(request: CommentRequest):
+    # Request 파싱
     num = request.num
     if not num or not isinstance(num, int) or num > 50:
         num = 10
     query_str = " ".join(request.query)
 
+    # 댓글 분류 비동기 호출
     res = await main(query_str=query_str)
-    if not res:
-        logger.error("댓글 분류 실패!")
-        return error_response(500, "댓글 분류 실패!")
+    if isinstance(res, JSONResponse):
+        return res
 
+    # Return할 데이터 구성
     summary = CommentData(
         positive=res["긍정"],
         neutral=res["중립"],
